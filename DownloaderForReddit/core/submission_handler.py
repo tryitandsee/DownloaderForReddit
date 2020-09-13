@@ -94,6 +94,11 @@ class SubmissionHandler(Runner):
     def extract_link(self, url, text_link_extraction=False, **kwargs):
         try:
             extractor_class = self.assign_extractor(url)
+            # [mine] assign_extractor returns None for unsupported domains; without this guard it raises on extractor_class(...)
+            if extractor_class is None:
+                self.handle_unsupported_domain()
+                return
+
             extractor = extractor_class(self.post, url=url, submission=self.submission, **kwargs)
             self.finish_extractor(extractor, text_link_extraction=text_link_extraction)
         except Exception as e:

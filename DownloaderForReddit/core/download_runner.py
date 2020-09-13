@@ -99,6 +99,9 @@ class DownloadRunner(QObject):
     def validate_object(self, praw_object, reddit_object):
         try:
             praw_object.fullname
+            # [mine] add set_active() as counterpart to set_inactive()
+            if not reddit_object.active:
+                reddit_object.set_active()
             return True
         except (prawcore.exceptions.Redirect, prawcore.exceptions.NotFound, AttributeError):
             self.handle_invalid_reddit_object(reddit_object)
@@ -290,6 +293,7 @@ class DownloadRunner(QObject):
                 return self.get_user_submissions(user_id, session=session)
         user = session.query(User).get(user_id)
         user.set_existing()
+        Message.send_info(f'Downloading user: {user.name}')  # [mine] GUI progress logging
         redditor = self.validate_user(user)
 
         if redditor is not None:
@@ -310,6 +314,9 @@ class DownloadRunner(QObject):
     def handle_submissions(self, reddit_object, praw_object):
         submissions = self.get_submissions(praw_object, reddit_object)
         date_limit = 0
+        if not submissions:
+            return
+
         for submission in submissions:
             if submission.created > date_limit:
                 date_limit = submission.created

@@ -26,6 +26,7 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 import re
 
 from .base_extractor import BaseExtractor
+from ..messaging.message import Message
 from ..core.errors import Error
 from ..core import const
 from ..utils import reddit_utils
@@ -63,8 +64,17 @@ class RedditUploadsExtractor(BaseExtractor):
             self.handle_failed_extract(error=Error.FAILED_TO_LOCATE, message=message, extractor_error_message=message,
                                        exc_info=True)
 
-    def extract_album(self):
+    def extract_album(self) -> None:
         try:
+            # Check if media_metadata exists and is not None
+            # If not, this gallery post has no accessible media (deleted/removed/broken)
+            if not self.submission or not getattr(self.submission, 'media_metadata', None):
+                self.logger.warning(
+                    'Gallery post has no media metadata - post may be deleted or broken',
+                    extra={'url': self.url, 'submission_id': getattr(self.submission, 'id', 'unknown')}
+                )
+                return
+
             count = 1
             for value in self.submission.media_metadata.values():
                 try:
@@ -120,6 +130,14 @@ class RedditUploadsExtractor(BaseExtractor):
     def extract_direct_link(self):
         """This is overridden here so that a proper media id can be extracted."""
         ext = self.url.rsplit('.', 1)[1]
+        # [mine] prefer mp4 over gif for i.redd.it direct links; mp4 is higher quality and Reddit always encodes one
+        if ext.lower() == 'gif':
+            try:
+                mp4_url = self.submission.preview['images'][0]['variants']['mp4']['source']['url']
+                self.url = mp4_url
+                ext = 'mp4'
+            except (AttributeError, KeyError, TypeError):
+                self.logger.debug(f'mp4 preview not available, falling back to gif: {self.url}')
         media_id = self.clean_ext(self.get_link_id())
         self.make_content(self.url, ext, media_id=media_id)
 

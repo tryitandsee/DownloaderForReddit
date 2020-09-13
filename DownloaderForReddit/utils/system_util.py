@@ -81,7 +81,24 @@ def clean(part, directory=False):
     # For some reason the file system (Windows at least) is having trouble saving files that are over 180ish
     # characters.  I'm not sure why this is, as the file name limit should be around 240. But either way, this
     # method has been adapted to work with the results that I am consistently getting.
+    # Replace forbidden characters
     clean_part = ''.join([x if x not in FORBIDDEN_CHARS else '#' for x in part])
+
+    # Replace control characters (0x00-0x1F) which can cause OSError on Windows
+    clean_part = ''.join([x if ord(x) >= 32 else '#' for x in clean_part])
+
+    # Remove trailing periods and spaces (invalid on Windows)
+    clean_part = clean_part.rstrip('. ')
+
+    # Handle reserved Windows names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
+    reserved_names = {'CON', 'PRN', 'AUX', 'NUL',
+                      'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
+                      'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'}
+    # Check the name without extension
+    name_without_ext = clean_part.split('.')[0].upper() if '.' in clean_part else clean_part.upper()
+    if name_without_ext in reserved_names:
+        clean_part = f'_{clean_part}'
+
     if len(clean_part) >= 176:
         ending = '...'
         if clean_part.endswith('(video)'):
@@ -91,6 +108,13 @@ def clean(part, directory=False):
         clean_part = clean_part[:173 - len(ending)].strip()
         if not directory:
             clean_part += ending
+        # Re-strip trailing periods/spaces after truncation
+        clean_part = clean_part.rstrip('. ')
+
+    # Ensure we didn't end up with an empty string
+    if not clean_part:
+        clean_part = 'unnamed'
+
     return clean_part
 
 

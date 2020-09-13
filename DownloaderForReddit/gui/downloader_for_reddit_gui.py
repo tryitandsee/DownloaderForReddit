@@ -26,8 +26,8 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 import io
 import platform
 from datetime import datetime
-from PyQt5.QtWidgets import (QMainWindow, QActionGroup, QAbstractItemView, QProgressBar, QLabel, QMenu, QInputDialog,
-                             QMessageBox, QWidget, QHBoxLayout, QSystemTrayIcon, QApplication)
+from PyQt5.QtWidgets import (QMainWindow, QAction, QActionGroup, QAbstractItemView, QProgressBar, QLabel, QMenu,
+                             QInputDialog, QMessageBox, QWidget, QHBoxLayout, QSystemTrayIcon, QApplication)
 from PyQt5.QtCore import QThread, Qt, pyqtSignal, QTimer
 from PyQt5.QtGui import QCursor, QPixmap, QIcon
 from ..customwidgets.qt_compat_spinner import CompatibleWaitingSpinner as WaitingSpinner
@@ -58,6 +58,7 @@ from ..viewmodels.reddit_object_list_model import RedditObjectListModel
 from ..viewmodels.output_view_model import OutputViewModel
 from ..viewmodels.hyperlink_delegate import HyperlinkDelegate
 from ..messaging.message import MessageType, MessagePriority, Message
+from ..gui.download_status_dialog import DownloadStatusDialog  # [mine] feat(gui): download status window
 from ..customwidgets.link_cursor_handler import LinkCursorHandler
 from ..version import __version__
 
@@ -88,8 +89,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.running = False
         self.invalid_list = []
         self.db_handler = injector.get_database_handler()
-        self.spinner = WaitingSpinner(self.user_list_view, roundness=80.0, opacity=10.0, fade=72.0, radius=10.0,
-                                      lines=12, line_length=12.0, line_width=4.0, speed=1.4, color=(0, 0, 0))
+        self.spinner = WaitingSpinner(self.user_list_view, roundness=80, fade=72, radius=10,
+                                      lines=12, line_length=12, line_width=4, speed=1.4)
         self.tray_icon_image = \
             QIcon(QPixmap('Resources/Images/RedditDownloaderIcon.png').scaled(48, 48))
         self.system_tray_icon = QSystemTrayIcon(icon=self.tray_icon_image)
@@ -188,6 +189,10 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         # endregion
 
         # region Help Menu
+        # [mine] feat(gui): download status window
+        self._download_status_action = QAction('Download Status', self)
+        self._download_status_action.triggered.connect(self.open_download_status_dialog)
+        self.help_menu.addAction(self._download_status_action)
         self.imgur_credit_dialog_menu_item.triggered.connect(self.display_imgur_client_information)
         self.user_manual_menu_item.triggered.connect(self.open_user_manual)
         self.user_manual_menu_item.setDisabled(True)  # TODO: enable after online user manual is created
@@ -1268,6 +1273,12 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     def display_about_dialog(self):
         about_dialog = AboutDialog(self)
         about_dialog.exec_()
+
+    # [mine] feat(gui): download status window
+    def open_download_status_dialog(self):
+        get_runner = lambda: getattr(self, 'download_runner', None)
+        self._download_status_dialog = DownloadStatusDialog(get_runner)
+        self._download_status_dialog.show()
 
     def open_user_manual(self):
         """Opens the user manual using the default PDF viewer"""

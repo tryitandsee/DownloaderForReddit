@@ -1,5 +1,6 @@
 import hashlib
 import logging
+import threading
 from concurrent.futures import ThreadPoolExecutor
 import requests
 
@@ -7,9 +8,9 @@ from DownloaderForReddit.core.runner import Runner, verify_run
 from .multipart_downloader import MultipartDownloader
 from . import HEADERS
 from DownloaderForReddit.core.errors import Error
+from DownloaderForReddit.messaging.message import Message
 from DownloaderForReddit.utils import injector, system_util, general_utils
 from DownloaderForReddit.database import Content
-from DownloaderForReddit.messaging.message import Message
 from ..duplicate_handler import DuplicateHandler
 
 
@@ -41,6 +42,8 @@ class Downloader(Runner):
         self.hard_stop = False
         self.download_count = 0
         self.duplicate_count = 0
+        self._status_timer = None
+        self._active_downloads = {}
 
     @property
     def running(self):
@@ -54,6 +57,7 @@ class Downloader(Runner):
         """
         self.logger.debug('Downloader running')
         self.make_executor()
+        self._start_status_timer()
         while self.continue_run:
             item = self.download_queue.get()
             if item is not None:
@@ -67,9 +71,26 @@ class Downloader(Runner):
                     self.futures.append(future)
             else:
                 break
+        self._cancel_status_timer()
         self.executor.shutdown(wait=True)
         HEADERS.clear()
         self.logger.debug('Downloader exiting')
+
+    def _start_status_timer(self):
+        self._status_timer = threading.Timer(180, self._log_status)
+        self._status_timer.daemon = True
+        self._status_timer.start()
+
+    def _cancel_status_timer(self):
+        if self._status_timer is not None:
+            self._status_timer.cancel()
+
+    def _log_status(self):
+        if self._active_downloads:
+            for thread, info in self._active_downloads.items():
+                self.logger.info(f'  [{thread}] {info}')
+        if self.continue_run:
+            self._start_status_timer()
 
     def make_executor(self) -> None:
         """
@@ -87,9 +108,15 @@ class Downloader(Runner):
         Connects to the content url and downloads the content item to the file path specified by the content item.
         :param content_id: The id of the content item which is to be queried from the database, then downloaded.
         """
+        thread = threading.current_thread().name
         try:
             with self.db.get_scoped_session() as session:
                 content = session.query(Content).get(content_id)
+                self._active_downloads[thread] = f'{content.user.name}: {content.title}'
+                if self.is_url_duplicate(content, session=session):
+                    content.set_downloaded(self.download_session_id)
+                    Message.send_info(f'Duplicate URL skipped: {content.user.name}: {content.title} {content.url}')
+                    return
                 content.download_title = general_utils.ensure_content_download_path(content)
                 response = requests.get(content.url, stream=True, timeout=10, headers=self.check_headers(content))
                 if response.status_code == 200:
@@ -113,6 +140,8 @@ class Downloader(Runner):
             self.handle_connection_error(content)
         except:
             self.handle_unknown_error(content)
+        finally:
+            self._active_downloads.pop(thread, None)
 
     def check_headers(self, content):
         """
@@ -174,6 +203,7 @@ class Downloader(Runner):
         if not self.hard_stop:
             if content.md5_hash is not None and self.is_duplicate_content(content):
                 self.handle_duplicate_content(content)
+                content.set_downloaded(self.download_session_id)  # FIX: was considered an unfinished download and getting retried
                 return
             self.handle_date_modified(content)
             content.set_downloaded(self.download_session_id)
@@ -181,6 +211,25 @@ class Downloader(Runner):
             self.output_downloaded_message(content)
         else:
             self.handle_download_stopped(content)
+
+    def is_url_duplicate(self, content: Content, *, session) -> bool:
+        """
+        Checks if the given content's URL has already been downloaded.
+
+        :param content: A content object to check for URL duplication.
+        :param session: The database session to use for the query.
+        :return: A boolean value indicating whether the URL was already downloaded (True) or not (False).
+        """
+        if not content.url:
+            return False
+        dup = session.query(Content).filter(
+            Content.url == content.url,
+            Content.downloaded == True,  # noqa: E712
+            Content.id != content.id
+        ).first()
+        if dup is not None:
+            self.logger.info(f'URL duplicate found: {content.url} (previously downloaded as content id {dup.id})')
+        return dup is not None
 
     def is_duplicate_content(self, content: Content) -> bool:
         """

@@ -221,7 +221,7 @@ class RedditObjectFilter(Filter):
     filter_include = ['all', 'post_score', 'post_count', 'comment_score', 'comment_count', 'download_count',
                       'last_post_date', 'list_count']
     filter_exclude = ['post_score_limit_operator', 'comment_score_limit_operator', 'lists']
-    order_by_include = ['id', 'name', 'last_download', 'date_added', 'absolute_date_limit', 'date_created',
+    order_by_include = ['id', 'name', 'date_added', 'absolute_date_limit', 'date_created',
                         'post_score', 'post_count', 'content_count', 'comment_count', 'download_count',
                         'last_post_date', 'list_count']
     choices = {'object_type': ['USER', 'SUBREDDIT']}

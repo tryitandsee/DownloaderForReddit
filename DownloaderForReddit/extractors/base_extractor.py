@@ -216,7 +216,7 @@ class BaseExtractor:
             self.failed_extraction_message = self.content_filter.filter_message
         return passes
 
-    def handle_failed_extract(self, error, message=None, log=True, log_exception=False, **kwargs):
+    def handle_failed_extract(self, error: Error, message: str | None = None, log: bool = True, log_exception: bool = False, **kwargs) -> None:
         """
         Handles the logging and output of error messages encountered while extracting content and saves posts if
         instructed to do so.
