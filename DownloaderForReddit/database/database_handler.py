@@ -18,7 +18,7 @@ class DatabaseHandler:
         self.database_url = f'sqlite:///{self.database_path}'
         if not in_memory:
             self.engine = sqlalchemy.create_engine(self.database_url, echo=False,
-                                                   connect_args={'check_same_thread': False})
+                                                   connect_args={'check_same_thread': False, 'timeout': 600})
         else:
             self.engine = sqlalchemy.create_engine('sqlite:///:memory:')
         self.base.metadata.create_all(self.engine)

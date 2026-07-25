@@ -212,11 +212,15 @@ class BaseExtractor:
         passes = self.content_filter.filter_content(self.post, url, extension)
         if not passes:
             self.failed_extraction = True
-            self.extraction_error = Error.FAILED_FILTER
+            # [mine] fix(extractor): use DUPLICATE_CONTENT so duplicates are excluded from retry queue
+            if self.content_filter.filter_message == 'Duplicate content':
+                self.extraction_error = Error.DUPLICATE_CONTENT
+            else:
+                self.extraction_error = Error.FAILED_FILTER
             self.failed_extraction_message = self.content_filter.filter_message
         return passes
 
-    def handle_failed_extract(self, error, message=None, log=True, log_exception=False, **kwargs):
+    def handle_failed_extract(self, error: Error, message: str | None = None, log: bool = True, log_exception: bool = False, **kwargs) -> None:
         """
         Handles the logging and output of error messages encountered while extracting content and saves posts if
         instructed to do so.

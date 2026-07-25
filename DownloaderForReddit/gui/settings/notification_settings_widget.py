@@ -29,6 +29,8 @@ class NotificationSettingsWidget(AbstractSettingsWidget, Ui_NotificationSettings
     def load_settings(self):
         self.update_level_combo.setCurrentIndex(self.settings.update_notification_level)
         self.auto_display_failed_downloads_checkbox.setChecked(self.settings.auto_display_failed_downloads)
+        # [mine] feat(settings): add toggle to skip invalid reddit object dialog after download
+        self.show_invalid_reddit_object_dialog_checkbox.setChecked(self.settings.show_invalid_reddit_object_dialog)
         self.remove_reddit_object_warning_checkbox.setChecked(self.settings.remove_reddit_object_warning)
         self.remove_reddit_object_list_warning_checkbox.setChecked(self.settings.remove_reddit_object_list_warning)
         self.ask_to_sync_on_move_checkbox.setChecked(self.settings.ask_to_sync_moved_ro_settings)
@@ -41,6 +43,8 @@ class NotificationSettingsWidget(AbstractSettingsWidget, Ui_NotificationSettings
     def apply_settings(self):
         self.settings.update_notification_level = self.update_level_combo.currentData(Qt.UserRole)
         self.settings.auto_display_failed_downloads = self.auto_display_failed_downloads_checkbox.isChecked()
+        # [mine] feat(settings): add toggle to skip invalid reddit object dialog after download
+        self.settings.show_invalid_reddit_object_dialog = self.show_invalid_reddit_object_dialog_checkbox.isChecked()
         self.settings.remove_reddit_object_warning = self.remove_reddit_object_warning_checkbox.isChecked()
         self.settings.remove_reddit_object_list_warning = \
             self.remove_reddit_object_list_warning_checkbox.isChecked()

@@ -62,6 +62,13 @@
     </widget>
    </item>
    <item>
+    <widget class="QCheckBox" name="show_invalid_reddit_object_dialog_checkbox">
+     <property name="text">
+      <string>Show invalid reddit object dialog after download</string>
+     </property>
+    </widget>
+   </item>
+   <item>
     <widget class="QGroupBox" name="notification_dialog_group_box">
      <property name="title">
       <string>Notification Dialogs</string>

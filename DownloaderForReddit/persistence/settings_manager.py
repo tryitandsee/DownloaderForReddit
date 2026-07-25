@@ -206,6 +206,9 @@ class SettingsManager:
         self.update_notification_level = self.get('notification_defaults', 'update_notification_level', 0)
         self.ignore_update = self.get('notification_defaults', 'ignore_update', None)
         self.auto_display_failed_downloads = self.get('notification_defaults', 'auto_display_failed_downloads', True)
+        # [mine] feat(settings): add toggle to skip invalid reddit object dialog after download
+        self.show_invalid_reddit_object_dialog = self.get('notification_defaults', 'show_invalid_reddit_object_dialog',
+                                                          True)
         self.display_ffmpeg_warning = self.get('notification_defaults', 'display_ffmpeg_warning', True)
         self.large_post_update_warning = self.get('notification_defaults', 'large_post_update_warning', True)
         self.remove_reddit_object_warning = self.get('notification_defaults', 'remove_reddit_object_warning', True)

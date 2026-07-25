@@ -1,4 +1,5 @@
 import logging
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from queue import Empty
 
@@ -26,6 +27,7 @@ class ContentRunner(Runner):
         self.futures = []
         self.hold = False
         self.submit_hold = False
+        self._active_extractions = {}  # [mine] feat(gui): download status window
 
     @property
     def running(self):
@@ -75,19 +77,31 @@ class ContentRunner(Runner):
         :param submission: The reddit submission that is to be extracted.
         :param significant_id: The id of the reddit object for which the submissions was extracted from reddit.
         """
-        with self.db.get_scoped_session() as session:
-            post = SubmittableCreator.create_post(submission, significant_id, session, self.download_session_id)
-            if post is not None:
-                submission_handler = SubmissionHandler(submission, post, self.download_session_id, session,
-                                                       self.download_queue, self.stop_run)
-                submission_handler.extract_submission()
-                if post.significant_reddit_object.run_comment_operations:
-                    submission_handler.extract_comments()
+        # [mine] feat(gui): download status window
+        thread = threading.current_thread().name
+        self._active_extractions[thread] = getattr(submission, 'url', str(submission))
+        try:
+            with self.db.get_scoped_session() as session:
+                post = SubmittableCreator.create_post(submission, significant_id, session, self.download_session_id)
+                if post is not None:
+                    submission_handler = SubmissionHandler(submission, post, self.download_session_id, session,
+                                                           self.download_queue, self.stop_run)
+                    submission_handler.extract_submission()
+                    if post.significant_reddit_object.run_comment_operations:
+                        submission_handler.extract_comments()
+        finally:
+            self._active_extractions.pop(thread, None)
 
     def finish_post(self, post_id):
-        with self.db.get_scoped_session() as session:
-            post = session.query(Post).get(post_id)
-            self.handle_post(post)
+        # [mine] feat(gui): download status window
+        thread = threading.current_thread().name
+        self._active_extractions[thread] = f'post:{post_id}'
+        try:
+            with self.db.get_scoped_session() as session:
+                post = session.query(Post).get(post_id)
+                self.handle_post(post)
+        finally:
+            self._active_extractions.pop(thread, None)
 
     @verify_run
     def handle_post(self, post):

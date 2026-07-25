@@ -404,6 +404,13 @@ class RedditObject(BaseModel):
                 self.date_limit = None
             self.get_session().commit()
 
+    # [mine] add set_active() as counterpart to set_inactive()
+    def set_active(self, commit=True):
+        self.active = True
+        self.inactive_date = None
+        if commit:
+            self.get_session().commit()
+
     def set_inactive(self, commit=True):
         self.active = False
         self.inactive_date = datetime.now()

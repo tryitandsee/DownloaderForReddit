@@ -26,8 +26,8 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 import io
 import platform
 from datetime import datetime
-from PyQt5.QtWidgets import (QMainWindow, QActionGroup, QAbstractItemView, QProgressBar, QLabel, QMenu, QInputDialog,
-                             QMessageBox, QWidget, QHBoxLayout, QSystemTrayIcon, QApplication)
+from PyQt5.QtWidgets import (QMainWindow, QAction, QActionGroup, QAbstractItemView, QProgressBar, QLabel, QMenu,
+                             QInputDialog, QMessageBox, QWidget, QHBoxLayout, QSystemTrayIcon, QApplication)
 from PyQt5.QtCore import QThread, Qt, pyqtSignal, QTimer
 from PyQt5.QtGui import QCursor, QPixmap, QIcon
 from ..customwidgets.qt_compat_spinner import CompatibleWaitingSpinner as WaitingSpinner
@@ -58,6 +58,7 @@ from ..viewmodels.reddit_object_list_model import RedditObjectListModel
 from ..viewmodels.output_view_model import OutputViewModel
 from ..viewmodels.hyperlink_delegate import HyperlinkDelegate
 from ..messaging.message import MessageType, MessagePriority, Message
+from ..gui.tryitandsee_mine_download_status_dialog import DownloadStatusDialog  # [mine] feat(gui): download status window
 from ..customwidgets.link_cursor_handler import LinkCursorHandler
 from ..version import __version__
 
@@ -88,8 +89,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.running = False
         self.invalid_list = []
         self.db_handler = injector.get_database_handler()
-        self.spinner = WaitingSpinner(self.user_list_view, roundness=80.0, opacity=10.0, fade=72.0, radius=10.0,
-                                      lines=12, line_length=12.0, line_width=4.0, speed=1.4, color=(0, 0, 0))
+        self.spinner = WaitingSpinner(self.user_list_view, roundness=80, fade=72, radius=10,
+                                      lines=12, line_length=12, line_width=4, speed=1.4)
         self.tray_icon_image = \
             QIcon(QPixmap('Resources/Images/RedditDownloaderIcon.png').scaled(48, 48))
         self.system_tray_icon = QSystemTrayIcon(icon=self.tray_icon_image)
@@ -185,9 +186,17 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.run_unfinished_extractions_menu_item.triggered.connect(self.run_unextracted_only)
         self.run_unfinished_downloads_menu_item.triggered.connect(self.run_undownloaded_only)
         self.run_all_unfiinished_menu_item.triggered.connect(self.run_all_unfinished)
+        # [mine] feat(gui): "Download Posts..." menu item
+        self._single_post_action = QAction('Download Posts...', self)
+        self._single_post_action.triggered.connect(self.open_single_post_dialog)
+        self.menuDownload.addAction(self._single_post_action)
         # endregion
 
         # region Help Menu
+        # [mine] feat(gui): download status window
+        self._download_status_action = QAction('Download Status', self)
+        self._download_status_action.triggered.connect(self.open_download_status_dialog)
+        self.help_menu.addAction(self._download_status_action)
         self.imgur_credit_dialog_menu_item.triggered.connect(self.display_imgur_client_information)
         self.user_manual_menu_item.triggered.connect(self.open_user_manual)
         self.user_manual_menu_item.setDisabled(True)  # TODO: enable after online user manual is created
@@ -402,6 +411,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                                              lambda: self.open_selected_reddit_object_dialog(ros[0].id, 'POST'))
         open_content_dialog = menu.addAction('Content View',
                                              lambda: self.open_selected_reddit_object_dialog(ros[0].id, 'CONTENT'))
+        # [mine] feat(gui): add "Copy Reddit URL" context menu item for users/subreddits
+        copy_url = menu.addAction('Copy Reddit URL', lambda: self.copy_reddit_object_url(ros[0], object_type))
         menu.addSeparator()
         add_object = menu.addAction(f'Add {object_type.title()}', add_command)
         remove_text = f'Remove {ros[0].name}' if len(ros) == 1 else f'Remove {len(ros)} {object_type.title()}s'
@@ -565,6 +576,17 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     def open_reddit_object_download_folder(self, reddit_object: RedditObject):
         general_utils.open_reddit_object_download_folder(reddit_object, self)
+
+    def open_single_post_dialog(self):
+        # [mine] feat(gui): prompt for post URLs (one per line) and start a download
+        if self.running:
+            Message.send_warning('Finish the current download before downloading posts.')
+            return
+        text, ok = QInputDialog.getMultiLineText(self, 'Download Posts', 'Post URLs (one per line):')
+        if ok:
+            urls = [line.strip() for line in text.splitlines() if line.strip()]
+            if urls:
+                self.run(None, None, single_submission_urls=urls)
 
     def run_full_download(self):
         run_unextracted = self.settings_manager.finish_incomplete_extractions_at_session_start
@@ -1135,6 +1157,13 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         }
         self.display_database_dialog(**kwargs)
 
+    # [mine] feat(gui): add "Copy Reddit URL" context menu item for users/subreddits
+    def copy_reddit_object_url(self, reddit_object, object_type):
+        path = 'user' if object_type == 'USER' else 'r'
+        cb = QApplication.clipboard()
+        cb.clear(mode=cb.Clipboard)
+        cb.setText(f'https://www.reddit.com/{path}/{reddit_object.name}')
+
     def open_database_statistics_dialog(self):
         dialog = DatabaseStatisticsDialog()
         dialog.exec_()
@@ -1175,6 +1204,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.terminate_download_button.setVisible(self.running)
 
     def check_invalid(self):
+        # [mine] feat(settings): add toggle to skip invalid reddit object dialog after download
+        if not self.settings_manager.show_invalid_reddit_object_dialog:
+            return
         if len(self.invalid_list) > 0:
             dialog = InvalidRedditObjectDialog(self.invalid_list)
             dialog.exec_()
@@ -1268,6 +1300,12 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     def display_about_dialog(self):
         about_dialog = AboutDialog(self)
         about_dialog.exec_()
+
+    # [mine] feat(gui): download status window
+    def open_download_status_dialog(self):
+        get_runner = lambda: getattr(self, 'download_runner', None)
+        self._download_status_dialog = DownloadStatusDialog(get_runner)
+        self._download_status_dialog.show()
 
     def open_user_manual(self):
         """Opens the user manual using the default PDF viewer"""

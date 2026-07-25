@@ -12,6 +12,7 @@ from sqlalchemy import or_
 from DownloaderForReddit.core.download.downloader import Downloader
 from . import const
 from .content_runner import ContentRunner
+from .submittable_creator import SubmittableCreator
 from .submission_filter import SubmissionFilter
 from .runner import verify_run
 from .errors import NON_DOWNLOADABLE
@@ -59,6 +60,8 @@ class DownloadRunner(QObject):
         self.run_undownloaded = kwargs.get('run_undownloaded', False)
         self.undownloaded_id_list = kwargs.get('undownloaded_id_list', None)
         self.run_new = kwargs.get('run_new', True)
+        # [mine] feat(core): batch single-post download mode
+        self.single_submission_urls = kwargs.get('single_submission_urls', None)
 
         self.stop_run = Event()
         self.continue_run = True
@@ -99,6 +102,9 @@ class DownloadRunner(QObject):
     def validate_object(self, praw_object, reddit_object):
         try:
             praw_object.fullname
+            # [mine] add set_active() as counterpart to set_inactive()
+            if not reddit_object.active:
+                reddit_object.set_active()
             return True
         except (prawcore.exceptions.Redirect, prawcore.exceptions.NotFound, AttributeError):
             self.handle_invalid_reddit_object(reddit_object)
@@ -184,6 +190,21 @@ class DownloadRunner(QObject):
         self.logger.debug('Finished undownloaded content')
 
     def run(self):
+        # [mine] feat(core): batch single-post download mode - validate every url before creating a session
+        if self.single_submission_urls is not None:
+            extraction_sets = [es for es in
+                               (self.prepare_single_submission(url) for url in self.single_submission_urls)
+                               if es is not None]
+            if not extraction_sets:
+                self.finished.emit()
+                return
+            self.create_download_session()
+            self.start_extractor()
+            self.start_downloader()
+            for extraction_set in extraction_sets:
+                self.submission_queue.put(extraction_set)
+            self.hold()
+            return
         self.create_download_session()
         self.start_extractor()
         self.start_downloader()
@@ -252,6 +273,28 @@ class DownloadRunner(QObject):
                 for subreddit_id in self.subreddit_id_list:
                     self.get_subreddit_submissions(subreddit_id)
 
+    # [mine] feat(core): fetch a single post by URL and build its SUBMISSION ExtractionSet, or None if invalid
+    def prepare_single_submission(self, url):
+        try:
+            submission = self.reddit_instance.submission(url=url)
+            author_name = submission.author.name
+        except Exception:
+            self.logger.error('Failed to fetch single submission', exc_info=True)
+            Message.send_error(f'Failed to fetch post: {url}')
+            return None
+        with self.db.get_scoped_session() as session:
+            author = session.query(User).filter(User.name == author_name).first()
+            if author is None:
+                Message.send_error(f'Author {author_name} is not tracked. Add the user before '
+                                   f'downloading their post.')
+                return None
+            if not SubmittableCreator.check_duplicate_post_url(submission.url, session):
+                Message.send_warning(f'Already downloaded - skipped: {submission.url}')
+                return None
+            author_id = author.id
+        Message.send_info(f'Downloading single post by {author_name}')
+        return ExtractionSet(extraction_type='SUBMISSION', extraction_object=submission, significant_id=author_id)
+
     def validate_subreddit_list(self):
         """
         Validates the list of subreddits to make sure they all exist so that the user list can be constrained to the
@@ -290,6 +333,8 @@ class DownloadRunner(QObject):
                 return self.get_user_submissions(user_id, session=session)
         user = session.query(User).get(user_id)
         user.set_existing()
+        self._current_fetch_object = user.name  # [mine] feat(gui): download status window
+        Message.send_info(f'Downloading user: {user.name}')  # [mine] GUI progress logging
         redditor = self.validate_user(user)
 
         if redditor is not None:
@@ -302,6 +347,7 @@ class DownloadRunner(QObject):
                 return self.get_subreddit_submissions(subreddit_id, session=session)
         subreddit = session.query(Subreddit).get(subreddit_id)
         subreddit.set_existing()
+        self._current_fetch_object = subreddit.name  # [mine] feat(gui): download status window
         sub = self.validate_subreddit(subreddit)
 
         if sub is not None:
@@ -310,6 +356,9 @@ class DownloadRunner(QObject):
     def handle_submissions(self, reddit_object, praw_object):
         submissions = self.get_submissions(praw_object, reddit_object)
         date_limit = 0
+        if not submissions:
+            return
+
         for submission in submissions:
             if submission.created > date_limit:
                 date_limit = submission.created

@@ -32,6 +32,10 @@ class Ui_NotificationSettingsWidget(object):
         self.auto_display_failed_downloads_checkbox = QtWidgets.QCheckBox(NotificationSettingsWidget)
         self.auto_display_failed_downloads_checkbox.setObjectName("auto_display_failed_downloads_checkbox")
         self.verticalLayout_2.addWidget(self.auto_display_failed_downloads_checkbox)
+        # [mine] feat(settings): add toggle to skip invalid reddit object dialog after download
+        self.show_invalid_reddit_object_dialog_checkbox = QtWidgets.QCheckBox(NotificationSettingsWidget)
+        self.show_invalid_reddit_object_dialog_checkbox.setObjectName("show_invalid_reddit_object_dialog_checkbox")
+        self.verticalLayout_2.addWidget(self.show_invalid_reddit_object_dialog_checkbox)
         self.notification_dialog_group_box = QtWidgets.QGroupBox(NotificationSettingsWidget)
         self.notification_dialog_group_box.setObjectName("notification_dialog_group_box")
         self.verticalLayout = QtWidgets.QVBoxLayout(self.notification_dialog_group_box)
@@ -86,6 +90,8 @@ class Ui_NotificationSettingsWidget(object):
         self.label.setToolTip(_translate("NotificationSettingsWidget", "<html><head/><body><p>This is the update level at which an update must be before you will be notified of its release</p></body></html>"))
         self.label.setText(_translate("NotificationSettingsWidget", "Update notification level:"))
         self.auto_display_failed_downloads_checkbox.setText(_translate("NotificationSettingsWidget", "Show failed downloads dialog after download"))
+        # [mine] feat(settings): add toggle to skip invalid reddit object dialog after download
+        self.show_invalid_reddit_object_dialog_checkbox.setText(_translate("NotificationSettingsWidget", "Show invalid reddit object dialog after download"))
         self.notification_dialog_group_box.setTitle(_translate("NotificationSettingsWidget", "Notification Dialogs"))
         self.remove_reddit_object_warning_checkbox.setText(_translate("NotificationSettingsWidget", "Ask before removing user/subreddit"))
         self.remove_reddit_object_list_warning_checkbox.setText(_translate("NotificationSettingsWidget", "Ask before removing list"))

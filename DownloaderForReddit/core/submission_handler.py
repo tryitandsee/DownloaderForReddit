@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Optional
 from queue import Queue
 
@@ -18,6 +19,10 @@ from ..extractors.self_post_extractor import SelfPostExtractor
 from ..extractors.comment_extractor import CommentExtractor
 from ..messaging.message import Message
 from ..utils import injector
+
+
+# [mine] fix(submission_handler): skip subreddit links instead of failing extraction
+SUBREDDIT_LINK_RE = re.compile(r'^https?://(\w+\.)?reddit\.com/r/[^/?#]+/?(?:[?#].*)?$', re.IGNORECASE)
 
 
 class SubmissionHandler(Runner):
@@ -48,15 +53,18 @@ class SubmissionHandler(Runner):
 
     @verify_run
     def extract_self_post(self):
+        # [mine] fix(submission_handler): extract links independently of text download; mark no-op posts as extracted
         significant_ro = self.post.significant_reddit_object
-        if significant_ro.download_self_post_text:
-            try:
+        try:
+            if significant_ro.download_self_post_text:
                 extractor = SelfPostExtractor(self.post, download_session_id=self.download_session_id)
                 self.finish_extractor(extractor)
-                if self.post.significant_reddit_object.extract_self_post_links:
-                    self.extract_text_links(self.post.text_html)
-            except Exception as e:
-                self.handle_error(e)
+            if significant_ro.extract_self_post_links:
+                self.extract_text_links(self.post.text_html)
+            if not significant_ro.download_self_post_text and not significant_ro.extract_self_post_links:
+                self.post.set_extracted()
+        except Exception as e:
+            self.handle_error(e)
 
     @verify_run
     def extract_comments(self):
@@ -78,6 +86,9 @@ class SubmissionHandler(Runner):
 
     @verify_run
     def extract_text_links(self, html_text, **kwargs):
+        # [mine] fix(submission_handler): selftext_html is None when a self post has no body text
+        if not html_text:
+            return
         links = self.parse_html_links(html_text)
         track_count = len(links) > 1
         for link in links:
@@ -93,7 +104,16 @@ class SubmissionHandler(Runner):
     @verify_run
     def extract_link(self, url, text_link_extraction=False, **kwargs):
         try:
+            # [mine] fix(submission_handler): subreddit links have no content; skip without marking failed
+            if SUBREDDIT_LINK_RE.match(url):
+                self.post.set_extracted()
+                return
             extractor_class = self.assign_extractor(url)
+            # [mine] assign_extractor returns None for unsupported domains; without this guard it raises on extractor_class(...)
+            if extractor_class is None:
+                self.handle_unsupported_domain()
+                return
+
             extractor = extractor_class(self.post, url=url, submission=self.submission, **kwargs)
             self.finish_extractor(extractor, text_link_extraction=text_link_extraction)
         except Exception as e:

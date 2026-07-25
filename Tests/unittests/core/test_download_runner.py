@@ -7,7 +7,7 @@ import prawcore
 from DownloaderForReddit.core.download_runner import DownloadRunner
 from DownloaderForReddit.database.database_handler import DatabaseHandler
 from DownloaderForReddit.utils import injector
-from Tests.mockobjects.mock_objects import MockPrawSubmission, get_user, get_subreddit
+from Tests.mockobjects.mock_objects import MockPrawSubmission, get_user, get_subreddit, get_post
 
 
 logging.disable(logging.CRITICAL)
@@ -333,6 +333,86 @@ class TestDownloadRunner(TestCase):
             if sub.pinned:
                 pinned += 1
         self.assertEqual(2, pinned)
+
+    def make_single_post_runner(self, author_name, url):
+        runner = DownloadRunner(single_submission_urls=[url])
+        submission = MagicMock()
+        submission.author.name = author_name
+        submission.url = url
+        runner.reddit_instance = MagicMock()
+        runner.reddit_instance.submission.return_value = submission
+        return runner, submission
+
+    @patch(f'{DL}.hold')
+    @patch(f'{DL}.start_downloader')
+    @patch(f'{DL}.start_extractor')
+    @patch(f'{DL}.create_download_session')
+    @patch(f'{DL}.run_download')
+    @patch(f'{DL}.prepare_single_submission')
+    def test_run_enqueues_only_valid_submissions_and_skips_run_download(self, prepare, run_download, create_session,
+                                                                        start_extractor, start_downloader, hold,
+                                                                        reddit_utils):
+        valid = MagicMock()
+        prepare.side_effect = [valid, None]
+        download_runner = DownloadRunner(single_submission_urls=['http://fake.site/a', 'http://fake.site/b'])
+
+        download_runner.run()
+
+        self.assertEqual(2, prepare.call_count)
+        create_session.assert_called()
+        run_download.assert_not_called()
+        self.assertIs(valid, download_runner.submission_queue.get_nowait())
+        self.assertTrue(download_runner.submission_queue.empty())
+
+    @patch(f'{DL}.hold')
+    @patch(f'{DL}.create_download_session')
+    @patch(f'{DL}.prepare_single_submission')
+    def test_run_creates_no_session_when_all_submissions_invalid(self, prepare, create_session, hold, reddit_utils):
+        prepare.return_value = None
+        finished = MagicMock()
+        download_runner = DownloadRunner(single_submission_urls=['http://fake.site/a', 'http://fake.site/b'])
+        download_runner.finished.connect(finished)
+
+        download_runner.run()
+
+        create_session.assert_not_called()
+        hold.assert_not_called()
+        finished.assert_called()
+
+    @patch('DownloaderForReddit.core.download_runner.Message')
+    def test_prepare_single_submission_returns_extraction_set_for_tracked_author(self, message, reddit_utils):
+        with injector.database_handler.get_scoped_session() as session:
+            user = get_user(name='SinglePostUser')
+            session.add(user)
+            session.commit()
+            author_id = user.id
+        runner, submission = self.make_single_post_runner('SinglePostUser', 'http://fake.site/new')
+
+        extraction_set = runner.prepare_single_submission('http://fake.site/new')
+
+        self.assertEqual('SUBMISSION', extraction_set.extraction_type)
+        self.assertIs(submission, extraction_set.extraction_object)
+        self.assertEqual(author_id, extraction_set.significant_id)
+
+    @patch('DownloaderForReddit.core.download_runner.Message')
+    def test_prepare_single_submission_skips_duplicate_url(self, message, reddit_utils):
+        url = 'http://fake.site/duplicate'
+        with injector.database_handler.get_scoped_session() as session:
+            user = get_user(name='DuplicateUser')
+            get_post(session=session, url=url, author=user, significant=user)
+            session.commit()
+        runner, _ = self.make_single_post_runner('DuplicateUser', url)
+
+        self.assertIsNone(runner.prepare_single_submission(url))
+        message.send_warning.assert_called()
+
+    @patch('DownloaderForReddit.core.download_runner.Message')
+    def test_prepare_single_submission_errors_when_author_not_tracked(self, message, reddit_utils):
+        url = 'http://fake.site/untracked'
+        runner, _ = self.make_single_post_runner('UntrackedUser', url)
+
+        self.assertIsNone(runner.prepare_single_submission(url))
+        message.send_error.assert_called()
 
     @patch(f'{DL}.get_raw_submissions')
     def test_too_many_requests_exception_is_properly_handled(self, get_raw_submissions, reddit_utils):
