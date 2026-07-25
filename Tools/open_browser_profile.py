@@ -23,6 +23,7 @@ def main():
         context = p.chromium.launch_persistent_context(
             user_data_dir=str(PROFILE_DIR),
             headless=False,
+            no_viewport=True,
         )
         page = context.pages[0] if context.pages else context.new_page()
         page.goto("https://www.reddit.com")

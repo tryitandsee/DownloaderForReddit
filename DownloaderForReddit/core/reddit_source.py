@@ -143,6 +143,7 @@ class BrowserRedditSource:
         self._context = self._playwright.chromium.launch_persistent_context(
             user_data_dir=str(PROFILE_DIR),
             headless=False,
+            no_viewport=True,
         )
         self._page().goto(REDDIT_BASE_URL)
 
