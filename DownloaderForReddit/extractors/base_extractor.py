@@ -218,6 +218,11 @@ class BaseExtractor:
             else:
                 self.extraction_error = Error.FAILED_FILTER
             self.failed_extraction_message = self.content_filter.filter_message
+            # [mine] fix(extractor): log content-filter rejections -- previously silent, making
+            # duplicate/filtered content undiagnosable without querying the db directly
+            self.logger.debug(f'Content filtered: {self.content_filter.filter_message}', extra={
+                'url': url, 'extension': extension, 'submission_id': self.post.reddit_id,
+            })
         return passes
 
     def handle_failed_extract(self, error: Error, message: str | None = None, log: bool = True, log_exception: bool = False, **kwargs) -> None:
