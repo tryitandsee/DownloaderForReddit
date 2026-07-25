@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Protocol
+from typing import List, Optional, Protocol, Tuple
 from urllib.parse import urljoin
 
 from playwright.sync_api import Error as PlaywrightError, Locator, Page, sync_playwright
@@ -64,6 +64,12 @@ class RedditSource(Protocol):
     def iter_subreddit_submissions(self, name: str) -> List[SubmissionData]: ...
 
     def iter_home_feed(self) -> List[SubmissionData]: ...  # following-only aggregation
+
+    # Combined single-navigation validate + collect, for the initial fetch of a single user/subreddit
+    # -- avoids a separate profile-page visit before the submitted/new-listing visit.
+    def validate_and_iter_user_submissions(self, name: str) -> Tuple[ValidationResult, List[SubmissionData]]: ...
+
+    def validate_and_iter_subreddit_submissions(self, name: str) -> Tuple[ValidationResult, List[SubmissionData]]: ...
 
 
 def _strip_fullname_prefix(fullname: str) -> str:
@@ -156,6 +162,10 @@ class BrowserRedditSource:
         page = self._page()
         page.goto(url)
         page.wait_for_timeout(2000)
+        return self._scroll_and_collect(page, url, limit, known_ids)
+
+    def _scroll_and_collect(self, page: Page, url: str, limit: Optional[int] = None,
+                            known_ids: Optional[set] = None) -> List[SubmissionData]:
         seen = set()
         results = []
         consecutive_known = 0
@@ -215,9 +225,6 @@ class BrowserRedditSource:
         return self._executor.submit(self._validate, url).result()
 
     def _validate(self, url: str) -> ValidationResult:
-        # Best-effort: matches reddit's known 404/private-community copy. NOT_FOUND is confirmed
-        # working against a real nonexistent user (see PLAN_reddit_source_rewrite.md); FORBIDDEN
-        # (private/suspended) is still unverified -- no real example inspected yet.
         page = self._page()
         try:
             page.goto(url)
@@ -225,6 +232,13 @@ class BrowserRedditSource:
             logger.warning('Navigation failed during validation', extra={'url': url}, exc_info=True)
             return ValidationResult(valid=False, error=ValidationError.CONNECTION_ERROR)
         page.wait_for_timeout(1500)
+        return self._check_validity(page)
+
+    @staticmethod
+    def _check_validity(page: Page) -> ValidationResult:
+        # Best-effort: matches reddit's known 404/private-community copy. NOT_FOUND is confirmed
+        # working against a real nonexistent user (see PLAN_reddit_source_rewrite.md); FORBIDDEN
+        # (private/suspended) is still unverified -- no real example inspected yet.
         body_text = page.locator('body').inner_text().lower()
         if 'nobody on reddit goes by that name' in body_text or 'this user has deleted their account' in body_text:
             return ValidationResult(valid=False, error=ValidationError.NOT_FOUND)
@@ -233,3 +247,32 @@ class BrowserRedditSource:
         if 'this community is private' in body_text or 'suspended' in body_text:
             return ValidationResult(valid=False, error=ValidationError.FORBIDDEN)
         return ValidationResult(valid=True)
+
+    def validate_and_iter_user_submissions(self, name: str, limit: Optional[int] = None,
+                                           known_ids: Optional[set] = None
+                                           ) -> Tuple[ValidationResult, List[SubmissionData]]:
+        url = f'https://www.reddit.com/user/{name}/submitted/?sort=new'
+        return self._executor.submit(self._validate_and_collect, url, limit, known_ids).result()
+
+    def validate_and_iter_subreddit_submissions(self, name: str, limit: Optional[int] = None,
+                                                known_ids: Optional[set] = None
+                                                ) -> Tuple[ValidationResult, List[SubmissionData]]:
+        url = f'https://www.reddit.com/r/{name}/new/'
+        return self._executor.submit(self._validate_and_collect, url, limit, known_ids).result()
+
+    def _validate_and_collect(self, url: str, limit: Optional[int] = None, known_ids: Optional[set] = None
+                              ) -> Tuple[ValidationResult, List[SubmissionData]]:
+        # A single navigation serves both validation and the submissions scrape -- the submitted/new
+        # listing page shows the same 404/private/suspended copy as the plain profile page, so there's
+        # no need to visit the profile page first just to check it exists.
+        page = self._page()
+        try:
+            page.goto(url)
+        except PlaywrightError:
+            logger.warning('Navigation failed during validation', extra={'url': url}, exc_info=True)
+            return ValidationResult(valid=False, error=ValidationError.CONNECTION_ERROR), []
+        page.wait_for_timeout(2000)
+        validation = self._check_validity(page)
+        if not validation.valid:
+            return validation, []
+        return validation, self._scroll_and_collect(page, url, limit, known_ids)

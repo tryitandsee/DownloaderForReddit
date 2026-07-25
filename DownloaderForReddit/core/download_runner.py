@@ -82,10 +82,6 @@ class DownloadRunner(QObject):
 
         self.reddit_object_queue = Queue(maxsize=-1)
 
-    def validate_user(self, user_obj):
-        result = self.reddit_source.validate_user(user_obj.name)
-        return self.validate_object(result, user_obj)
-
     def validate_subreddit(self, subreddit_obj):
         result = self.reddit_source.validate_subreddit(subreddit_obj.name)
         return self.validate_object(result, subreddit_obj)
@@ -315,9 +311,7 @@ class DownloadRunner(QObject):
         user.set_existing()
         self._current_fetch_object = user.name  # [mine] feat(gui): download status window
         Message.send_info(f'Downloading user: {user.name}')  # [mine] GUI progress logging
-
-        if self.validate_user(user):
-            self.handle_submissions(user)
+        self.get_validated_submissions(user, self.reddit_source.validate_and_iter_user_submissions)
 
     @verify_run
     def get_subreddit_submissions(self, subreddit_id, session=None):
@@ -327,11 +321,35 @@ class DownloadRunner(QObject):
         subreddit = session.query(Subreddit).get(subreddit_id)
         subreddit.set_existing()
         self._current_fetch_object = subreddit.name  # [mine] feat(gui): download status window
+        self.get_validated_submissions(subreddit, self.reddit_source.validate_and_iter_subreddit_submissions)
 
-        if self.validate_subreddit(subreddit):
-            self.handle_submissions(subreddit)
+    def get_validated_submissions(self, reddit_object, source_method):
+        """
+        Validates and fetches submissions for a single user/subreddit in one navigation -- the
+        submitted/new listing page shows the same 404/private/suspended copy as the plain profile
+        page, so there's no need for validate_user/validate_subreddit's separate profile-page visit
+        before this one. See PLAN_reddit_source_rewrite.md.
+        """
+        known_ids = self.get_known_post_ids(reddit_object)
+        try:
+            result, raw_submissions = source_method(reddit_object.name, limit=reddit_object.post_limit,
+                                                     known_ids=known_ids)
+        except PlaywrightError:
+            extra = {'object_type': reddit_object.object_type, 'reddit_object': reddit_object.name}
+            self.logger.error('Browser navigation failed.  Ending submission extraction',
+                              extra=extra, exc_info=True)
+            Message.send_error(f'Failed to extract submissions for: {reddit_object.name}. Please try again shortly.')
+            return
+        if self.validate_object(result, reddit_object):
+            submissions = self.filter_submissions(reddit_object, raw_submissions)
+            self.queue_submissions(reddit_object, submissions)
 
     def handle_submissions(self, reddit_object):
+        """
+        Used by the perpetual-download recheck loop only -- the object was already validated once
+        at the start of the run (get_validated_submissions), so subsequent rechecks skip
+        revalidation and go straight to fetching submissions.
+        """
         submissions = self.get_submissions(reddit_object)
         self.queue_submissions(reddit_object, submissions)
 
