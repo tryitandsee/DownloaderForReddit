@@ -5,7 +5,7 @@ from threading import Thread, Event
 from datetime import datetime
 from playwright.sync_api import Error as PlaywrightError
 from PyQt5.QtCore import QObject, pyqtSignal
-from collections import namedtuple
+from collections import defaultdict, namedtuple
 from sqlalchemy import or_
 
 from DownloaderForReddit.core.download.downloader import Downloader
@@ -257,8 +257,11 @@ class DownloadRunner(QObject):
                 self.filter_subreddits = True
                 self.validate_subreddit_list()
             if self.user_id_list is not None:
-                for user_id in self.user_id_list:
-                    self.get_user_submissions(user_id)
+                # Bulk user downloads go through the home feed (one aggregated "new" scrape) rather than
+                # visiting each user's submitted page individually -- see PLAN_reddit_source_rewrite.md.
+                # Downloading a single user via the context menu still goes through
+                # get_reddit_object_submissions -> iter_user_submissions above.
+                self.get_home_feed_submissions()
             else:
                 for subreddit_id in self.subreddit_id_list:
                     self.get_subreddit_submissions(subreddit_id)
@@ -330,6 +333,9 @@ class DownloadRunner(QObject):
 
     def handle_submissions(self, reddit_object):
         submissions = self.get_submissions(reddit_object)
+        self.queue_submissions(reddit_object, submissions)
+
+    def queue_submissions(self, reddit_object, submissions):
         date_limit = 0
         if not submissions:
             return
@@ -355,25 +361,73 @@ class DownloadRunner(QObject):
         :param reddit_object: The reddit object (User or Subreddit) submissions are being extracted for.
         :return: A list of submissions extracted from reddit.  May be an empty list if no passing submissions are found.
         """
-        submissions = []
         try:
-            for submission in self.get_raw_submissions(reddit_object):
-                if not self.submission_filter.date_filter(submission, reddit_object):
-                    # Don't assume get_raw_submissions is strictly newest-first -- a repost/crosspost
-                    # (or the scroll-stop early-exit in reddit_source.py) can leave an older post
-                    # ahead of a genuinely new one. Skip it rather than break, so one out-of-order
-                    # old post can't silently discard every newer submission after it.
-                    continue
-                if (not self.filter_subreddits or submission.subreddit in self.validated_subreddits) \
-                        and self.submission_filter.filter_submission(submission, reddit_object):
-                    submissions.append(submission)
-            return submissions
+            raw_submissions = self.get_raw_submissions(reddit_object)
         except PlaywrightError:
             extra = {'object_type': reddit_object.object_type, 'reddit_object': reddit_object.name}
             self.logger.error('Browser navigation failed.  Ending submission extraction',
                               extra=extra, exc_info=True)
             Message.send_error(f'Failed to extract submissions for: {reddit_object.name}. Please try again shortly.')
-            return submissions
+            return []
+        return self.filter_submissions(reddit_object, raw_submissions)
+
+    def filter_submissions(self, reddit_object, raw_submissions):
+        submissions = []
+        for submission in raw_submissions:
+            if not self.submission_filter.date_filter(submission, reddit_object):
+                # Don't assume raw_submissions is strictly newest-first -- a repost/crosspost (or
+                # the scroll-stop early-exit in reddit_source.py) can leave an older post ahead of
+                # a genuinely new one. Skip it rather than break, so one out-of-order old post
+                # can't silently discard every newer submission after it.
+                continue
+            if (not self.filter_subreddits or submission.subreddit in self.validated_subreddits) \
+                    and self.submission_filter.filter_submission(submission, reddit_object):
+                submissions.append(submission)
+        return submissions
+
+    @verify_run
+    def get_home_feed_submissions(self):
+        """
+        Bulk user downloads pull from the dedicated account's home feed (sorted "new") in a single scrape,
+        rather than visiting each tracked user's own page -- see PLAN_reddit_source_rewrite.md. Users are
+        NOT individually validated here (that would mean one profile-page visit per user, exactly the
+        per-user navigation this path exists to avoid) -- a deleted/suspended/not-yet-followed user's
+        posts just won't appear in the feed and nothing is downloaded for them this run; they won't get
+        auto-marked inactive from a bulk run the way a single context-menu download still does.
+        Requires the dedicated account to actually follow every user in self.user_id_list (followed
+        manually, one at a time -- reddit's follow rate limit is ~10/day, see PLAN_reddit_source_rewrite.md
+        Phase 4); a user whose posts never appear in the aggregated feed (e.g. not yet followed) will
+        simply have nothing downloaded for them this run.
+        """
+        with self.db.get_scoped_session() as session:
+            users = session.query(User).filter(User.id.in_(self.user_id_list)).all()
+            users_by_name = {user.name: user for user in users}
+            for user in users:
+                user.set_existing()
+
+            if not users_by_name:
+                return
+
+            self._current_fetch_object = 'Home Feed'
+            Message.send_info('Downloading home feed')
+            try:
+                raw_submissions = self.reddit_source.iter_home_feed()
+            except PlaywrightError:
+                self.logger.error('Browser navigation failed while fetching home feed', exc_info=True)
+                Message.send_error('Failed to fetch home feed. Please try again shortly.')
+                return
+
+            by_user = defaultdict(list)
+            for submission in raw_submissions:
+                user = users_by_name.get(submission.author)
+                if user is not None:
+                    by_user[user].append(submission)
+
+            for user, user_raw_submissions in by_user.items():
+                if not self.continue_run:
+                    break
+                submissions = self.filter_submissions(user, user_raw_submissions)
+                self.queue_submissions(user, submissions)
 
     def get_raw_submissions(self, reddit_object):
         """
