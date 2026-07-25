@@ -144,6 +144,7 @@ class BrowserRedditSource:
             user_data_dir=str(PROFILE_DIR),
             headless=False,
         )
+        self._page().goto(REDDIT_BASE_URL)
 
     def stop(self):
         self._executor.submit(self._stop_impl).result()

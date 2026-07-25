@@ -69,6 +69,8 @@ def main():
 
     app = QtWidgets.QApplication(sys.argv)
 
+    injector.get_reddit_source()
+
     queue = injector.get_message_queue()
     message_thread = QtCore.QThread()
     receiver = MessageReceiver(queue)
