@@ -122,6 +122,7 @@ class BrowserRedditSource:
 
     SCROLL_PASSES = 10
     SCROLL_PAUSE_MS = 1000
+    KNOWN_POST_STOP_THRESHOLD = 10
 
     def __init__(self):
         self._executor = ThreadPoolExecutor(max_workers=1)
@@ -151,31 +152,56 @@ class BrowserRedditSource:
     def _page(self) -> Page:
         return self._context.pages[0] if self._context.pages else self._context.new_page()
 
-    def _collect(self, url: str, limit: Optional[int] = None) -> List[SubmissionData]:
+    def _collect(self, url: str, limit: Optional[int] = None, known_ids: Optional[set] = None) -> List[SubmissionData]:
         page = self._page()
         page.goto(url)
         page.wait_for_timeout(2000)
         seen = set()
         results = []
-        for _ in range(self.SCROLL_PASSES):
+        consecutive_known = 0
+        for scroll_pass in range(self.SCROLL_PASSES):
             for post in page.locator('shreddit-post').all():
                 data = _parse_post(post)
                 if data is not None and data.reddit_id not in seen:
                     seen.add(data.reddit_id)
                     results.append(data)
+                    # Posts are sorted by "new", so once we've seen a CONSECUTIVE run of
+                    # already-downloaded posts we've caught up with the last run -- stop scrolling
+                    # instead of always doing all SCROLL_PASSES regardless of content. Must be
+                    # consecutive, not cumulative: known and new posts can be interspersed (e.g.
+                    # crossposts/reposts sorting slightly out of strict chronological order), and a
+                    # cumulative count would stop before reaching a genuinely new post sitting past
+                    # scattered known ones.
+                    if known_ids is not None and data.reddit_id in known_ids:
+                        consecutive_known += 1
+                        if consecutive_known >= self.KNOWN_POST_STOP_THRESHOLD:
+                            logger.debug('Caught up with already-downloaded posts, stopping scroll', extra={
+                                'url': url, 'scroll_pass': scroll_pass + 1, 'collected': len(results),
+                            })
+                            return results
+                    else:
+                        consecutive_known = 0
                     if limit is not None and len(results) >= limit:
+                        logger.debug('Reached post limit, stopping scroll', extra={
+                            'url': url, 'scroll_pass': scroll_pass + 1, 'collected': len(results),
+                        })
                         return results
             page.mouse.wheel(0, 2000)
             page.wait_for_timeout(self.SCROLL_PAUSE_MS)
+        logger.debug('Reached SCROLL_PASSES limit without catching up or hitting post limit', extra={
+            'url': url, 'scroll_passes': self.SCROLL_PASSES, 'collected': len(results),
+        })
         return results
 
-    def iter_user_submissions(self, name: str, limit: Optional[int] = None) -> List[SubmissionData]:
+    def iter_user_submissions(self, name: str, limit: Optional[int] = None,
+                              known_ids: Optional[set] = None) -> List[SubmissionData]:
         url = f'https://www.reddit.com/user/{name}/submitted/?sort=new'
-        return self._executor.submit(self._collect, url, limit).result()
+        return self._executor.submit(self._collect, url, limit, known_ids).result()
 
-    def iter_subreddit_submissions(self, name: str, limit: Optional[int] = None) -> List[SubmissionData]:
+    def iter_subreddit_submissions(self, name: str, limit: Optional[int] = None,
+                                   known_ids: Optional[set] = None) -> List[SubmissionData]:
         url = f'https://www.reddit.com/r/{name}/new/'
-        return self._executor.submit(self._collect, url, limit).result()
+        return self._executor.submit(self._collect, url, limit, known_ids).result()
 
     def iter_home_feed(self, limit: Optional[int] = None) -> List[SubmissionData]:
         return self._executor.submit(self._collect, 'https://www.reddit.com/new/', limit).result()

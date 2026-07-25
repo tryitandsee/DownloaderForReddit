@@ -388,10 +388,20 @@ class DownloadRunner(QObject):
                 f'post_sort_method {reddit_object.post_sort_method} for {reddit_object.object_type} '
                 f'{reddit_object.name} is not supported by the browser-based source; using "new"'
             )
+        known_ids = self.get_known_post_ids(reddit_object)
         if reddit_object.object_type == 'USER':
-            return self.reddit_source.iter_user_submissions(reddit_object.name, limit=reddit_object.post_limit)
+            return self.reddit_source.iter_user_submissions(reddit_object.name, limit=reddit_object.post_limit,
+                                                             known_ids=known_ids)
         else:
-            return self.reddit_source.iter_subreddit_submissions(reddit_object.name, limit=reddit_object.post_limit)
+            return self.reddit_source.iter_subreddit_submissions(reddit_object.name, limit=reddit_object.post_limit,
+                                                                  known_ids=known_ids)
+
+    def get_known_post_ids(self, reddit_object):
+        with self.db.get_scoped_session() as session:
+            rows = session.query(Post.reddit_id) \
+                .filter(Post.significant_reddit_object_id == reddit_object.id) \
+                .all()
+            return {row[0] for row in rows}
 
     def perpetuate_run(self):
         """
