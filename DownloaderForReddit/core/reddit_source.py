@@ -65,8 +65,6 @@ class RedditSource(Protocol):
 
     def iter_home_feed(self) -> List[SubmissionData]: ...  # following-only aggregation
 
-    def iter_multireddit(self, owner: str, name: str) -> List[SubmissionData]: ...
-
 
 def _strip_fullname_prefix(fullname: str) -> str:
     return re.sub(r'^t\d+_', '', fullname)
@@ -181,10 +179,6 @@ class BrowserRedditSource:
 
     def iter_home_feed(self, limit: Optional[int] = None) -> List[SubmissionData]:
         return self._executor.submit(self._collect, 'https://www.reddit.com/new/', limit).result()
-
-    def iter_multireddit(self, owner: str, name: str, limit: Optional[int] = None) -> List[SubmissionData]:
-        url = f'https://www.reddit.com/user/{owner}/m/{name}/'
-        return self._executor.submit(self._collect, url, limit).result()
 
     def validate_user(self, name: str) -> ValidationResult:
         url = f'https://www.reddit.com/user/{name}/'

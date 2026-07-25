@@ -132,3 +132,6 @@ dmypy.json
 
 # Dedicated Playwright browser profile (reddit downloader account)
 /browser_profile/
+
+# Manual record of who the dedicated downloader account follows (per-installation, not shared)
+/followed_users.txt
