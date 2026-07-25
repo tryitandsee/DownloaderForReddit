@@ -26,7 +26,14 @@ def main():
             no_viewport=True,
         )
         page = context.pages[0] if context.pages else context.new_page()
-        page.goto("https://www.reddit.com")
+        try:
+            page.goto("https://www.reddit.com")
+        except Exception as e:
+            # Never let a navigation failure close the window -- the whole point of this script
+            # is to let the user see the browser's state, including when something is broken
+            # (e.g. reddit rate-limiting/429). Print the error and fall through to keeping the
+            # window open regardless, so it can be inspected/navigated manually.
+            print(f"Navigation failed: {type(e).__name__}: {e}")
         print("Log into the dedicated downloader account, then close the window to save the session.")
         page.wait_for_event("close", timeout=0)
         context.close()
