@@ -7,7 +7,7 @@ from .runner import Runner, verify_run
 from .submission_handler import SubmissionHandler
 from .submittable_creator import SubmittableCreator
 from ..database.models import Post
-from ..utils import injector, reddit_utils
+from ..utils import injector
 
 
 class ContentRunner(Runner):
@@ -117,6 +117,7 @@ class ContentRunner(Runner):
             else:
                 submission_handler.extract_self_post()
             if post.significant_reddit_object.run_comment_operations:
-                submission = reddit_utils.get_reddit_instance().submission(post.reddit_id)
-                submission_handler.submission = submission
+                # Comment extraction is deferred until it has a browser-based replacement -- see
+                # PLAN_reddit_source_rewrite.md "Deferred (post-MVP)". submission_handler.extract_comments()
+                # no-ops when self.submission isn't a live PRAW object, so nothing further to do here.
                 submission_handler.extract_comments()

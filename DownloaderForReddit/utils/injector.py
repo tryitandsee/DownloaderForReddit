@@ -27,6 +27,7 @@ settings_manager = None
 database_handler = None
 message_queue = None
 scheduler = None
+reddit_source = None
 
 
 def get_settings_manager():
@@ -58,3 +59,17 @@ def get_scheduler():
         from ..scheduling.scheduler import Scheduler
         scheduler = Scheduler()
     return scheduler
+
+
+def get_reddit_source():
+    """
+    Returns the single, app-lifetime BrowserRedditSource. Discovery must go through one long-lived
+    browser window reused across every download session -- never launch-per-run -- see
+    PLAN_reddit_source_rewrite.md "Serial by design".
+    """
+    global reddit_source
+    if reddit_source is None:
+        from ..core.reddit_source import BrowserRedditSource
+        reddit_source = BrowserRedditSource()
+        reddit_source.start()
+    return reddit_source

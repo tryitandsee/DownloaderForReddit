@@ -1298,6 +1298,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.run_timer.stop()
         self.save_main_window_settings()
         self.settings_manager.save_all()
+        if injector.reddit_source is not None:
+            injector.reddit_source.stop()
         super().close()
 
     def save_main_window_settings(self):

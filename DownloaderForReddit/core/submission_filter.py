@@ -41,7 +41,7 @@ class SubmissionFilter:
     def score_filter(self, submission, reddit_object):
         """
         Test the submission to see if it is greater or less than the global settings submission score limit.
-        :param submission: A praw submission item to be tested.
+        :param submission: A SubmissionData item to be tested.
         :param reddit_object: The reddit object which the post is being extracted for.
         :return: True if the submissions score limit is meets the global settings criteria, False if it does not.
         """
@@ -55,26 +55,26 @@ class SubmissionFilter:
     def nsfw_filter(self, submission, reddit_object):
         """
         Tests the submission to see if it meets the nsfw criteria set by the supplied reddit object.
-        :param submission: A praw submission item to be tested.
+        :param submission: A SubmissionData item to be tested.
         :param reddit_object: The reddit object who's nsfw filter is to be tested against.
         :return: True if the meets the reddit objects nsfw settings criteria, False if it does not.
         """
         if reddit_object.download_nsfw == NsfwFilter.EXCLUDE:
-            return not submission.over_18
+            return not submission.nsfw
         elif reddit_object.download_nsfw == NsfwFilter.ONLY:
-            return submission.over_18
+            return submission.nsfw
         else:
             return True
 
     def date_filter(self, submission, reddit_object):
         """
         Tests the submission date to see if it was submitted after the reddit objects individual date limit setting.
-        :param submission: A praw submission item to be tested.
+        :param submission: A SubmissionData item to be tested.
         :param reddit_object: A reddit object (User or Subreddit) which holds the date limit criteria to be tested.
         :return: True if the submission meets the reddit objects date criteria, False if it does not.
         """
         date_limit = self.get_date_limit(reddit_object)
-        return submission.created > date_limit.timestamp()
+        return submission.created.timestamp() > date_limit.timestamp()
 
     @staticmethod
     def get_date_limit(reddit_object):

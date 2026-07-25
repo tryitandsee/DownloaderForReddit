@@ -3,27 +3,26 @@ import logging
 from queue import Queue, Empty
 from threading import Thread, Event
 from datetime import datetime
-import prawcore
+from playwright.sync_api import Error as PlaywrightError
 from PyQt5.QtCore import QObject, pyqtSignal
 from collections import namedtuple
-from praw.models import Redditor
 from sqlalchemy import or_
 
 from DownloaderForReddit.core.download.downloader import Downloader
 from . import const
 from .content_runner import ContentRunner
-from .submittable_creator import SubmittableCreator
+from .reddit_source import ValidationError
 from .submission_filter import SubmissionFilter
 from .runner import verify_run
 from .errors import NON_DOWNLOADABLE
 from ..database.models import DownloadSession, RedditObject, User, Subreddit, Post, Content
-from ..utils import injector, reddit_utils, video_merger
+from ..utils import injector, video_merger
 from ..messaging.message import Message
 from ..version import __version__
 
 
 ExtractionSet = namedtuple('ExtractionSet', 'extraction_type extraction_object significant_id')
-RunPair = namedtuple('RunPair', 'reddit_object_id praw_object')
+RunPair = namedtuple('RunPair', 'reddit_object_id')
 
 
 class DownloadRunner(QObject):
@@ -49,7 +48,7 @@ class DownloadRunner(QObject):
         self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
         self.db = injector.get_database_handler()
         self.settings_manager = injector.get_settings_manager()
-        self.reddit_instance = reddit_utils.get_reddit_instance()
+        self.reddit_source = injector.get_reddit_source()
         self.submission_filter = SubmissionFilter()
 
         self.user_id_list = user_id_list
@@ -84,39 +83,31 @@ class DownloadRunner(QObject):
         self.reddit_object_queue = Queue(maxsize=-1)
 
     def validate_user(self, user_obj):
-        redditor = self.reddit_instance.redditor(user_obj.name)
-        if self.validate_object(redditor, user_obj):
-            Message.send_debug(f'{user_obj.name} is valid')
-            return redditor
-        else:
-            return None
+        result = self.reddit_source.validate_user(user_obj.name)
+        return self.validate_object(result, user_obj)
 
     def validate_subreddit(self, subreddit_obj):
-        subreddit = self.reddit_instance.subreddit(subreddit_obj.name)
-        if self.validate_object(subreddit, subreddit_obj):
-            Message.send_debug(f'{subreddit_obj.name} is valid')
-            return subreddit
-        else:
-            return None
+        result = self.reddit_source.validate_subreddit(subreddit_obj.name)
+        return self.validate_object(result, subreddit_obj)
 
-    def validate_object(self, praw_object, reddit_object):
-        try:
-            praw_object.fullname
+    def validate_object(self, result, reddit_object):
+        if result.valid:
+            Message.send_debug(f'{reddit_object.name} is valid')
             # [mine] add set_active() as counterpart to set_inactive()
             if not reddit_object.active:
                 reddit_object.set_active()
             return True
-        except (prawcore.exceptions.Redirect, prawcore.exceptions.NotFound, AttributeError):
+        if result.error == ValidationError.NOT_FOUND:
             self.handle_invalid_reddit_object(reddit_object)
             reddit_object.set_inactive()
-        except prawcore.exceptions.Forbidden:
+        elif result.error == ValidationError.FORBIDDEN:
             self.handle_forbidden_reddit_object(reddit_object)
             reddit_object.set_inactive()
-        except prawcore.RequestException:
-            self.handle_failed_connection()
-        except prawcore.exceptions.TooManyRequests:
+        elif result.error == ValidationError.RATE_LIMITED:
             self.handle_too_many_requests_error(reddit_object)
-        except:
+        elif result.error == ValidationError.CONNECTION_ERROR:
+            self.handle_failed_connection()
+        else:
             self.handle_unknown_error(reddit_object)
         return False
 
@@ -274,25 +265,13 @@ class DownloadRunner(QObject):
 
     # [mine] feat(core): fetch a single post by URL and build its SUBMISSION ExtractionSet, or None if invalid
     def prepare_single_submission(self, url):
-        try:
-            submission = self.reddit_instance.submission(url=url)
-            author_name = submission.author.name
-        except Exception:
-            self.logger.error('Failed to fetch single submission', exc_info=True)
-            Message.send_error(f'Failed to fetch post: {url}')
-            return None
-        with self.db.get_scoped_session() as session:
-            author = session.query(User).filter(User.name == author_name).first()
-            if author is None:
-                Message.send_error(f'Author {author_name} is not tracked. Add the user before '
-                                   f'downloading their post.')
-                return None
-            if not SubmittableCreator.check_duplicate_post_url(submission.url, session):
-                Message.send_warning(f'Already downloaded - skipped: {submission.url}')
-                return None
-            author_id = author.id
-        Message.send_info(f'Downloading single post by {author_name}')
-        return ExtractionSet(extraction_type='SUBMISSION', extraction_object=submission, significant_id=author_id)
+        # Not yet supported by BrowserRedditSource -- fetching a single arbitrary post by URL needs its own
+        # source method against the post-detail page's markup, which hasn't been probed (see
+        # PLAN_reddit_source_rewrite.md). Fails cleanly rather than crashing.
+        self.logger.error('Single-post-by-URL download is not yet supported by the browser-based source',
+                          extra={'url': url})
+        Message.send_error(f'Downloading a single post by URL is not currently supported: {url}')
+        return None
 
     def validate_subreddit_list(self):
         """
@@ -303,9 +282,8 @@ class DownloadRunner(QObject):
             for subreddit_id in self.subreddit_id_list:
                 if self.continue_run:
                     subreddit = session.query(Subreddit).get(subreddit_id)
-                    sub = self.validate_subreddit(subreddit)
-                    if sub is not None:
-                        self.validated_subreddits.append(sub)
+                    if self.validate_subreddit(subreddit):
+                        self.validated_subreddits.append(subreddit.name)
                     else:
                         subreddit.set_inactive()
                 else:
@@ -334,10 +312,9 @@ class DownloadRunner(QObject):
         user.set_existing()
         self._current_fetch_object = user.name  # [mine] feat(gui): download status window
         Message.send_info(f'Downloading user: {user.name}')  # [mine] GUI progress logging
-        redditor = self.validate_user(user)
 
-        if redditor is not None:
-            self.handle_submissions(user, redditor)
+        if self.validate_user(user):
+            self.handle_submissions(user)
 
     @verify_run
     def get_subreddit_submissions(self, subreddit_id, session=None):
@@ -347,105 +324,74 @@ class DownloadRunner(QObject):
         subreddit = session.query(Subreddit).get(subreddit_id)
         subreddit.set_existing()
         self._current_fetch_object = subreddit.name  # [mine] feat(gui): download status window
-        sub = self.validate_subreddit(subreddit)
 
-        if sub is not None:
-            self.handle_submissions(subreddit, sub)
+        if self.validate_subreddit(subreddit):
+            self.handle_submissions(subreddit)
 
-    def handle_submissions(self, reddit_object, praw_object):
-        submissions = self.get_submissions(praw_object, reddit_object)
+    def handle_submissions(self, reddit_object):
+        submissions = self.get_submissions(reddit_object)
         date_limit = 0
         if not submissions:
             return
 
         for submission in submissions:
-            if submission.created > date_limit:
-                date_limit = submission.created
+            created_epoch = submission.created.timestamp()
+            if created_epoch > date_limit:
+                date_limit = created_epoch
             extraction_set = ExtractionSet(extraction_type='SUBMISSION', extraction_object=submission,
                                            significant_id=reddit_object.id)
             self.submission_queue.put(extraction_set)
         if date_limit > 0:
             reddit_object.set_date_limit(date_limit)  # date limit modified after submissions are extracted
         if self.perpetual_download:
-            pair = RunPair(reddit_object_id=reddit_object.id, praw_object=praw_object)
+            pair = RunPair(reddit_object_id=reddit_object.id)
             self.perpetual_queue.put(pair)
 
     @verify_run
-    def get_submissions(self, praw_object, reddit_object):
+    def get_submissions(self, reddit_object):
         """
-        Extracts submissions from the supplied praw object's submission generator.  The submissions are passed through
-        the SubmissionFilter before being added for extraction.
-        :param praw_object: The praw object from which submissions are extracted.
-        :param reddit_object: The reddit object which the praw object is based on.
+        Extracts submissions from the reddit source's discovery generator for this reddit object. The submissions
+        are passed through the SubmissionFilter before being added for extraction.
+        :param reddit_object: The reddit object (User or Subreddit) submissions are being extracted for.
         :return: A list of submissions extracted from reddit.  May be an empty list if no passing submissions are found.
         """
         submissions = []
         try:
-            for submission in self.get_raw_submissions(praw_object, reddit_object):
+            for submission in self.get_raw_submissions(reddit_object):
                 passes_date_limit = self.submission_filter.date_filter(submission, reddit_object)
-                # stickied posts are taken first when getting submissions by new, even when they are not the newest
-                # submissions.  So the first filter pass allows stickied posts through so they do not trip the date filter
-                # before more recent posts are allowed through
-                if (submission.pinned or submission.stickied) or passes_date_limit:
-                    if passes_date_limit:
-                        if (not self.filter_subreddits or submission.subreddit.display_name
-                            in self.validated_subreddits) \
+                if passes_date_limit:
+                    if (not self.filter_subreddits or submission.subreddit in self.validated_subreddits) \
                             and self.submission_filter.filter_submission(submission, reddit_object):
-                                submissions.append(submission)
+                        submissions.append(submission)
                 else:
                     break
             return submissions
-        except prawcore.exceptions.TooManyRequests:
-            extra={'object_type': reddit_object.object_type, 'reddit_object': reddit_object.name}
-            self.logger.error('Reddit reports too many requests.  Ending submission extraction',
+        except PlaywrightError:
+            extra = {'object_type': reddit_object.object_type, 'reddit_object': reddit_object.name}
+            self.logger.error('Browser navigation failed.  Ending submission extraction',
                               extra=extra, exc_info=True)
-            message = (
-                f'Reddit rate limit reached. Failed to extract submissions for: {reddit_object.name}.  '
-                f'Please try again shortly.\n'
-                f'For more information, please visit the link below:\n{const.RATE_LIMIT_DOC_URL}'
-            )
-            Message.send_error(message)
+            Message.send_error(f'Failed to extract submissions for: {reddit_object.name}. Please try again shortly.')
             return submissions
 
-    def get_raw_submissions(self, praw_object, reddit_object):
+    def get_raw_submissions(self, reddit_object):
         """
-        Returns a praw submission generator for the supplied praw object sorted and limited by the settings of the
-        supplied reddit object.
-        :param praw_object: The praw object (Redditor or Subreddit) from which a submission generator is to be returned.
-        :param reddit_object: The reddit object matching the praw object which contains the settings to be used to sort
-                              and limit the submission generator.
-        :return: A submission generator for the supplied praw object.
+        Returns a submission generator for the supplied reddit object, limited by its post_limit setting.
+        BrowserRedditSource always sorts by "new" -- see PLAN_reddit_source_rewrite.md "Actual mechanism" --
+        so a configured post_sort_method other than NEW is not honored; this is a known, accepted scope
+        reduction, not a bug.
+        :param reddit_object: The reddit object (User or Subreddit) a submission generator is to be returned for.
+        :return: A submission generator for the supplied reddit object.
         """
         from ..database.model_enums import PostSortMethod
-        sort_method = reddit_object.post_sort_method
-        # Handle None case by falling back to default
-        if sort_method is None:
-            self.logger.warning(
-                f'post_sort_method is None for {reddit_object.object_type} {reddit_object.name}, '
-                f'using default PostSortMethod.NEW'
+        if reddit_object.post_sort_method not in (None, PostSortMethod.NEW):
+            self.logger.debug(
+                f'post_sort_method {reddit_object.post_sort_method} for {reddit_object.object_type} '
+                f'{reddit_object.name} is not supported by the browser-based source; using "new"'
             )
-            sort_method = PostSortMethod.NEW
-            reddit_object.post_sort_method = PostSortMethod.NEW
-        if sort_method.value <= 4:
-            submission_method = self.get_raw_submission_method(praw_object, sort_method.name.lower())
-            return submission_method(limit=reddit_object.post_limit)
+        if reddit_object.object_type == 'USER':
+            return self.reddit_source.iter_user_submissions(reddit_object.name, limit=reddit_object.post_limit)
         else:
-            sort, sort_period = sort_method.name.lower().split('_')
-            submission_method = self.get_raw_submission_method(praw_object, sort)
-            return submission_method(sort_period, limit=reddit_object.post_limit)
-
-    def get_raw_submission_method(self, praw_object, sort_type: str):
-        """
-        Creates and returns the method that should be used to retrieve the submissions for the praw_object.
-        :param praw_object: The praw object for which submissions will be retrieved.
-        :param sort_type: The sort method that should be used to retrieve these submissions.
-        :return: A method that can be called to retrieve submissions from the supplied praw object which will be sorted
-                 by the supplied sort method.
-        """
-        if type(praw_object) == Redditor:
-            return getattr(praw_object.submissions, sort_type)
-        else:
-            return getattr(praw_object, sort_type)
+            return self.reddit_source.iter_subreddit_submissions(reddit_object.name, limit=reddit_object.post_limit)
 
     def perpetuate_run(self):
         """
@@ -466,10 +412,10 @@ class DownloadRunner(QObject):
         try:
             run_pair = self.perpetual_queue.get(timeout=1)
             if run_pair is not None:
-                reddit_object_id, praw_object = run_pair
+                reddit_object_id, = run_pair
                 with self.db.get_scoped_session() as session:
                     reddit_object = session.query(RedditObject).get(reddit_object_id)
-                    self.handle_submissions(reddit_object, praw_object)
+                    self.handle_submissions(reddit_object)
         except Empty:
             pass
 

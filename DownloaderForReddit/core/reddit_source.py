@@ -7,16 +7,18 @@ this implementation is based on.
 
 import logging
 import re
-import threading
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Iterable, Optional, Protocol
+from typing import List, Optional, Protocol
+from urllib.parse import urljoin
 
-from playwright.sync_api import Locator, Page, sync_playwright
+from playwright.sync_api import Error as PlaywrightError, Locator, Page, sync_playwright
 
 PROFILE_DIR = Path(__file__).resolve().parent.parent.parent / 'browser_profile'
+REDDIT_BASE_URL = 'https://www.reddit.com'
 
 logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
 
@@ -25,6 +27,7 @@ class ValidationError(Enum):
     NOT_FOUND = 'not_found'
     FORBIDDEN = 'forbidden'
     RATE_LIMITED = 'rate_limited'
+    CONNECTION_ERROR = 'connection_error'
     UNKNOWN = 'unknown'
 
 
@@ -56,13 +59,13 @@ class RedditSource(Protocol):
 
     def validate_subreddit(self, name: str) -> ValidationResult: ...
 
-    def iter_user_submissions(self, name: str) -> Iterable[SubmissionData]: ...
+    def iter_user_submissions(self, name: str) -> List[SubmissionData]: ...
 
-    def iter_subreddit_submissions(self, name: str) -> Iterable[SubmissionData]: ...
+    def iter_subreddit_submissions(self, name: str) -> List[SubmissionData]: ...
 
-    def iter_home_feed(self) -> Iterable[SubmissionData]: ...  # following-only aggregation
+    def iter_home_feed(self) -> List[SubmissionData]: ...  # following-only aggregation
 
-    def iter_multireddit(self, owner: str, name: str) -> Iterable[SubmissionData]: ...
+    def iter_multireddit(self, owner: str, name: str) -> List[SubmissionData]: ...
 
 
 def _strip_fullname_prefix(fullname: str) -> str:
@@ -78,10 +81,14 @@ def _parse_post(post: Locator) -> Optional[SubmissionData]:
     if not raw_id:
         return None
     try:
+        # content-href/permalink are relative for some post types (crossposts, self posts) --
+        # urljoin leaves already-absolute URLs (i.redd.it, v.redd.it, outbound links) untouched.
+        url = urljoin(REDDIT_BASE_URL, post.get_attribute('content-href') or '')
+        permalink = urljoin(REDDIT_BASE_URL, post.get_attribute('permalink') or '')
         return SubmissionData(
             reddit_id=_strip_fullname_prefix(raw_id),
             title=post.get_attribute('post-title') or '',
-            url=post.get_attribute('content-href') or '',
+            url=url,
             domain=post.get_attribute('domain') or '',
             author=post.get_attribute('author') or '',
             subreddit=_strip_subreddit_prefix(post.get_attribute('subreddit-prefixed-name') or ''),
@@ -89,7 +96,7 @@ def _parse_post(post: Locator) -> Optional[SubmissionData]:
             score=int(post.get_attribute('score') or 0),
             nsfw=post.get_attribute('nsfw') is not None,
             is_self=post.get_attribute('post-type') == 'text',
-            permalink=post.get_attribute('permalink') or '',
+            permalink=permalink,
             post_type=post.get_attribute('post-type') or '',
         )
     except (TypeError, ValueError):
@@ -103,19 +110,30 @@ class BrowserRedditSource:
     logged into a dedicated downloader account. Discovery reads post data directly off
     <shreddit-post> element attributes (server-rendered, no network interception) rather
     than intercepting network responses -- see PLAN_reddit_source_rewrite.md "Actual
-    mechanism". All discovery is serialized through one window by design: parallel scroll
-    sessions would read as bot activity.
+    mechanism".
+
+    Playwright's sync API is thread-bound: it can only be driven from the thread that
+    started it. DownloadRunner runs on a QThread, NameChecker runs on its own thread, and
+    the GUI closes from the main thread -- so a plain threading.Lock is not enough (that
+    only serializes access, it doesn't relocate the caller onto the right thread). All
+    Playwright work is therefore submitted to a dedicated single-worker executor, which
+    both pins every call to one real OS thread and serializes discovery for free (no two
+    scroll sessions ever run at once -- intended, not a limitation: parallel scroll
+    sessions would read as bot activity).
     """
 
     SCROLL_PASSES = 10
     SCROLL_PAUSE_MS = 1000
 
     def __init__(self):
-        self._lock = threading.Lock()
+        self._executor = ThreadPoolExecutor(max_workers=1)
         self._playwright = None
         self._context = None
 
     def start(self):
+        self._executor.submit(self._start_impl).result()
+
+    def _start_impl(self):
         self._playwright = sync_playwright().start()
         self._context = self._playwright.chromium.launch_persistent_context(
             user_data_dir=str(PROFILE_DIR),
@@ -123,6 +141,10 @@ class BrowserRedditSource:
         )
 
     def stop(self):
+        self._executor.submit(self._stop_impl).result()
+        self._executor.shutdown(wait=True)
+
+    def _stop_impl(self):
         if self._context is not None:
             self._context.close()
         if self._playwright is not None:
@@ -131,52 +153,63 @@ class BrowserRedditSource:
     def _page(self) -> Page:
         return self._context.pages[0] if self._context.pages else self._context.new_page()
 
-    def _collect(self, url: str) -> Iterable[SubmissionData]:
-        with self._lock:
-            page = self._page()
-            page.goto(url)
-            page.wait_for_timeout(2000)
-            seen = set()
-            for _ in range(self.SCROLL_PASSES):
-                for post in page.locator('shreddit-post').all():
-                    data = _parse_post(post)
-                    if data is not None and data.reddit_id not in seen:
-                        seen.add(data.reddit_id)
-                        yield data
-                page.mouse.wheel(0, 2000)
-                page.wait_for_timeout(self.SCROLL_PAUSE_MS)
+    def _collect(self, url: str, limit: Optional[int] = None) -> List[SubmissionData]:
+        page = self._page()
+        page.goto(url)
+        page.wait_for_timeout(2000)
+        seen = set()
+        results = []
+        for _ in range(self.SCROLL_PASSES):
+            for post in page.locator('shreddit-post').all():
+                data = _parse_post(post)
+                if data is not None and data.reddit_id not in seen:
+                    seen.add(data.reddit_id)
+                    results.append(data)
+                    if limit is not None and len(results) >= limit:
+                        return results
+            page.mouse.wheel(0, 2000)
+            page.wait_for_timeout(self.SCROLL_PAUSE_MS)
+        return results
 
-    def iter_user_submissions(self, name: str) -> Iterable[SubmissionData]:
-        yield from self._collect(f'https://www.reddit.com/user/{name}/submitted/?sort=new')
+    def iter_user_submissions(self, name: str, limit: Optional[int] = None) -> List[SubmissionData]:
+        url = f'https://www.reddit.com/user/{name}/submitted/?sort=new'
+        return self._executor.submit(self._collect, url, limit).result()
 
-    def iter_subreddit_submissions(self, name: str) -> Iterable[SubmissionData]:
-        yield from self._collect(f'https://www.reddit.com/r/{name}/new/')
+    def iter_subreddit_submissions(self, name: str, limit: Optional[int] = None) -> List[SubmissionData]:
+        url = f'https://www.reddit.com/r/{name}/new/'
+        return self._executor.submit(self._collect, url, limit).result()
 
-    def iter_home_feed(self) -> Iterable[SubmissionData]:
-        yield from self._collect('https://www.reddit.com/new/')
+    def iter_home_feed(self, limit: Optional[int] = None) -> List[SubmissionData]:
+        return self._executor.submit(self._collect, 'https://www.reddit.com/new/', limit).result()
 
-    def iter_multireddit(self, owner: str, name: str) -> Iterable[SubmissionData]:
-        yield from self._collect(f'https://www.reddit.com/user/{owner}/m/{name}/')
+    def iter_multireddit(self, owner: str, name: str, limit: Optional[int] = None) -> List[SubmissionData]:
+        url = f'https://www.reddit.com/user/{owner}/m/{name}/'
+        return self._executor.submit(self._collect, url, limit).result()
 
     def validate_user(self, name: str) -> ValidationResult:
-        return self._validate(f'https://www.reddit.com/user/{name}/')
+        url = f'https://www.reddit.com/user/{name}/'
+        return self._executor.submit(self._validate, url).result()
 
     def validate_subreddit(self, name: str) -> ValidationResult:
-        return self._validate(f'https://www.reddit.com/r/{name}/')
+        url = f'https://www.reddit.com/r/{name}/'
+        return self._executor.submit(self._validate, url).result()
 
     def _validate(self, url: str) -> ValidationResult:
-        # Best-effort: matches reddit's known 404/private-community copy, but this hasn't
-        # been confirmed against real invalid/private/suspended pages (Phase 0/1 only
-        # probed valid targets). Verify before relying on this in Phase 3.
-        with self._lock:
-            page = self._page()
+        # Best-effort: matches reddit's known 404/private-community copy. NOT_FOUND is confirmed
+        # working against a real nonexistent user (see PLAN_reddit_source_rewrite.md); FORBIDDEN
+        # (private/suspended) is still unverified -- no real example inspected yet.
+        page = self._page()
+        try:
             page.goto(url)
-            page.wait_for_timeout(1500)
-            body_text = page.locator('body').inner_text()
-        if 'nobody on reddit goes by that name' in body_text.lower():
+        except PlaywrightError:
+            logger.warning('Navigation failed during validation', extra={'url': url}, exc_info=True)
+            return ValidationResult(valid=False, error=ValidationError.CONNECTION_ERROR)
+        page.wait_for_timeout(1500)
+        body_text = page.locator('body').inner_text().lower()
+        if 'nobody on reddit goes by that name' in body_text or 'this user has deleted their account' in body_text:
             return ValidationResult(valid=False, error=ValidationError.NOT_FOUND)
-        if 'community doesn’t exist' in body_text.lower() or 'page not found' in body_text.lower():
+        if 'community doesn’t exist' in body_text or 'page not found' in body_text:
             return ValidationResult(valid=False, error=ValidationError.NOT_FOUND)
-        if 'this community is private' in body_text.lower() or 'suspended' in body_text.lower():
+        if 'this community is private' in body_text or 'suspended' in body_text:
             return ValidationResult(valid=False, error=ValidationError.FORBIDDEN)
         return ValidationResult(valid=True)

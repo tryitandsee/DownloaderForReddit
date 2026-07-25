@@ -23,9 +23,7 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import praw
-import prawcore
 import logging
-from datetime import datetime
 from collections import namedtuple
 
 from . import system_util
@@ -73,8 +71,13 @@ def get_post_sub_name(praw_post):
 class NameChecker:
 
     """
-    This class is to check for the existence of a reddit object name using praw, then report back whether the name
-    exists or not.  This class is intended to be ran in a separate thread.
+    This class is to check for the existence of a reddit object name using the browser-based reddit source, then
+    report back whether the name exists or not.  This class is intended to be ran in a separate thread.
+
+    date_created is always None: BrowserRedditSource's validate methods only check page text for a 404/private/
+    suspended page (see reddit_source.py); they don't scrape account/subreddit creation date. name is returned
+    as-supplied rather than reddit's corrected capitalization, for the same reason. Both are accepted, pre-existing
+    tolerated values elsewhere in this codebase (see reddit_object_creator.py).
     """
 
     def __init__(self, object_type):
@@ -85,7 +88,8 @@ class NameChecker:
         """
         super().__init__()
         self.logger = logging.getLogger('DownloaderForReddit.%s' % __name__)
-        self.r = get_reddit_instance()
+        from . import injector
+        self.source = injector.get_reddit_source()
         self.continue_run = True
         self.object_type = object_type
 
@@ -96,30 +100,17 @@ class NameChecker:
             return self.check_subreddit_name(name)
 
     def check_user_name(self, name):
-        user = self.r.redditor(name)
         try:
-            # actual name pulled from reddit because capitalization differences may cause problems throughout the app.
-            # Creation date is checked first because praw objects are evaluated lazily, and calling user.name first will
-            # not send anything to the server and will only return the name as it was supplied.  By getting the creation
-            # date first, the redditor object is updated with information supplied by reddit's server.
-            created = datetime.fromtimestamp(user.created)
-            actual_name = user.name
-            return ValidationSet(name=actual_name, date_created=created, valid=True)
-        except (prawcore.exceptions.NotFound, prawcore.exceptions.Redirect, AttributeError):
-            return ValidationSet(name=name, date_created=None, valid=False)
+            result = self.source.validate_user(name)
+            return ValidationSet(name=name, date_created=None, valid=result.valid)
         except:
             self.logger.error('Unable to validate user name', extra={'user_name': name}, exc_info=True)
             return ValidationSet(name=name, date_created=None, valid=False)
 
     def check_subreddit_name(self, name):
-        sub = self.r.subreddit(name)
         try:
-            # actual name pulled from reddit because capitalization differences may cause problems throughout the app
-            created = datetime.fromtimestamp(sub.created)
-            actual_name = sub.display_name
-            return ValidationSet(name=actual_name, date_created=created, valid=True)
-        except (prawcore.exceptions.NotFound, prawcore.exceptions.Redirect, AttributeError):
-            return ValidationSet(name=name, date_created=None, valid=False)
+            result = self.source.validate_subreddit(name)
+            return ValidationSet(name=name, date_created=None, valid=result.valid)
         except:
             self.logger.error('Unable to validate subreddit name', extra={'subreddit_name': name}, exc_info=True)
             return ValidationSet(name=name, date_created=None, valid=False)

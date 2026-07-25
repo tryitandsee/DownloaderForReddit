@@ -42,7 +42,7 @@ class SubmissionHandler(Runner):
 
     @verify_run
     def extract_submission(self):
-        if not self.submission.is_self:
+        if not self.post.is_self:
             self.extract_submission_content()
         else:
             self.extract_self_post()
@@ -68,6 +68,13 @@ class SubmissionHandler(Runner):
 
     @verify_run
     def extract_comments(self):
+        # Comment extraction is PRAW-tree-walking end to end and is deferred until it has a browser-based
+        # replacement -- see PLAN_reddit_source_rewrite.md "Deferred (post-MVP)". self.submission is no longer
+        # a live PRAW object, so CommentHandler would crash rather than silently do nothing if allowed through.
+        if not isinstance(self.submission, Submission):
+            self.logger.debug('Skipping comment extraction: not yet implemented for the browser-based source',
+                              extra={'post_id': self.post.id})
+            return
         comment_handler = CommentHandler(self.submission, self.post, self.download_session_id, self.stop_run,
                                          self.session)
         comment_handler.run()
