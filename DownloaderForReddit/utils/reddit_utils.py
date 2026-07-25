@@ -27,105 +27,27 @@ import prawcore
 import logging
 from datetime import datetime
 from collections import namedtuple
-from cryptography.fernet import Fernet
 
 from . import system_util
-from ..core import const
-from ..messaging.message import Message
 from ..version import __version__
-from ..utils import injector
 
 
-TOKEN_SCOPES = ['identity', 'mysubreddits', 'subscribe', 'account', 'history', 'read']
-TOKEN_DURATION = 'permanent'
 USER_AGENT = (
     f'{system_util.get_platform_str()}:DownloaderForReddit:{__version__} '
     f'(by /u/MalloyDelacroix; contact: downloaderforreddit@gmail.com)'
 )
 CLIENT_ID = 'frGEUVAuHGL2PQ'
-REDIRECT_URL = 'http://127.0.0.1:8086/'
 
 
 logger = logging.getLogger('DownloaderForReddit.{}'.format(__name__))
 ValidationSet = namedtuple('ValidationSet', 'name date_created valid')
-connection_is_authorized = False
 _token = None
 
 
 def get_reddit_instance():
-    global connection_is_authorized
     if _token is not None:
-        connection_is_authorized = True
         return praw.Reddit(client_id=CLIENT_ID, user_agent=USER_AGENT, client_secret=None, refresh_token=_token)
-    connection_is_authorized = False
-    return praw.Reddit(client_id=CLIENT_ID, user_agent=USER_AGENT, client_secret=None, redirect_uri=REDIRECT_URL)
-
-
-def save_token(raw_token):
-    # This is not good security.  This will only keep someone from seeing the raw token if looking at the config file.
-    # If an attacker has access to the users computer, there is not much we can do to protect this token anyway.
-    global _token
-    key = Fernet.generate_key()
-    f = Fernet(key)
-    t = f.encrypt(raw_token.encode())
-    settings_manager = injector.get_settings_manager()
-    settings_manager.reddit_access_token = t.decode()
-    settings_manager.reddit_access = key.decode()
-    _token = raw_token
-
-
-def delete_token():
-    global connection_is_authorized
-    global _token
-    settings_manager = injector.get_settings_manager()
-    settings_manager.reddit_access_token = None
-    settings_manager.reddit_access = None
-    connection_is_authorized = False
-    _token = None
-
-
-def load_token():
-    global _token
-    settings_manager = injector.get_settings_manager()
-    key = settings_manager.reddit_access
-    encrypted_token = settings_manager.reddit_access_token
-    if key is None or encrypted_token is None:
-        return None
-    f = Fernet(key.encode())
-    _token = f.decrypt(encrypted_token.encode()).decode()
-    return _token
-
-
-def check_authorized_connection():
-    """
-    Checks if a user is currently logged in. If so, returns their username. Otherwise, returns None.
-
-    Side Effect: Updates connection_is_authorized
-    """
-    global connection_is_authorized
-    r = get_reddit_instance()
-    try:
-        if not r.read_only:
-            user = r.user.me().name
-            connection_is_authorized = True
-            return user
-    except prawcore.exceptions.TooManyRequests:
-        # This error's except clause must be tried first because it is a subclass of prawcore.ResponseException
-        logger.error('Too many requests', exc_info=True)
-        message = (
-            f'Reddit rate limit reached.  Please wait a few minutes before trying again.\n'
-            f'For more information, please visit the link below\n'
-            f'{const.RATE_LIMIT_DOC_URL}'
-        )
-        Message.send_error(message)
-    except prawcore.RequestException:
-        logger.error('Praw request failed', exc_info=True)
-    except prawcore.ResponseException:
-        logger.error('Praw response failed', exc_info=True)
-    except:
-        # Handle unknown exception here to keep the application from completely crashing.
-        logger.error('Error checking reddit account', exc_info=True)
-    return None
+    return praw.Reddit(client_id=CLIENT_ID, user_agent=USER_AGENT, client_secret=None)
 
 
 def get_post_author_name(praw_post):

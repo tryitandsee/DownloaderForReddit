@@ -48,8 +48,6 @@ class SettingsManager:
 
         self.perpetual_download = self.get('core', 'perpetual_download', False)
         self.cascade_list_changes = self.get('core', 'cascade_list_changes', False)
-        self.reddit_access_token = self.get('core', 'reddit_access_token', None)
-        self.reddit_access = self.get('core', 'reddit_access', None)
         self.validate_names_before_add = self.get('core', 'validate_names_before_add', True)
 
         default_extractor_dict = {

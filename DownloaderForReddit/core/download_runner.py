@@ -223,7 +223,6 @@ class DownloadRunner(QObject):
         self.logger.info('Download runner started.', extra={
             'dfr_version': __version__,
             'platform': platform.platform,
-            'account_connected': reddit_utils.connection_is_authorized,
             'run_unextracted': self.run_unextracted,
             'run_undownloaded': self.run_undownloaded,
             'run_new': self.run_new,

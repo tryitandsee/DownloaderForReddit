@@ -33,7 +33,6 @@ from PyQt5.QtGui import QCursor, QPixmap, QIcon
 from ..customwidgets.qt_compat_spinner import CompatibleWaitingSpinner as WaitingSpinner
 import logging
 
-from ..core.user_auth import UserAuth
 from ..guiresources.downloader_for_reddit_gui_auto import Ui_MainWindow
 from ..gui.about_dialog import AboutDialog
 from ..gui.add_reddit_object_dialog import AddRedditObjectDialog
@@ -53,7 +52,7 @@ from ..core.cli import CLI
 from ..database.models import RedditObject, RedditObjectList, ListAssociation
 from ..database.filters import RedditObjectFilter
 from ..database.model_manager import ModelManger
-from ..utils import (injector, system_util, imgur_utils, video_merger, general_utils, UpdateChecker, reddit_utils)
+from ..utils import (injector, system_util, imgur_utils, video_merger, general_utils, UpdateChecker)
 from ..viewmodels.reddit_object_list_model import RedditObjectListModel
 from ..viewmodels.output_view_model import OutputViewModel
 from ..viewmodels.hyperlink_delegate import HyperlinkDelegate
@@ -123,23 +122,14 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.link_cursor_handler = LinkCursorHandler(self.output_list_view)
         self.output_view_model.added.connect(self.scroll_output)
 
-        reddit_utils.load_token()
-        user = reddit_utils.check_authorized_connection()
-
-        if user is not None:
-            Message.send_info(f'You are logged in as /u/{user}.')
-        else:
-            Message.send_info('You are not logged in to Reddit.')
+        # PRAW OAuth is disabled: Reddit revoked this app's client_id and now requires manual
+        # review to register a replacement. See PLAN_reddit_source_rewrite.md.
         # region Main Menu
 
         # region File Menu
         self.open_settings_menu_item.triggered.connect(self.open_settings_dialog)
-        if user:
-            self.connect_reddit_account_menu_item.setText(f"Sign out: {user}")
-            self.connect_reddit_account_menu_item.triggered.connect(self.sign_out)
-        else:
-            self.connect_reddit_account_menu_item.setText(f"Connect Reddit Account")
-            self.connect_reddit_account_menu_item.triggered.connect(self.start_oauth_flow)
+        self.connect_reddit_account_menu_item.setText("Connect Reddit Account (unavailable)")
+        self.connect_reddit_account_menu_item.setEnabled(False)
         self.open_data_directory_menu_item.triggered.connect(self.open_data_directory)
         self.minimize_to_tray_menu_item.triggered.connect(self.minimize_to_tray)
         self.exit_menu_item.triggered.connect(self.close)
@@ -307,7 +297,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.logger.info('Application started', extra={
             'dfr_version': __version__,
             'platform': platform.platform(),
-            'account_connected': reddit_utils.connection_is_authorized,
         })
 
     def setup_list_sort_menu(self):
@@ -1243,45 +1232,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         """Displays the main settings dialog and calls methods that update each reddit object if needed."""
         settings = SettingsDialog(parent=self, **kwargs)
         settings.exec_()
-
-    def sign_out(self):
-        reddit_utils.delete_token()
-        Message.send_info(f'Signed out of Downloader for Reddit.')
-        self.connect_reddit_account_menu_item.setText(f"Connect Reddit Account")
-        self.connect_reddit_account_menu_item.triggered.disconnect(self.sign_out)
-        self.connect_reddit_account_menu_item.triggered.connect(self.start_oauth_flow)
-
-    def start_oauth_flow(self):
-        """
-        Initiates the OAuth flow for user authentication.
-
-        :return: None
-        """
-        self.user_auth = UserAuth(reddit_utils=reddit_utils, parent=self)
-        self.user_auth.connected.connect(self.finish_oauth_flow)
-        self.user_auth.start_oauth()
-
-    def finish_oauth_flow(self, connected: bool):
-        """
-        Handles the completion of the OAuth flow for connecting a Reddit account.
-
-        If the connection is successful, the user's Reddit account is checked and linked to the application. The
-        application updates the UI to reflect the connected state, including displaying the username of the linked
-        Reddit account and reassigning the menu item's functionality to handle account sign-out. If the connection
-        fails, an error message is displayed.
-
-        :param connected: Indicates whether the OAuth flow was completed successfully.
-        :type connected: bool
-        :return: None
-        """
-        if connected:
-            user = reddit_utils.check_authorized_connection()
-            Message.send_info(f'Downloader for Reddit is now linked to {user}\'s reddit account.')
-            self.connect_reddit_account_menu_item.setText(f"Sign out: {user}")
-            self.connect_reddit_account_menu_item.disconnect()
-            self.connect_reddit_account_menu_item.triggered.connect(self.sign_out)
-        else:
-            Message.send_error("Failed to connect to reddit account.")
 
     def update_output(self):
         self.output_view_model.update_output_level()
