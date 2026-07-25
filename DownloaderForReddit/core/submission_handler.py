@@ -149,6 +149,16 @@ class SubmissionHandler(Runner):
     def assign_extractor(self, url):
         for extractor in BaseExtractor.__subclasses__():
             if self.settings_manager.extractor_dict[extractor.__name__]:
+                # [mine] fix(submission_handler): GenericVideoExtractor's site list includes a broad "reddit*"
+                # entry (see Resources/supported_video_sites.txt), which catches bare reddit.com permalinks
+                # (e.g. an unresolved crosspost's parent link) that none of the specific reddit extractors
+                # matched. yt-dlp can't cleanly resolve a permalink pointing at unsupported content (a gallery)
+                # and gets stuck looping between its Reddit and generic extractors. Genuine reddit-hosted media
+                # is always caught above by RedditUploadsExtractor/RedditVideoExtractor first, so a reddit.com
+                # URL reaching this point only ever means an unresolvable case -- skip GenericVideoExtractor for
+                # it and let it fail cleanly as unsupported instead.
+                if extractor.__name__ == 'GenericVideoExtractor' and 'reddit.com' in url.lower():
+                    continue
                 key = extractor.get_url_key()
                 if key is not None and any(x in url.lower() for x in key):
                     return extractor
