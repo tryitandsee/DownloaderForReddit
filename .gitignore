@@ -129,3 +129,6 @@ dmypy.json
 
 # Pycharm IDE settings
 .idea/
+
+# Dedicated Playwright browser profile (reddit downloader account)
+/browser_profile/

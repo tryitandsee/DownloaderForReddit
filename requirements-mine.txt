@@ -12,3 +12,4 @@ pyqtspinner==2.*
 cryptography
 redgifs
 yt-dlp
+playwright
