@@ -358,13 +358,15 @@ class DownloadRunner(QObject):
         submissions = []
         try:
             for submission in self.get_raw_submissions(reddit_object):
-                passes_date_limit = self.submission_filter.date_filter(submission, reddit_object)
-                if passes_date_limit:
-                    if (not self.filter_subreddits or submission.subreddit in self.validated_subreddits) \
-                            and self.submission_filter.filter_submission(submission, reddit_object):
-                        submissions.append(submission)
-                else:
-                    break
+                if not self.submission_filter.date_filter(submission, reddit_object):
+                    # Don't assume get_raw_submissions is strictly newest-first -- a repost/crosspost
+                    # (or the scroll-stop early-exit in reddit_source.py) can leave an older post
+                    # ahead of a genuinely new one. Skip it rather than break, so one out-of-order
+                    # old post can't silently discard every newer submission after it.
+                    continue
+                if (not self.filter_subreddits or submission.subreddit in self.validated_subreddits) \
+                        and self.submission_filter.filter_submission(submission, reddit_object):
+                    submissions.append(submission)
             return submissions
         except PlaywrightError:
             extra = {'object_type': reddit_object.object_type, 'reddit_object': reddit_object.name}
