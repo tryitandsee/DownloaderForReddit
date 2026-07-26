@@ -30,7 +30,7 @@ from .base_extractor import BaseExtractor
 from ..messaging.message import Message
 from ..core.errors import Error
 from ..core import const
-from ..utils import reddit_utils
+from ..utils import injector, reddit_utils
 
 
 class RedditUploadsExtractor(BaseExtractor):
@@ -67,33 +67,52 @@ class RedditUploadsExtractor(BaseExtractor):
 
     def extract_album(self) -> None:
         try:
-            # Check if media_metadata exists and is not None
-            # If not, this gallery post has no accessible media (deleted/removed/broken)
-            if not self.submission or not getattr(self.submission, 'media_metadata', None):
-                self.logger.warning(
-                    'Gallery post has no media metadata - post may be deleted or broken',
-                    extra={'url': self.url, 'submission_id': getattr(self.submission, 'id', 'unknown')}
-                )
+            if self.submission is None:
+                # No live submission at all (e.g. a retry-from-post_id path) -- nothing to fetch
+                # media_metadata for and no permalink to fall back to the browser with.
+                self.logger.warning('Gallery post has no submission data - post may be deleted or broken',
+                                   extra={'url': self.url})
                 return
-
-            count = 1
-            for value in self.submission.media_metadata.values():
-                try:
-                    container = value['s']
-                    url = self.get_album_item_url(container)
-                    ext = self.get_media_extension(url)
-                    media_id = getattr(value, 'id', None)
-                    self.make_content(url, ext, count, media_id=media_id)
-                    count += 1
-                except KeyError:
-                    # some images in albums are not valid for whatever reason, so we ignore them and move on
-                    pass
+            media_metadata = getattr(self.submission, 'media_metadata', None)
+            if media_metadata:
+                self.extract_album_from_media_metadata(media_metadata)
+            else:
+                # No PRAW media_metadata -- the common case now, a browser-discovered
+                # SubmissionData, which never has this field at all. Fall back to fetching it via
+                # the browser instead.
+                self.extract_album_from_browser()
         except:
             self.handle_failed_extract(
                 error=Error.FAILED_TO_EXTRACT,
                 message='Failed to extract images from reddit gallery',
                 log_exception=True,
             )
+
+    def extract_album_from_media_metadata(self, media_metadata) -> None:
+        count = 1
+        for value in media_metadata.values():
+            try:
+                container = value['s']
+                url = self.get_album_item_url(container)
+                ext = self.get_media_extension(url)
+                media_id = getattr(value, 'id', None)
+                self.make_content(url, ext, count, media_id=media_id)
+                count += 1
+            except KeyError:
+                # some images in albums are not valid for whatever reason, so we ignore them and move on
+                pass
+
+    def extract_album_from_browser(self) -> None:
+        # Fetches original-resolution media_metadata via reddit's .json endpoint, called from
+        # inside the browser (see BrowserRedditSource.get_gallery_media_metadata) -- same shape
+        # PRAW always gave, so this reuses extract_album_from_media_metadata unchanged.
+        media_metadata = injector.get_reddit_source().get_gallery_media_metadata(self.submission.permalink)
+        if not media_metadata:
+            message = 'Reddit gallery has no downloadable images (deleted, private, or the page layout changed)'
+            self.handle_failed_extract(error=Error.FAILED_TO_LOCATE, message=message,
+                                       extractor_error_message=message)
+            return
+        self.extract_album_from_media_metadata(media_metadata)
 
     def get_album_item_url(self, container: dict) -> str:
         """

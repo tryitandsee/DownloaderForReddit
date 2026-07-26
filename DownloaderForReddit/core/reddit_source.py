@@ -3,6 +3,7 @@ Reddit discovery via browser automation (Playwright), replacing PRAW after Reddi
 disabled this app's client_id and locked app registration behind manual review.
 """
 
+import html
 import logging
 import re
 from concurrent.futures import ThreadPoolExecutor
@@ -99,10 +100,20 @@ def _parse_post(post: Locator) -> Optional[SubmissionData]:
     try:
         # content-href/permalink are relative for some post types (crossposts, self posts) --
         # urljoin leaves already-absolute URLs (i.redd.it, v.redd.it, outbound links) untouched.
-        url = urljoin(REDDIT_BASE_URL, post.get_attribute('content-href') or '')
+        post_type = post.get_attribute('post-type') or ''
+        reddit_id = _strip_fullname_prefix(raw_id)
+        if post_type == 'gallery':
+            # content-href for a gallery is unreliable -- observed as the bare comments permalink
+            # on a feed card but https://www.reddit.com/gallery/<id> when read from the permalink
+            # page itself. Build the /gallery/<id> form directly so it's the same regardless of
+            # which page the post was read from; RedditUploadsExtractor dispatches on this exact
+            # pattern (its url_key includes 'reddit.com/gallery').
+            url = f'{REDDIT_BASE_URL}/gallery/{reddit_id}'
+        else:
+            url = urljoin(REDDIT_BASE_URL, post.get_attribute('content-href') or '')
         permalink = urljoin(REDDIT_BASE_URL, post.get_attribute('permalink') or '')
         return SubmissionData(
-            reddit_id=_strip_fullname_prefix(raw_id),
+            reddit_id=reddit_id,
             title=post.get_attribute('post-title') or '',
             url=url,
             domain=post.get_attribute('domain') or '',
@@ -111,9 +122,9 @@ def _parse_post(post: Locator) -> Optional[SubmissionData]:
             created=datetime.fromisoformat(post.get_attribute('created-timestamp')),
             score=int(post.get_attribute('score') or 0),
             nsfw=post.get_attribute('nsfw') is not None,
-            is_self=post.get_attribute('post-type') == 'text',
+            is_self=post_type == 'text',
             permalink=permalink,
-            post_type=post.get_attribute('post-type') or '',
+            post_type=post_type,
         )
     except (TypeError, ValueError):
         logger.warning('Failed to parse shreddit-post attributes', extra={'raw_id': raw_id})
@@ -329,6 +340,45 @@ class BrowserRedditSource:
             logger.warning('No shreddit-post found at url', extra={'url': url})
             return None
         return _parse_post(post)
+
+    def get_gallery_media_metadata(self, permalink: str) -> dict:
+        """
+        Fetches a gallery post's media_metadata (original-resolution image URLs, same shape PRAW's
+        media_metadata always had) via reddit's .json endpoint. A bare `requests` call to this
+        endpoint gets a 403 -- confirmed empirically, wrong TLS/JA3 fingerprint, exactly the
+        detection this whole browser-automation rewrite exists to avoid. Calling fetch() from
+        inside the logged-in browser page instead works (confirmed) and is the one deliberate
+        exception to "never call .json" elsewhere in this source: a single occasional per-gallery
+        lookup, not a bulk discovery pattern that would look anomalous.
+        Reference: https://github.com/mikf/gallery-dl/blob/master/gallery_dl/extractor/reddit.py
+        """
+        return self._executor.submit(self._get_gallery_media_metadata_impl, permalink).result()
+
+    def _get_gallery_media_metadata_impl(self, permalink: str) -> dict:
+        url = _normalize_reddit_url(urljoin(REDDIT_BASE_URL, permalink)).rstrip('/') + '.json'
+        page = self._page()
+        try:
+            data = page.evaluate('(url) => fetch(url).then(r => r.ok ? r.json() : null)', url)
+        except PlaywrightError:
+            logger.warning('Navigation failed fetching gallery json', extra={'url': url}, exc_info=True)
+            return {}
+        if not data:
+            return {}
+        try:
+            post = data[0]['data']['children'][0]['data']
+        except (KeyError, IndexError, TypeError):
+            logger.warning('Unexpected gallery json shape', extra={'url': url})
+            return {}
+        media_metadata = post.get('media_metadata') or {}
+        # Values come back with HTML-entity-escaped URLs (e.g. "&amp;" for "&") -- PRAW always
+        # unescaped these before code elsewhere ever saw them, so do the same here.
+        for value in media_metadata.values():
+            source = value.get('s')
+            if isinstance(source, dict):
+                for key in ('u', 'gif', 'mp4'):
+                    if key in source:
+                        source[key] = html.unescape(source[key])
+        return media_metadata
 
     def open_url(self, url: str) -> None:
         # [mine] feat(core): navigate the dedicated account's browser window to a url -- lets the
