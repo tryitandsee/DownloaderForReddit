@@ -24,6 +24,7 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 
 
 import io
+import os
 import platform
 import threading
 from datetime import datetime
@@ -33,6 +34,7 @@ from PyQt5.QtCore import QThread, Qt, pyqtSignal, QTimer
 from PyQt5.QtGui import QCursor, QPixmap, QIcon
 from ..customwidgets.qt_compat_spinner import CompatibleWaitingSpinner as WaitingSpinner
 import logging
+from playwright._impl._errors import TargetClosedError
 
 from ..guiresources.downloader_for_reddit_gui_auto import Ui_MainWindow
 from ..gui.about_dialog import AboutDialog
@@ -259,7 +261,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.user_list_view.setContextMenuPolicy(Qt.CustomContextMenu)
         self.user_list_view.customContextMenuRequested.connect(lambda: self.reddit_object_list_context_menu('USER'))
 
-        self.user_list_view.doubleClicked.connect(lambda: self.user_settings(self.get_selected_users()))
+        self.user_list_view.doubleClicked.connect(
+            lambda: self.open_reddit_object_in_browser(self.get_selected_users()[0], 'USER'))
         self.user_list_view.setEditTriggers(QAbstractItemView.NoEditTriggers)
 
         self.user_lists_combo.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -270,7 +273,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             lambda: self.reddit_object_list_context_menu('SUBREDDIT'))
 
         self.subreddit_list_view.doubleClicked.connect(
-            lambda: self.subreddit_settings(self.get_selected_subreddits()))
+            lambda: self.open_reddit_object_in_browser(self.get_selected_subreddits()[0], 'SUBREDDIT'))
         self.subreddit_list_view.setEditTriggers(QAbstractItemView.NoEditTriggers)
 
         self.subreddit_list_combo.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -574,6 +577,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         menu.addAction('Output Settings', lambda: self.open_settings_dialog(open_display='Output'))
         menu.addSeparator()
         menu.addAction('Clear Output', lambda: self.output_view_model.clear())
+        menu.addAction('Open Log File', self.open_log_file)
         menu.exec_(QCursor.pos())
     # endregion
 
@@ -1180,8 +1184,10 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     # dedicated account's already-open browser window rather than launching a separate, logged-out
     # system browser. Run off the GUI thread since page.goto() blocks for a second or two.
     def open_reddit_object_in_browser(self, reddit_object, object_type):
-        path = 'user' if object_type == 'USER' else 'r'
-        url = f'https://www.reddit.com/{path}/{reddit_object.name}'
+        if object_type == 'USER':
+            url = f'https://www.reddit.com/user/{reddit_object.name}/submitted/?sort=new'
+        else:
+            url = f'https://www.reddit.com/r/{reddit_object.name}/new/'
         threading.Thread(target=injector.get_reddit_source().open_url, args=(url,), daemon=True).start()
 
     # Ambient extraction: reads whatever's on the currently loaded page, matches against the
@@ -1195,6 +1201,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     def ambient_poll(self):
         try:
             posts = injector.get_reddit_source().read_current_page_posts()
+        except TargetClosedError:
+            self.logger.debug('Ambient extraction poll skipped: browser page closed')
+            return
         except Exception:
             self.logger.exception('Ambient extraction poll failed')
             return
@@ -1216,10 +1225,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     def start_ambient_download(self, submissions):
         for submission in submissions:
-            self.logger.info('Ambient extraction: queuing tracked post', extra={
-                'reddit_id': submission.reddit_id, 'author': submission.author,
-                'subreddit': submission.subreddit, 'title': submission.title,
-            })
+            self.logger.debug('checking %s : %s : %s', submission.author, submission.reddit_id, submission.url)
         if not self.running:
             self.started_download_gui_shift()
         self.download_runner.request_download.emit({'submissions': submissions})
@@ -1440,6 +1446,16 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             system_util.open_in_system(system_util.get_data_directory())
         except Exception:
             self.logger.error('Failed to open data directory', exc_info=True)
+
+    def open_log_file(self):
+        """
+        Opens the application's log file in the default system application.
+        """
+        try:
+            log_path = os.path.join(system_util.get_data_directory(), 'DownloaderForReddit.log')
+            system_util.open_in_system(log_path)
+        except Exception:
+            self.logger.error('Failed to open log file', exc_info=True)
 
     def check_for_updates(self, from_menu):
         """

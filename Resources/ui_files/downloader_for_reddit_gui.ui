@@ -212,7 +212,7 @@
              <string>Stops the current download, but allows in progress downloads to finish</string>
             </property>
             <property name="text">
-             <string>Stop Download</string>
+             <string>Schedule Stop Download</string>
             </property>
            </widget>
           </item>

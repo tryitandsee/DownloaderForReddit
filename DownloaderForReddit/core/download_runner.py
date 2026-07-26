@@ -295,6 +295,11 @@ class DownloadRunner(QObject):
         # set_date_limit).
         extraction_sets = [es for es in prepared_submissions if es is not None]
         if not extraction_sets:
+            # Nothing was queued, so the pool's idle state hasn't actually changed -- but the GUI
+            # already flipped into "running" mode as soon as ambient found a match, before dedup
+            # ran. Report idle now instead of leaving that GUI shift to be undone by idle_tick's
+            # next ~2s poll timeout.
+            self.pool_idle.emit()
             return
         self.create_download_session()
         for extraction_set in extraction_sets:
@@ -387,16 +392,23 @@ class DownloadRunner(QObject):
     # this looks up the same way rather than the exact-match self.reddit_source lookups elsewhere.
     def prepare_submission(self, submission):
         with self.db.get_scoped_session() as session:
-            author = session.query(User).filter(func.lower(User.name) == submission.author.lower()).first()
+            # Filters must mirror the tracked/download_enabled criteria the ambient poll used to decide
+            # this submission was a match (gui/downloader_for_reddit_gui.py:ambient_poll) -- otherwise a
+            # stale, non-tracked User row sharing the author's name (e.g. auto-created as a post's author
+            # FK on some earlier, unrelated download) wins over the actually-tracked Subreddit that caused
+            # the match, and the post gets saved under the wrong template/path.
+            author = session.query(User).filter(func.lower(User.name) == submission.author.lower(),
+                                                 User.significant == True, User.download_enabled == True).first()
             subreddit = session.query(Subreddit).filter(
-                func.lower(Subreddit.name) == submission.subreddit.lower()).first()
+                func.lower(Subreddit.name) == submission.subreddit.lower(),
+                Subreddit.significant == True, Subreddit.download_enabled == True).first()
             significant = author or subreddit
             if significant is None:
                 return None
             if not SubmittableCreator.check_duplicate_post(submission.reddit_id, submission.url, session):
                 return None
             significant_id = significant.id
-        Message.send_info(f'Ambient extraction: downloading post by {submission.author}')
+        Message.send_debug(f'checking {submission.author} : {submission.reddit_id} : {submission.url}')
         # download_session_id filled in by run_batch once a session actually gets created
         return ExtractionSet(extraction_type='SUBMISSION', extraction_object=submission,
                              significant_id=significant_id, download_session_id=None)

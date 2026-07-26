@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import List, Optional, Protocol, Tuple
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
+from playwright._impl._errors import TargetClosedError
 from playwright.sync_api import Error as PlaywrightError, Locator, Page, sync_playwright
 
 PROFILE_DIR = Path(__file__).resolve().parent.parent.parent / 'browser_profile'
@@ -84,9 +85,8 @@ def _strip_subreddit_prefix(prefixed_name: str) -> str:
 
 
 def _normalize_reddit_url(url: str) -> str:
-    # User-supplied post URLs may point at any reddit domain variant (old./np./amp./m.reddit.com,
-    # or bare reddit.com) -- only the shreddit frontend at www.reddit.com renders <shreddit-post>;
-    # old.reddit.com in particular is the legacy plain-HTML UI and has no custom elements at all.
+    """Rewrite any reddit domain variant (old./np./amp./m.reddit.com, bare reddit.com) to
+    www.reddit.com, since only shreddit renders <shreddit-post>."""
     parts = urlsplit(url)
     if parts.netloc.endswith('reddit.com') and parts.netloc != 'www.reddit.com':
         parts = parts._replace(netloc='www.reddit.com')
@@ -162,12 +162,19 @@ class BrowserRedditSource:
 
     def _start_impl(self):
         self._playwright = sync_playwright().start()
+        self._launch_context()
+        self._page().goto(REDDIT_BASE_URL)
+
+    def _launch_context(self):
         self._context = self._playwright.chromium.launch_persistent_context(
             user_data_dir=str(PROFILE_DIR),
             headless=False,
             no_viewport=True,
         )
-        self._page().goto(REDDIT_BASE_URL)
+        # If the user closes the browser window, all pages close and the persistent context
+        # closes with them -- null it out so the next call relaunches instead of raising into
+        # the ambient poll timer or an explicit download.
+        self._context.on('close', lambda _: setattr(self, '_context', None))
 
     def stop(self):
         self._executor.submit(self._stop_impl).result()
@@ -180,6 +187,9 @@ class BrowserRedditSource:
             self._playwright.stop()
 
     def _page(self) -> Page:
+        if self._context is None:
+            logger.info('Playwright browser window was closed, relaunching')
+            self._launch_context()
         return self._context.pages[0] if self._context.pages else self._context.new_page()
 
     def read_current_page_posts(self) -> List[SubmissionData]:
@@ -192,13 +202,27 @@ class BrowserRedditSource:
         return self._executor.submit(self._read_current_page_posts_impl).result()
 
     def _read_current_page_posts_impl(self) -> List[SubmissionData]:
-        page = self._page()
-        results = []
-        for post in page.locator('shreddit-post').all():
-            data = _parse_post(post)
-            if data is not None:
-                results.append(data)
-        return results
+        # Ambient extraction should pause, not relaunch, while the user has no browser window
+        # open -- unlike explicit downloads/navigation, which need the browser and so relaunch
+        # it via _page().
+        if self._context is None:
+            return []
+        try:
+            page = self._page()
+            results = []
+            for post in page.locator('shreddit-post').all():
+                data = _parse_post(post)
+                if data is not None:
+                    results.append(data)
+            return results
+        except TargetClosedError:
+            # The window can close between the check above and this call actually reaching the
+            # browser -- the 'close' event on the context is delivered asynchronously by
+            # Playwright's dispatcher thread and can lose that race. Null out here too so we
+            # don't wait for the event, and stay silent since this is the same "no window open"
+            # case as the check above, just caught slightly later.
+            self._context = None
+            return []
 
     def _collect(self, url: str, limit: Optional[int] = None, known_ids: Optional[set] = None) -> List[SubmissionData]:
         page = self._page()
@@ -390,5 +414,6 @@ class BrowserRedditSource:
         page = self._page()
         try:
             page.goto(_normalize_reddit_url(url))
+            page.bring_to_front()
         except PlaywrightError:
             logger.warning('Navigation failed opening url', extra={'url': url}, exc_info=True)

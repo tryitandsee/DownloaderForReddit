@@ -103,7 +103,7 @@ class DownloadStatusDialog(QWidget):
 
         active_ext = dict(getattr(extractor, '_active_extractions', {}))
         self.extraction_table.setRowCount(len(active_ext))
-        for row, (thread, (item_id, user, info)) in enumerate(active_ext.items()):
+        for row, (thread, (user, item_id, info)) in enumerate(active_ext.items()):
             short = thread.rsplit('_', 1)[-1] if '_' in thread else thread
             self.extraction_table.setItem(row, 0, QTableWidgetItem(short))
             self.extraction_table.setItem(row, 1, QTableWidgetItem(user))
@@ -112,7 +112,7 @@ class DownloadStatusDialog(QWidget):
 
         active = dict(downloader._active_downloads)
         self.thread_table.setRowCount(len(active))
-        for row, (thread, (content_id, user, title)) in enumerate(active.items()):
+        for row, (thread, (user, content_id, title)) in enumerate(active.items()):
             short = thread.rsplit('_', 1)[-1] if '_' in thread else thread
             self.thread_table.setItem(row, 0, QTableWidgetItem(short))
             self.thread_table.setItem(row, 1, QTableWidgetItem(user))

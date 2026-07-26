@@ -25,6 +25,7 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 import praw
 import logging
 from collections import namedtuple
+from urllib.parse import urlsplit
 
 from . import system_util
 from ..version import __version__
@@ -40,6 +41,21 @@ CLIENT_ID = 'frGEUVAuHGL2PQ'
 logger = logging.getLogger('DownloaderForReddit.{}'.format(__name__))
 ValidationSet = namedtuple('ValidationSet', 'name date_created valid')
 _token = None
+
+
+def extract_name_from_text(text, object_type):
+    """Reduce a pasted profile/subreddit URL (any reddit domain variant) down to the bare
+    name, so a user/subreddit URL entered instead of a plain name doesn't get validated or
+    stored as the literal URL string."""
+    text = text.strip()
+    parts = urlsplit(text)
+    if 'reddit.com' not in parts.netloc:
+        return text
+    segments = [s for s in parts.path.split('/') if s]
+    prefixes = ('u', 'user') if object_type == 'USER' else ('r',)
+    if len(segments) >= 2 and segments[0] in prefixes:
+        return segments[1]
+    return text
 
 
 def get_reddit_instance():
@@ -100,6 +116,7 @@ class NameChecker:
             return self.check_subreddit_name(name)
 
     def check_user_name(self, name):
+        name = extract_name_from_text(name, 'USER')
         try:
             result = self.source.validate_user(name)
             return ValidationSet(name=name, date_created=None, valid=result.valid)
@@ -108,6 +125,7 @@ class NameChecker:
             return ValidationSet(name=name, date_created=None, valid=False)
 
     def check_subreddit_name(self, name):
+        name = extract_name_from_text(name, 'SUBREDDIT')
         try:
             result = self.source.validate_subreddit(name)
             return ValidationSet(name=name, date_created=None, valid=result.valid)

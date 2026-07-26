@@ -398,7 +398,7 @@ class Ui_MainWindow(object):
         self.download_button.setToolTip(_translate("MainWindow", "Download selected user or subreddit list"))
         self.download_button.setText(_translate("MainWindow", "Download"))
         self.soft_stop_download_button.setToolTip(_translate("MainWindow", "Stops the current download, but allows in progress downloads to finish"))
-        self.soft_stop_download_button.setText(_translate("MainWindow", "Stop Download"))
+        self.soft_stop_download_button.setText(_translate("MainWindow", "Schedule Stop Download"))
         self.terminate_download_button.setToolTip(_translate("MainWindow", "Stops the download immediately and terminates in progress downloads (may result in corrupted files for downloads that were not complete)"))
         self.terminate_download_button.setText(_translate("MainWindow", "Terminate Download"))
         self.download_users_radio.setToolTip(_translate("MainWindow", "Download only user list"))

@@ -44,6 +44,7 @@ class RedditObjectCreator:
         :rtype: tuple
         """
         with self.db.get_scoped_session() as session:
+            user_name = reddit_utils.extract_name_from_text(user_name, 'USER')
             user = session.query(User).filter(func.lower(User.name) == user_name.lower()).first()
             if user is None:
                 if self.settings_manager.validate_names_before_add:

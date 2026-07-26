@@ -1,7 +1,10 @@
+import threading
+
 from PyQt5.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem
 from PyQt5.QtGui import QTextDocument, QTextCursor, QTextCharFormat
 from PyQt5.QtCore import QEvent, Qt, QModelIndex
-import webbrowser
+
+from ..utils import injector
 
 
 class HyperlinkDelegate(QStyledItemDelegate):
@@ -79,6 +82,6 @@ class HyperlinkDelegate(QStyledItemDelegate):
             pos = event.pos() - option.rect.topLeft()
             anchor = doc.documentLayout().anchorAt(pos)
             if anchor:
-                webbrowser.open(anchor)
+                threading.Thread(target=injector.get_reddit_source().open_url, args=(anchor,), daemon=True).start()
                 return True
         return False

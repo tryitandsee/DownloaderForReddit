@@ -80,7 +80,7 @@ class ContentRunner(Runner):
         try:
             with self.db.get_scoped_session() as session:
                 reddit_object_name = session.query(RedditObject).get(significant_id).name
-                self._active_extractions[thread] = (getattr(submission, 'reddit_id', None), reddit_object_name,
+                self._active_extractions[thread] = (reddit_object_name, getattr(submission, 'reddit_id', None),
                                                     getattr(submission, 'url', str(submission)))
                 post = SubmittableCreator.create_post(submission, significant_id, session, download_session_id)
                 if post is not None:
@@ -100,7 +100,7 @@ class ContentRunner(Runner):
         try:
             with self.db.get_scoped_session() as session:
                 post = session.query(Post).get(post_id)
-                self._active_extractions[thread] = (post.reddit_id, post.significant_reddit_object.name, post.url)
+                self._active_extractions[thread] = (post.significant_reddit_object.name, post.reddit_id, post.url)
                 self.handle_post(post, download_session_id)
         finally:
             self._active_extractions.pop(thread, None)

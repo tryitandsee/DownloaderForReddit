@@ -35,7 +35,7 @@ def make_logger():
     logger = logging.getLogger('DownloaderForReddit')
     logger.setLevel(logging.DEBUG)
 
-    stream_formatter = JsonStreamFormatter('%(asctime)s: %(levelname)s : %(name)s : %(message)s',
+    stream_formatter = JsonStreamFormatter('%(asctime)s: %(levelname)s : %(message)s',
                                            datefmt='%Y-%m-%dT%H:%M:%S')
 
     json_formatter = jsonlogger.JsonFormatter(

@@ -64,7 +64,8 @@ def merge_videos():
     if ffmpeg_valid:
         db = injector.get_database_handler()
         with db.get_scoped_session() as session:
-            failed_count = 0
+            merged_paths = []
+            failed_paths = []
             for ms in videos_to_merge:
                 try:
                     video_content = session.query(Content).get(ms.video_id)
@@ -83,13 +84,14 @@ def merge_videos():
                         system_util.set_file_modify_time(merged_content.get_full_file_path(),
                                                          ms.date_modified.timestamp())
                     clean_up(video_content, audio_content, merged_content, session)
+                    merged_paths.append(merged_content.get_full_file_path())
                 except:
-                    failed_count += 1
+                    failed_paths.append({'video_id': ms.video_id, 'audio_id': ms.audio_id})
                     logger.error('Failed to merge video', extra={'video_id': ms.video_id, 'audio_id': ms.audio_id},
                                  exc_info=True)
-            logger.info('Video merger complete',
-                        extra={'videos_successfully_merged': len(videos_to_merge) - failed_count,
-                               'videos_unsuccessfully_merged': failed_count})
+            if merged_paths or failed_paths:
+                logger.info('Video merger complete',
+                            extra={'merged_video_paths': merged_paths, 'failed_video_merges': failed_paths})
             videos_to_merge.clear()
     else:
         logger.warning('Ffmpeg is not installed: unable to merge video and audio files',
