@@ -86,11 +86,14 @@ class Downloader(Runner):
         :param content_id: The id of the content item which is to be queried from the database, then downloaded.
         :param download_session_id: The id of the DownloadSession this content was queued under.
         """
+        if download_session_id in self.cancelled_sessions:
+            return
         thread = threading.current_thread().name
         try:
             with self.db.get_scoped_session() as session:
                 content = session.query(Content).get(content_id)
-                self._active_downloads[thread] = f'{content.user.name}: {content.title}'
+                reddit_id = content.post.reddit_id if content.post is not None else content.comment.reddit_id
+                self._active_downloads[thread] = (reddit_id, content.user.name, content.title)
                 if self.is_url_duplicate(content, session=session):
                     content.set_downloaded(download_session_id)
                     Message.send_info(f'Duplicate URL skipped: {content.user.name}: {content.title} {content.url}')

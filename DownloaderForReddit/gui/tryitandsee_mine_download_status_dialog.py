@@ -13,52 +13,44 @@ class DownloadStatusDialog(QWidget):
         super().__init__()
         self.get_runner = get_runner
         self._build_ui()
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.refresh)
         self.timer.start(1000)
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(4, 2, 4, 2)
+        layout.setSpacing(2)
 
-        section_font = QFont()
-        section_font.setBold(True)
-
-        fetcher_heading = QLabel('Fetcher')
-        fetcher_heading.setFont(section_font)
-        layout.addWidget(fetcher_heading)
-        self.fetcher_object_label = QLabel('Current: —')
+        self.fetcher_object_label = QLabel('Fetcher: idle...')
         layout.addWidget(self.fetcher_object_label)
 
-        pipeline_heading = QLabel('Pipeline')
-        pipeline_heading.setFont(section_font)
-        layout.addWidget(pipeline_heading)
         self.pipeline_label = QLabel()
         layout.addWidget(self.pipeline_label)
 
-        extraction_heading = QLabel('Active extraction threads')
-        extraction_heading.setFont(section_font)
-        layout.addWidget(extraction_heading)
-
-        self.extraction_table = QTableWidget(0, 2)
-        self.extraction_table.setHorizontalHeaderLabels(['Thread', 'Extracting'])
+        self.extraction_table = QTableWidget(0, 4)
+        self.extraction_table.setHorizontalHeaderLabels(['Thread', 'User', 'ID', 'Extracting'])
         self.extraction_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        self.extraction_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.extraction_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.extraction_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        self.extraction_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
         self.extraction_table.verticalHeader().setVisible(False)
         self.extraction_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.extraction_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.extraction_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
+        self.extraction_table.setMaximumHeight(150)
         layout.addWidget(self.extraction_table)
 
-        threads_heading = QLabel('Active download threads')
-        threads_heading.setFont(section_font)
-        layout.addWidget(threads_heading)
-
-        self.thread_table = QTableWidget(0, 2)
-        self.thread_table.setHorizontalHeaderLabels(['Thread', 'Downloading'])
+        self.thread_table = QTableWidget(0, 4)
+        self.thread_table.setHorizontalHeaderLabels(['Thread', 'User', 'ID', 'Downloading'])
         self.thread_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        self.thread_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.thread_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.thread_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        self.thread_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
         self.thread_table.verticalHeader().setVisible(False)
         self.thread_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.thread_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.thread_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
+        self.thread_table.setMaximumHeight(150)
         layout.addWidget(self.thread_table)
 
         bottom_row = QHBoxLayout()
@@ -86,7 +78,7 @@ class DownloadStatusDialog(QWidget):
             downloader = None
             extractor = None
             fetcher_obj = None
-        self.fetcher_object_label.setText(f'Current: {fetcher_obj or "—"}')
+        self.fetcher_object_label.setText(f'Fetcher: {fetcher_obj or "idle..."}')
 
         if runner is None or downloader is None:
             self.pipeline_label.setText('No active session')
@@ -96,37 +88,36 @@ class DownloadStatusDialog(QWidget):
             self.duplicate_label.setText('Duplicates: —')
             return
 
-        sub_q = getattr(runner, 'submission_queue', None)
-        dl_q = getattr(runner, 'download_queue', None)
         ext_futures = len(getattr(extractor, 'futures', []))
         dl_futures = len(getattr(downloader, 'futures', []))
         ext_running = getattr(extractor, 'running', False)
         dl_running = getattr(downloader, 'running', False)
 
-        sub_qsize = sub_q.qsize() if sub_q is not None else '?'
-        dl_qsize = dl_q.qsize() if dl_q is not None else '?'
-
         ext_status = 'running' if ext_running else 'idle'
         dl_status = 'running' if dl_running else 'idle'
 
         self.pipeline_label.setText(
-            f'Extractor: {ext_status}  |  extraction jobs: {ext_futures}  |  submission queue: {sub_qsize}\n'
-            f'Downloader: {dl_status}  |  download jobs: {dl_futures}  |  download queue: {dl_qsize}'
+            f'Extractor: {ext_status}  |  extraction jobs: {ext_futures}\n'
+            f'Downloader: {dl_status}  |  download jobs: {dl_futures}'
         )
 
         active_ext = dict(getattr(extractor, '_active_extractions', {}))
         self.extraction_table.setRowCount(len(active_ext))
-        for row, (thread, info) in enumerate(active_ext.items()):
+        for row, (thread, (item_id, user, info)) in enumerate(active_ext.items()):
             short = thread.rsplit('_', 1)[-1] if '_' in thread else thread
             self.extraction_table.setItem(row, 0, QTableWidgetItem(short))
-            self.extraction_table.setItem(row, 1, QTableWidgetItem(info))
+            self.extraction_table.setItem(row, 1, QTableWidgetItem(user))
+            self.extraction_table.setItem(row, 2, QTableWidgetItem(str(item_id)))
+            self.extraction_table.setItem(row, 3, QTableWidgetItem(info))
 
         active = dict(downloader._active_downloads)
         self.thread_table.setRowCount(len(active))
-        for row, (thread, info) in enumerate(active.items()):
+        for row, (thread, (content_id, user, title)) in enumerate(active.items()):
             short = thread.rsplit('_', 1)[-1] if '_' in thread else thread
             self.thread_table.setItem(row, 0, QTableWidgetItem(short))
-            self.thread_table.setItem(row, 1, QTableWidgetItem(info))
+            self.thread_table.setItem(row, 1, QTableWidgetItem(user))
+            self.thread_table.setItem(row, 2, QTableWidgetItem(str(content_id)))
+            self.thread_table.setItem(row, 3, QTableWidgetItem(title))
 
         self.completed_label.setText(f'Completed: {downloader.download_count}')
         self.duplicate_label.setText(f'Duplicates: {downloader.duplicate_count}')

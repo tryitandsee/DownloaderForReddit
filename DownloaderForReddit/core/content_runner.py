@@ -6,7 +6,7 @@ from queue import Empty
 from .runner import Runner, verify_run
 from .submission_handler import SubmissionHandler
 from .submittable_creator import SubmittableCreator
-from ..database.models import Post
+from ..database.models import Post, RedditObject
 from ..utils import injector
 
 
@@ -73,11 +73,15 @@ class ContentRunner(Runner):
         :param significant_id: The id of the reddit object for which the submissions was extracted from reddit.
         :param download_session_id: The id of the DownloadSession this submission was queued under.
         """
+        if download_session_id in self.cancelled_sessions:
+            return
         # [mine] feat(gui): download status window
         thread = threading.current_thread().name
-        self._active_extractions[thread] = getattr(submission, 'url', str(submission))
         try:
             with self.db.get_scoped_session() as session:
+                reddit_object_name = session.query(RedditObject).get(significant_id).name
+                self._active_extractions[thread] = (getattr(submission, 'reddit_id', None), reddit_object_name,
+                                                    getattr(submission, 'url', str(submission)))
                 post = SubmittableCreator.create_post(submission, significant_id, session, download_session_id)
                 if post is not None:
                     submission_handler = SubmissionHandler(submission, post, download_session_id, session,
@@ -89,12 +93,14 @@ class ContentRunner(Runner):
             self._active_extractions.pop(thread, None)
 
     def finish_post(self, post_id, download_session_id):
+        if download_session_id in self.cancelled_sessions:
+            return
         # [mine] feat(gui): download status window
         thread = threading.current_thread().name
-        self._active_extractions[thread] = f'post:{post_id}'
         try:
             with self.db.get_scoped_session() as session:
                 post = session.query(Post).get(post_id)
+                self._active_extractions[thread] = (post.reddit_id, post.significant_reddit_object.name, post.url)
                 self.handle_post(post, download_session_id)
         finally:
             self._active_extractions.pop(thread, None)

@@ -132,6 +132,7 @@ class DownloadRunner(QObject):
         if self._pool_was_idle:
             return
         self._pool_was_idle = True
+        self._current_fetch_object = None  # [mine] feat(gui): download status window
         video_merger.merge_videos()
         with self.db.get_scoped_session() as session:
             open_sessions = session.query(DownloadSession).filter(DownloadSession.end_time == None).all()
