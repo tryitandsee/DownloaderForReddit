@@ -71,6 +71,8 @@ class RedditSource(Protocol):
 
     def validate_and_iter_subreddit_submissions(self, name: str) -> Tuple[ValidationResult, List[SubmissionData]]: ...
 
+    def get_post(self, url: str) -> Optional[SubmissionData]: ...
+
 
 def _strip_fullname_prefix(fullname: str) -> str:
     return re.sub(r'^t\d+_', '', fullname)
@@ -278,3 +280,24 @@ class BrowserRedditSource:
         if not validation.valid:
             return validation, []
         return validation, self._scroll_and_collect(page, url, limit, known_ids)
+
+    def get_post(self, url: str) -> Optional[SubmissionData]:
+        return self._executor.submit(self._get_post_impl, url).result()
+
+    def _get_post_impl(self, url: str) -> Optional[SubmissionData]:
+        # ASSUMED, NOT YET PROBED: the permalink/comments page is expected to render the same
+        # <shreddit-post> custom element as the listing pages (same attribute set), at the top
+        # above the comment tree -- see PLAN_reddit_source_rewrite.md "Remaining gaps". Needs a
+        # live smoke test against a real permalink before this is trusted.
+        page = self._page()
+        try:
+            page.goto(url)
+        except PlaywrightError:
+            logger.warning('Navigation failed fetching single post', extra={'url': url}, exc_info=True)
+            return None
+        page.wait_for_timeout(2000)
+        post = page.locator('shreddit-post').first
+        if post.count() == 0:
+            logger.warning('No shreddit-post found at url', extra={'url': url})
+            return None
+        return _parse_post(post)

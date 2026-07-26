@@ -13,6 +13,7 @@ from . import const
 from .content_runner import ContentRunner
 from .reddit_source import ValidationError
 from .submission_filter import SubmissionFilter
+from .submittable_creator import SubmittableCreator
 from .runner import verify_run
 from .errors import NON_DOWNLOADABLE
 from ..database.models import DownloadSession, RedditObject, User, Subreddit, Post, Content
@@ -264,13 +265,28 @@ class DownloadRunner(QObject):
 
     # [mine] feat(core): fetch a single post by URL and build its SUBMISSION ExtractionSet, or None if invalid
     def prepare_single_submission(self, url):
-        # Not yet supported by BrowserRedditSource -- fetching a single arbitrary post by URL needs its own
-        # source method against the post-detail page's markup, which hasn't been probed (see
-        # PLAN_reddit_source_rewrite.md). Fails cleanly rather than crashing.
-        self.logger.error('Single-post-by-URL download is not yet supported by the browser-based source',
-                          extra={'url': url})
-        Message.send_error(f'Downloading a single post by URL is not currently supported: {url}')
-        return None
+        try:
+            submission = self.reddit_source.get_post(url)
+        except PlaywrightError:
+            self.logger.error('Browser navigation failed while fetching single post', extra={'url': url},
+                              exc_info=True)
+            Message.send_error(f'Failed to fetch post: {url}')
+            return None
+        if submission is None:
+            Message.send_error(f'Failed to fetch post: {url}')
+            return None
+        with self.db.get_scoped_session() as session:
+            author = session.query(User).filter(User.name == submission.author).first()
+            if author is None:
+                Message.send_error(f'Author {submission.author} is not tracked. Add the user before '
+                                   f'downloading their post.')
+                return None
+            if not SubmittableCreator.check_duplicate_post(submission.reddit_id, submission.url, session):
+                Message.send_warning(f'Already downloaded - skipped: {submission.url}')
+                return None
+            author_id = author.id
+        Message.send_info(f'Downloading single post by {submission.author}')
+        return ExtractionSet(extraction_type='SUBMISSION', extraction_object=submission, significant_id=author_id)
 
     def validate_subreddit_list(self):
         """
