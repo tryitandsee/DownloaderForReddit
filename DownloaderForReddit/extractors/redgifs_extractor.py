@@ -1,3 +1,5 @@
+import threading
+
 import redgifs
 
 from .base_extractor import BaseExtractor
@@ -9,49 +11,39 @@ class RedgifsExtractor(BaseExtractor):
 
     url_key = ['redgifs']
 
+    # redgifs.API().login() fetches a brand new temporary token every call (the package never
+    # caches one) -- extraction runs on a ThreadPoolExecutor, so every concurrent post extraction
+    # was hitting redgifs' auth endpoint fresh. Share one authenticated client across every
+    # instance/thread instead, matching how other tools (e.g. gallery-dl) reuse a single token.
+    # Reference: https://github.com/mikf/gallery-dl/blob/master/gallery_dl/extractor/redgifs.py
+    _api = None
+    _api_lock = threading.Lock()
+
     def __init__(self, post, **kwargs):
         """
         An extractor class that interacts exclusively with the redgifs website.
         """
         super().__init__(post, **kwargs)
-    #     self.api_endpoint = 'https://api.redgifs.com/v2/gifs/'
-    #
-    # def extract_content(self):
-    #     try:
-    #         if self.url.lower().endswith(const.ANIMATED_EXT):
-    #             self.extract_direct_link()
-    #         else:
-    #             self.extract_single()
-    #     except:
-    #         message = 'Failed to locate content'
-    #         self.handle_failed_extract(error=Error.FAILED_TO_LOCATE, message=message, extractor_error_message=message)
-    #
-    # def extract_single(self):
-    #     gif_id = self.url.rsplit('/', 1)[-1]
-    #     url = self.api_endpoint + gif_id
-    #     data = self.get_json(url)
-    #     if not data:
-    #         return
-    #     download_url = self.get_download_url(data)
-    #     if not download_url:
-    #         message = 'Failed to locate an appropriate download url in the host response data'
-    #         self.handle_failed_extract(error=Error.FAILED_TO_LOCATE, message=message, extraction_error_message=message)
-    #     self.make_content(download_url, 'mp4', media_id=gif_id)
-    #
-    # @staticmethod
-    # def get_download_url(data):
-    #     urls = data['gif']['urls']
-    #     try:
-    #         return urls['hd']
-    #     except KeyError:
-    #         return urls.get('sd', None)
+
+    @classmethod
+    def _get_api(cls, force_relogin=False):
+        with cls._api_lock:
+            if cls._api is None or force_relogin:
+                cls._api = redgifs.API()
+                cls._api.login()
+            return cls._api
 
     def extract_content(self):
         gif_id = self.get_gif_id()
         try:
-            api = redgifs.API()
-            api.login()
-            response = api.get_gif(gif_id)
+            api = self._get_api()
+            try:
+                response = api.get_gif(gif_id)
+            except Exception:
+                # Shared token may have expired or been invalidated by redgifs -- re-login once
+                # and retry before giving up.
+                api = self._get_api(force_relogin=True)
+                response = api.get_gif(gif_id)
             url = self.get_download_url(response)
             content = self.make_content(url, 'mp4')
             if content is not None:
