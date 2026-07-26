@@ -78,6 +78,19 @@ class FilenameGenerator:
         token_string = self._get_name_token_string()
         return TokenParser.parse_tokens(self.title_obj, token_string)
 
+    def _get_defaults(self) -> dict:
+        # Per-object naming/save-path customization (post_download_naming_method,
+        # post_save_structure, custom_post_save_path, etc. on RedditObject) is ignored entirely --
+        # every object of a given type uses the same master user/subreddit config
+        # (settings_manager.user_download_defaults/subreddit_download_defaults). Multi-selecting
+        # objects with differing per-object values in the settings dialog could silently blank
+        # them out (ObjectSettingsWidget.sync_line_edit sets '' to represent "mixed values", which
+        # its own textChanged handler then wrote back to every selected object) -- removing the
+        # per-object path removes that failure mode too, not just the confusion.
+        if self.reddit_object.object_type == 'USER':
+            return self.settings_manager.user_download_defaults
+        return self.settings_manager.subreddit_download_defaults
+
     def _get_name_token_string(self) -> str:
         """
         Constructs and returns a token string indicating the naming method of the Reddit object's associated entity.
@@ -88,12 +101,13 @@ class FilenameGenerator:
 
         :return: A token string for the naming method based on the properties of the Reddit object
         """
+        defaults = self._get_defaults()
         if self.comment is not None:
-            return self.reddit_object.comment_naming_method
+            return defaults['comment_naming_method']
         elif self.is_duplicate:
-            return self.reddit_object.duplicate_naming_method
+            return defaults['duplicate_naming_method']
         else:
-            return self.reddit_object.post_download_naming_method
+            return defaults['post_download_naming_method']
 
     def make_dir_path(self):
         """
@@ -117,38 +131,22 @@ class FilenameGenerator:
         considered first, followed by comment, then the result defaults to the post save structure.
         :return: The token string used to generate the directory path for the title object.
         """
+        defaults = self._get_defaults()
         if self.is_duplicate:
-            return self.reddit_object.duplicate_save_structure
+            return defaults['duplicate_save_structure']
         elif self.comment is not None:
-            return self.reddit_object.comment_save_structure
+            return defaults['comment_save_structure']
         else:
-            return self.reddit_object.post_save_structure
+            return defaults['post_save_structure']
 
     def _get_base_path(self) -> str:
         """
-        Determine the base path to be used for saving operations.
-
-        This method determines the base path by checking if there is a custom path set. If a custom path is provided,
-        it will use that; otherwise, it defaults to returning a path based on the Reddit object type (e.g., user or
-        subreddit) and the relevant global SettingsManager settings.
+        Determine the base path to be used for saving operations, based on the Reddit object type (user or
+        subreddit) and the relevant global SettingsManager setting. Per-object custom save paths are ignored.
 
         :returns: The appropriate base path for saving files as a string.
         """
-        custom_path = self._get_custom_path()
-        if custom_path is not None and custom_path != '':
-            return custom_path
+        if self.reddit_object.object_type == 'USER':
+            return self.settings_manager.user_save_directory
         else:
-            if self.reddit_object.object_type == 'USER':
-                return self.settings_manager.user_save_directory
-            else:
-                return self.settings_manager.subreddit_save_directory
-
-    def _get_custom_path(self) -> Optional[str]:
-        """
-        Returns the custom path to be used based on if the class has a comment set or not.
-        :return: The custom path to be used, if one exists, or None.
-        """
-        if self.comment is not None:
-            return self.reddit_object.custom_comment_save_path
-        else:
-            return self.reddit_object.custom_post_save_path
+            return self.settings_manager.subreddit_save_directory
