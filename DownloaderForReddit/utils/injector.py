@@ -64,8 +64,7 @@ def get_scheduler():
 def get_reddit_source():
     """
     Returns the single, app-lifetime BrowserRedditSource. Discovery must go through one long-lived
-    browser window reused across every download session -- never launch-per-run -- see
-    PLAN_reddit_source_rewrite.md "Serial by design".
+    browser window reused across every download session -- never launch-per-run.
     """
     global reddit_source
     if reddit_source is None:

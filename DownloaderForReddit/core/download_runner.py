@@ -88,9 +88,9 @@ class DownloadRunner(QObject):
         return self.validate_object(result, subreddit_obj)
 
     def validate_object(self, result, reddit_object):
-        # [mine] fix(core): active now tracks whether the dedicated account follows a User (see
-        # PLAN_reddit_source_rewrite.md) -- validation no longer touches it, since "exists on
-        # reddit" and "is followed" are unrelated facts.
+        # [mine] fix(core): active now tracks whether the dedicated account follows a User --
+        # validation no longer touches it, since "exists on reddit" and "is followed" are
+        # unrelated facts.
         if result.valid:
             Message.send_debug(f'{reddit_object.name} is valid')
             return True
@@ -253,7 +253,7 @@ class DownloadRunner(QObject):
                 self.validate_subreddit_list()
             if self.user_id_list is not None:
                 # Bulk user downloads go through the home feed (one aggregated "new" scrape) rather than
-                # visiting each user's submitted page individually -- see PLAN_reddit_source_rewrite.md.
+                # visiting each user's submitted page individually.
                 # Downloading a single user via the context menu still goes through
                 # get_reddit_object_submissions -> iter_user_submissions above.
                 self.get_home_feed_submissions()
@@ -342,7 +342,7 @@ class DownloadRunner(QObject):
         Validates and fetches submissions for a single user/subreddit in one navigation -- the
         submitted/new listing page shows the same 404/private/suspended copy as the plain profile
         page, so there's no need for validate_user/validate_subreddit's separate profile-page visit
-        before this one. See PLAN_reddit_source_rewrite.md.
+        before this one.
         """
         known_ids = self.get_known_post_ids(reddit_object)
         try:
@@ -421,15 +421,15 @@ class DownloadRunner(QObject):
     def get_home_feed_submissions(self):
         """
         Bulk user downloads pull from the dedicated account's home feed (sorted "new") in a single scrape,
-        rather than visiting each tracked user's own page -- see PLAN_reddit_source_rewrite.md. Users are
-        NOT individually validated here (that would mean one profile-page visit per user, exactly the
-        per-user navigation this path exists to avoid) -- a deleted/suspended/not-yet-followed user's
-        posts just won't appear in the feed and nothing is downloaded for them this run; they won't get
-        auto-marked inactive from a bulk run the way a single context-menu download still does.
+        rather than visiting each tracked user's own page. Users are NOT individually validated here
+        (that would mean one profile-page visit per user, exactly the per-user navigation this path
+        exists to avoid) -- a deleted/suspended/not-yet-followed user's posts just won't appear in the
+        feed and nothing is downloaded for them this run; they won't get auto-marked inactive from a
+        bulk run the way a single context-menu download still does.
         Requires the dedicated account to actually follow every user in self.user_id_list (followed
-        manually, one at a time -- reddit's follow rate limit is ~10/day, see PLAN_reddit_source_rewrite.md
-        Phase 4); a user whose posts never appear in the aggregated feed (e.g. not yet followed) will
-        simply have nothing downloaded for them this run.
+        manually, one at a time -- reddit's follow rate limit is ~10/day); a user whose posts never
+        appear in the aggregated feed (e.g. not yet followed) will simply have nothing downloaded for
+        them this run.
         """
         with self.db.get_scoped_session() as session:
             users = session.query(User).filter(User.id.in_(self.user_id_list)).all()
@@ -464,9 +464,8 @@ class DownloadRunner(QObject):
     def get_raw_submissions(self, reddit_object):
         """
         Returns a submission generator for the supplied reddit object, limited by its post_limit setting.
-        BrowserRedditSource always sorts by "new" -- see PLAN_reddit_source_rewrite.md "Actual mechanism" --
-        so a configured post_sort_method other than NEW is not honored; this is a known, accepted scope
-        reduction, not a bug.
+        BrowserRedditSource always sorts by "new", so a configured post_sort_method other than NEW is not
+        honored; this is a known, accepted scope reduction, not a bug.
         :param reddit_object: The reddit object (User or Subreddit) a submission generator is to be returned for.
         :return: A submission generator for the supplied reddit object.
         """

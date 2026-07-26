@@ -2,37 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## This is a fork
+## History
 
-This is a personal fork of an active upstream project. Changes must be small and clean so they rebase without conflicts.
-
-All local changes are squashed into a single commit ("my customizations") on top of upstream, making it easy to rebase onto new upstream releases.
-
-Every added block of code gets a comment that doubles as a future commit message:
-
-```python
-# [mine] feat(models): add set_active() as counterpart to set_inactive()
-```
-
-Use conventional commit format. When splitting the commit, `grep` for `# [mine]` to find all touch-points for each logical change.
-
-New files unique to this fork are prefixed `tryitandsee_mine_` (e.g. `tryitandsee_mine_download_status_dialog.py`).
+This started as a personal fork of an active upstream project, but no longer tracks or rebases onto it — `main` is the trunk with ordinary, non-squashed commit history.
 
 Do not commit untracked files, idiot
-
-When amending the squashed commit, always refresh the date: `git commit --amend --no-edit --date="now"`
-
-## Commands
-
-```bash
-# Push fork to personal remote
-git push --force mine main
-
-# Maintenance check
-git fetch origin
-git rebase origin/master
-uv pip install -U -r requirements-mine.txt
-```
 
 ## Architecture
 

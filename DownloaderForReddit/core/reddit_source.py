@@ -1,8 +1,6 @@
 """
 Reddit discovery via browser automation (Playwright), replacing PRAW after Reddit
 disabled this app's client_id and locked app registration behind manual review.
-See PLAN_reddit_source_rewrite.md for the full design and the Phase 0/1 findings
-this implementation is based on.
 """
 
 import logging
@@ -127,8 +125,7 @@ class BrowserRedditSource:
     RedditSource backed by a single long-lived, persistent Playwright browser window
     logged into a dedicated downloader account. Discovery reads post data directly off
     <shreddit-post> element attributes (server-rendered, no network interception) rather
-    than intercepting network responses -- see PLAN_reddit_source_rewrite.md "Actual
-    mechanism".
+    than intercepting network responses.
 
     Playwright's sync API is thread-bound: it can only be driven from the thread that
     started it. DownloadRunner runs on a QThread, NameChecker runs on its own thread, and
@@ -253,8 +250,8 @@ class BrowserRedditSource:
     @staticmethod
     def _check_validity(page: Page) -> ValidationResult:
         # Best-effort: matches reddit's known 404/private-community copy. NOT_FOUND is confirmed
-        # working against a real nonexistent user (see PLAN_reddit_source_rewrite.md); FORBIDDEN
-        # (private/suspended) is still unverified -- no real example inspected yet.
+        # working against a real nonexistent user; FORBIDDEN (private/suspended) is still
+        # unverified -- no real example inspected yet.
         body_text = page.locator('body').inner_text().lower()
         if 'nobody on reddit goes by that name' in body_text or 'this user has deleted their account' in body_text:
             return ValidationResult(valid=False, error=ValidationError.NOT_FOUND)

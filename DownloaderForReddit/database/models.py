@@ -272,10 +272,10 @@ class RedditObject(BaseModel):
     download_enabled = Column(Boolean, default=True)
     significant = Column(Boolean, default=False)
     # [mine] fix(core): repurposed -- tracks whether the dedicated downloader account follows this
-    # User (see PLAN_reddit_source_rewrite.md); meaningless for Subreddit rows, left at the column
-    # default of True for them so they don't render as "inactive" in the GUI. Previously meant
-    # "exists on reddit" for both types; existing rows predating this change carry stale values
-    # under the old meaning until manually corrected (no migration -- reusing the field on purpose).
+    # User; meaningless for Subreddit rows, left at the column default of True for them so they
+    # don't render as "inactive" in the GUI. Previously meant "exists on reddit" for both types;
+    # existing rows predating this change carry stale values under the old meaning until manually
+    # corrected (no migration -- reusing the field on purpose).
     # A newly tracked User is explicitly set to False (not yet followed) at creation time --
     # see RedditObjectCreator.create_user / RedditObjectListModel.sync_existing_ro_to_list.
     active = Column(Boolean, default=True)

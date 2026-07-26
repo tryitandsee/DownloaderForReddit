@@ -117,7 +117,7 @@ class ContentRunner(Runner):
             else:
                 submission_handler.extract_self_post()
             if post.significant_reddit_object.run_comment_operations:
-                # Comment extraction is deferred until it has a browser-based replacement -- see
-                # PLAN_reddit_source_rewrite.md "Deferred (post-MVP)". submission_handler.extract_comments()
-                # no-ops when self.submission isn't a live PRAW object, so nothing further to do here.
+                # Comment extraction stays PRAW-based indefinitely (not ported to the browser
+                # source). submission_handler.extract_comments() no-ops when self.submission isn't
+                # a live PRAW object, so nothing further to do here.
                 submission_handler.extract_comments()

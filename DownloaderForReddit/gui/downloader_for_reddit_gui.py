@@ -124,7 +124,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.output_view_model.added.connect(self.scroll_output)
 
         # PRAW OAuth is disabled: Reddit revoked this app's client_id and now requires manual
-        # review to register a replacement. See PLAN_reddit_source_rewrite.md.
+        # review to register a replacement.
         # region Main Menu
 
         # region File Menu
@@ -416,8 +416,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         download = menu.addAction(download_text, lambda: self.add_to_download(*[x.id for x in ros]))
 
         # [mine] feat(gui): "Mark as Followed"/"Mark as Unfollowed" toggle -- active tracks whether
-        # the dedicated downloader account follows this user (see PLAN_reddit_source_rewrite.md);
-        # meaningless for subreddits, which are never followed.
+        # the dedicated downloader account follows this user; meaningless for subreddits, which
+        # are never followed.
         follow_toggle = None
         if object_type == 'USER':
             try:
@@ -446,7 +446,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         menu.exec_(QCursor.pos())
 
     # [mine] feat(gui): pure bookkeeping toggle -- doesn't verify against reddit, just records
-    # that you followed/unfollowed the user yourself (see PLAN_reddit_source_rewrite.md)
+    # that you followed/unfollowed the user yourself
     def toggle_followed(self, ros):
         for ro in ros:
             if ro.active:

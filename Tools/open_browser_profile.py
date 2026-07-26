@@ -1,6 +1,6 @@
 """
 Opens the persistent Playwright browser profile used by the dedicated Reddit
-downloader account (see PLAN_reddit_source_rewrite.md).
+downloader account.
 
 Run this once to log into the dedicated account manually. The session is
 saved into browser_profile/ (gitignored) and reused by the app going forward
