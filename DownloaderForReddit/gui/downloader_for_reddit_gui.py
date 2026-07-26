@@ -25,6 +25,7 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 
 import io
 import platform
+import threading
 from datetime import datetime
 from PyQt5.QtWidgets import (QMainWindow, QAction, QActionGroup, QAbstractItemView, QProgressBar, QLabel, QMenu,
                              QInputDialog, QMessageBox, QWidget, QHBoxLayout, QSystemTrayIcon, QApplication)
@@ -382,11 +383,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             remove_command = self.remove_subreddit
 
         try:
-            enabled = ros[0].download_enabled
             download_text = \
                 f'Download {ros[0].name}' if len(ros) == 1 else f'Download {len(ros)} {object_type.title()}s'
         except IndexError:
-            enabled = False
             download_text = 'Download'
 
         open_settings = menu.addAction('Settings', lambda: open_settings_command(ros))
@@ -400,8 +399,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                                              lambda: self.open_selected_reddit_object_dialog(ros[0].id, 'POST'))
         open_content_dialog = menu.addAction('Content View',
                                              lambda: self.open_selected_reddit_object_dialog(ros[0].id, 'CONTENT'))
-        # [mine] feat(gui): add "Copy Reddit URL" context menu item for users/subreddits
-        copy_url = menu.addAction('Copy Reddit URL', lambda: self.copy_reddit_object_url(ros[0], object_type))
         menu.addSeparator()
         add_object = menu.addAction(f'Add {object_type.title()}', add_command)
         remove_text = f'Remove {ros[0].name}' if len(ros) == 1 else f'Remove {len(ros)} {object_type.title()}s'
@@ -416,22 +413,46 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         delete_menu.addAction(f'Delete {object_type.title()} with Files',
                               lambda: self.delete_reddit_objects(ros, delete_files=True))
         menu.addSeparator()
-        disable_enable_download_option = True
-        if all(x.download_enabled == enabled for x in ros):
-            enabled_text = 'Enable Download' if not enabled else 'Disable Download'
-            if len(ros) > 0:
-                disable_enable_download_option = False
-        else:
-            enabled_text = 'Differing Download Enabled States'
-        enable_download = menu.addAction(enabled_text, lambda: [ro.toggle_enable_download() for ro in ros])
         download = menu.addAction(download_text, lambda: self.add_to_download(*[x.id for x in ros]))
+
+        # [mine] feat(gui): "Mark as Followed"/"Mark as Unfollowed" toggle -- active tracks whether
+        # the dedicated downloader account follows this user (see PLAN_reddit_source_rewrite.md);
+        # meaningless for subreddits, which are never followed.
+        follow_toggle = None
+        if object_type == 'USER':
+            try:
+                followed = ros[0].active
+            except IndexError:
+                followed = False
+            disable_follow_toggle_option = True
+            if all(x.active == followed for x in ros):
+                follow_text = 'Mark as Followed' if followed else 'Mark as Unfollowed'
+                if len(ros) > 0:
+                    disable_follow_toggle_option = False
+            else:
+                follow_text = 'Differing Followed States'
+            follow_toggle = menu.addAction(follow_text, lambda: self.toggle_followed(ros))
+        # [mine] feat(gui): "Open in Browser" context menu item for users/subreddits -- opens the
+        # profile/subreddit directly in the dedicated account's browser window
+        open_in_browser = menu.addAction('Open in Browser',
+                                         lambda: self.open_reddit_object_in_browser(ros[0], object_type))
 
         for action in menu.actions():
             if action != add_object:
                 action.setDisabled(len(ros) <= 0)
-        enable_download.setDisabled(disable_enable_download_option)
+        if follow_toggle is not None:
+            follow_toggle.setDisabled(disable_follow_toggle_option)
 
         menu.exec_(QCursor.pos())
+
+    # [mine] feat(gui): pure bookkeeping toggle -- doesn't verify against reddit, just records
+    # that you followed/unfollowed the user yourself (see PLAN_reddit_source_rewrite.md)
+    def toggle_followed(self, ros):
+        for ro in ros:
+            if ro.active:
+                ro.set_inactive()
+            else:
+                ro.set_active()
 
     def move_reddit_object_menu_item(self, main_menu, reddit_objects, ro_type, action_type):
         try:
@@ -1146,12 +1167,13 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         }
         self.display_database_dialog(**kwargs)
 
-    # [mine] feat(gui): add "Copy Reddit URL" context menu item for users/subreddits
-    def copy_reddit_object_url(self, reddit_object, object_type):
+    # [mine] feat(gui): "Open in Browser" context menu item for users/subreddits -- navigates the
+    # dedicated account's already-open browser window rather than launching a separate, logged-out
+    # system browser. Run off the GUI thread since page.goto() blocks for a second or two.
+    def open_reddit_object_in_browser(self, reddit_object, object_type):
         path = 'user' if object_type == 'USER' else 'r'
-        cb = QApplication.clipboard()
-        cb.clear(mode=cb.Clipboard)
-        cb.setText(f'https://www.reddit.com/{path}/{reddit_object.name}')
+        url = f'https://www.reddit.com/{path}/{reddit_object.name}'
+        threading.Thread(target=injector.get_reddit_source().open_url, args=(url,), daemon=True).start()
 
     def open_database_statistics_dialog(self):
         dialog = DatabaseStatisticsDialog()

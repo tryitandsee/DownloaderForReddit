@@ -73,6 +73,8 @@ class RedditSource(Protocol):
 
     def get_post(self, url: str) -> Optional[SubmissionData]: ...
 
+    def open_url(self, url: str) -> None: ...
+
 
 def _strip_fullname_prefix(fullname: str) -> str:
     return re.sub(r'^t\d+_', '', fullname)
@@ -312,3 +314,16 @@ class BrowserRedditSource:
             logger.warning('No shreddit-post found at url', extra={'url': url})
             return None
         return _parse_post(post)
+
+    def open_url(self, url: str) -> None:
+        # [mine] feat(core): navigate the dedicated account's browser window to a url -- lets the
+        # GUI open a user/subreddit profile directly (e.g. to click follow manually), rather than
+        # just copying the link for a separate, non-logged-in browser.
+        self._executor.submit(self._open_url_impl, url).result()
+
+    def _open_url_impl(self, url: str) -> None:
+        page = self._page()
+        try:
+            page.goto(_normalize_reddit_url(url))
+        except PlaywrightError:
+            logger.warning('Navigation failed opening url', extra={'url': url}, exc_info=True)

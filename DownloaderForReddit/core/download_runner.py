@@ -88,18 +88,16 @@ class DownloadRunner(QObject):
         return self.validate_object(result, subreddit_obj)
 
     def validate_object(self, result, reddit_object):
+        # [mine] fix(core): active now tracks whether the dedicated account follows a User (see
+        # PLAN_reddit_source_rewrite.md) -- validation no longer touches it, since "exists on
+        # reddit" and "is followed" are unrelated facts.
         if result.valid:
             Message.send_debug(f'{reddit_object.name} is valid')
-            # [mine] add set_active() as counterpart to set_inactive()
-            if not reddit_object.active:
-                reddit_object.set_active()
             return True
         if result.error == ValidationError.NOT_FOUND:
             self.handle_invalid_reddit_object(reddit_object)
-            reddit_object.set_inactive()
         elif result.error == ValidationError.FORBIDDEN:
             self.handle_forbidden_reddit_object(reddit_object)
-            reddit_object.set_inactive()
         elif result.error == ValidationError.RATE_LIMITED:
             self.handle_too_many_requests_error(reddit_object)
         elif result.error == ValidationError.CONNECTION_ERROR:

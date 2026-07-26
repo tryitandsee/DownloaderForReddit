@@ -198,6 +198,11 @@ class RedditObjectListModel(QAbstractListModel):
             for key, value in self.list.get_default_dict().items():
                 setattr(reddit_object, key, value)
             reddit_object.significant = True
+            # [mine] fix(core): a user newly promoted from an incidental post-author row to
+            # actually tracked isn't followed by the dedicated account yet -- see active's
+            # definition in database/models.py
+            if reddit_object.object_type == 'USER':
+                reddit_object.active = False
             reddit_object.save()
 
     def add_validated_reddit_object(self, ro_id):

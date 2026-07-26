@@ -271,6 +271,13 @@ class RedditObject(BaseModel):
     update_date_limit = Column(Boolean, default=True)
     download_enabled = Column(Boolean, default=True)
     significant = Column(Boolean, default=False)
+    # [mine] fix(core): repurposed -- tracks whether the dedicated downloader account follows this
+    # User (see PLAN_reddit_source_rewrite.md); meaningless for Subreddit rows, left at the column
+    # default of True for them so they don't render as "inactive" in the GUI. Previously meant
+    # "exists on reddit" for both types; existing rows predating this change carry stale values
+    # under the old meaning until manually corrected (no migration -- reusing the field on purpose).
+    # A newly tracked User is explicitly set to False (not yet followed) at creation time --
+    # see RedditObjectCreator.create_user / RedditObjectListModel.sync_existing_ro_to_list.
     active = Column(Boolean, default=True)
     inactive_date = Column(DateTime, nullable=True)
     post_download_naming_method = Column(String, default='%[title]')
@@ -404,7 +411,8 @@ class RedditObject(BaseModel):
                 self.date_limit = None
             self.get_session().commit()
 
-    # [mine] add set_active() as counterpart to set_inactive()
+    # [mine] add set_active() as counterpart to set_inactive() -- for User rows this now means
+    # "mark as followed"/"mark as unfollowed" (see active's definition above)
     def set_active(self, commit=True):
         self.active = True
         self.inactive_date = None
@@ -417,10 +425,6 @@ class RedditObject(BaseModel):
         if commit:
             self.get_session().commit()
         return True
-
-    def toggle_enable_download(self):
-        self.download_enabled = not self.download_enabled
-        self.get_session().commit()
 
     def get_stats(self):
         session = self.get_session()

@@ -52,6 +52,9 @@ class RedditObjectCreator:
                     validation_set = reddit_utils.ValidationSet(name=user_name, date_created=None, valid=True)
                 if validation_set.valid:
                     list_defaults['significant'] = True
+                    # [mine] fix(core): a newly tracked user isn't followed by the dedicated
+                    # account yet -- see active's definition in database/models.py
+                    list_defaults['active'] = False
                     user = User(name=validation_set.name, date_created=validation_set.date_created, **list_defaults)
                     session.add(user)
                     session.commit()
