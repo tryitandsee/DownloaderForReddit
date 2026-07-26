@@ -445,7 +445,12 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                     disable_follow_toggle_option = False
             else:
                 follow_text = 'Differing Followed States'
-            follow_toggle = menu.addAction(follow_text, lambda: self.toggle_followed(ros))
+            # ids captured now, not inside the lambda -- ros can be detached by the time the menu
+            # item is actually clicked (e.g. an ambient download's refresh_session() closing the
+            # list model's session while the menu is open), and reading .id off a detached instance
+            # would raise the same way ro.set_inactive() used to
+            follow_ro_ids = [x.id for x in ros]
+            follow_toggle = menu.addAction(follow_text, lambda: self.toggle_followed(follow_ro_ids))
         # [mine] feat(gui): "Open in Browser" context menu item for users/subreddits -- opens the
         # profile/subreddit directly in the dedicated account's browser window
         open_in_browser = menu.addAction('Open in Browser',
@@ -461,12 +466,20 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     # [mine] feat(gui): pure bookkeeping toggle -- doesn't verify against reddit, just records
     # that you followed/unfollowed the user yourself
-    def toggle_followed(self, ros):
-        for ro in ros:
-            if ro.active:
-                ro.set_inactive()
-            else:
-                ro.set_active()
+    def toggle_followed(self, ro_ids):
+        # ro_ids, not RedditObject instances -- the list model's session may have been closed and
+        # replaced (e.g. by an ambient download's refresh_session()) between menu build and click,
+        # which would leave any RedditObject held from that point detached from a live session.
+        with self.db_handler.get_scoped_session() as session:
+            for ro_id in ro_ids:
+                ro = session.query(RedditObject).get(ro_id)
+                if ro is None:
+                    continue
+                if ro.active:
+                    ro.set_inactive()
+                else:
+                    ro.set_active()
+        self.user_list_model.refresh_session()
 
     def move_reddit_object_menu_item(self, main_menu, reddit_objects, ro_type, action_type):
         try:
@@ -1384,6 +1397,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.close()
 
     def close(self):
+        self.ambient_poll_timer.stop()
         self.receiver.stop_run()
         self.scheduler.stop_run()
         self.run_timer.stop()

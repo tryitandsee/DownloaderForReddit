@@ -44,9 +44,12 @@ if sys.platform == 'win32':
 
 
 def log_unhandled_exception(exc_type, value, traceback):
+    # No sys.exit() here -- this hook exists to keep PyQt5 from aborting the whole process (its
+    # own default behavior for an exception escaping a slot) over a single bad GUI action. Calling
+    # sys.exit() defeated that purpose by making every uncaught exception, anywhere, fatal --
+    # including mid-download, with no relation to closing/exiting the app.
     logger = logging.getLogger('DownloaderForReddit.%s' % __name__)
     logger.critical('Unhandled exception', exc_info=(exc_type, value, traceback))
-    sys.exit(-1)
 
 
 def check_migration():

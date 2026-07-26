@@ -56,7 +56,7 @@ class SubmittableCreator:
         # reddit_id is checked (not just url) because Post.reddit_id is DB-unique: the same post re-encountered
         # under a different url (e.g. a crosspost whose resolved url changed) must still be caught here, or the
         # later insert hits the unique constraint and raises uncaught inside create_post.
-        return session.query(Post.id).filter(or_(Post.reddit_id == reddit_id, Post.url == url)).scalar() is None
+        return session.query(Post.id).filter(or_(Post.reddit_id == reddit_id, Post.url == url)).first() is None
 
     @classmethod
     def create_comment(cls, praw_comment: PrawComment, post: Post, session: Session, download_session_id: int,
