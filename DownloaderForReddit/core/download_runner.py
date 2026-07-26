@@ -4,7 +4,7 @@ from queue import Queue, Empty
 from threading import Thread, Event
 from datetime import datetime
 from playwright.sync_api import Error as PlaywrightError
-from PyQt5.QtCore import QObject, pyqtSignal
+from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from collections import defaultdict, namedtuple
 from sqlalchemy import func, or_
 
@@ -22,29 +22,24 @@ from ..messaging.message import Message
 from ..version import __version__
 
 
-ExtractionSet = namedtuple('ExtractionSet', 'extraction_type extraction_object significant_id')
-RunPair = namedtuple('RunPair', 'reddit_object_id')
+ExtractionSet = namedtuple('ExtractionSet', 'extraction_type extraction_object significant_id download_session_id')
 
 
 class DownloadRunner(QObject):
+    """
+    Owns the extraction/download thread pool and queues for the process lifetime. A single
+    instance is created once (see main.py) and moved to its own QThread; explicit downloads and
+    ambient extraction both queue work onto it via request_download rather than each constructing
+    their own runner/threads/executors.
+    """
 
     remove_invalid_object = pyqtSignal(int)
     remove_forbidden_object = pyqtSignal(int)
-    finished = pyqtSignal()
-    download_session_signal = pyqtSignal(int)  # emits the id of the DownloadSession created at the start of the run
-    setup_progress_bar = pyqtSignal(int)
-    update_progress_bar_signal = pyqtSignal()
+    download_session_signal = pyqtSignal(int)  # emits the id of a DownloadSession that just finished
+    pool_idle = pyqtSignal()  # emitted once whenever the whole pool (all sessions) goes idle
+    request_download = pyqtSignal(object)  # GUI/ambient emit a params dict; queued onto this runner's thread
 
-    def __init__(self, user_id_list=None, subreddit_id_list=None, reddit_object_id_list=None, **kwargs):
-        """
-        Initializes the download runner with the settings needed to perform the download session.
-        :param user_id_list: The list user id's queried from the database which is to be downloaded.  None indicates a
-                             Subreddit download session.
-        :param subreddit_id_list: The list subreddit id's queried from the database containing subreddits to be
-                                  downloaded.  None indicates a User download.
-        :type user_id_list: RedditObjectList
-        :type subreddit_id_list: RedditObjectList
-        """
+    def __init__(self):
         super().__init__()
         self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
         self.db = injector.get_database_handler()
@@ -52,25 +47,11 @@ class DownloadRunner(QObject):
         self.reddit_source = injector.get_reddit_source()
         self.submission_filter = SubmissionFilter()
 
-        self.user_id_list = user_id_list
-        self.subreddit_id_list = subreddit_id_list
-        self.reddit_object_id_list = reddit_object_id_list
-        self.run_unextracted = kwargs.get('run_unextracted', False)
-        self.unextracted_id_list = kwargs.get('unextracted_id_list', None)
-        self.run_undownloaded = kwargs.get('run_undownloaded', False)
-        self.undownloaded_id_list = kwargs.get('undownloaded_id_list', None)
-        self.run_new = kwargs.get('run_new', True)
-        # [mine] feat(core): batch single-post download mode
-        self.single_submission_urls = kwargs.get('single_submission_urls', None)
-        # Ambient extraction: already-fetched SubmissionData (no url to re-navigate to), used
-        # instead of single_submission_urls when the caller already has the post data on hand.
-        self.submissions = kwargs.get('submissions', None)
-
+        # Governs the pool threads only; set once, at real app shutdown (see stop_pool). A
+        # Stop/Terminate click must not touch this -- it has to keep servicing later sessions.
         self.stop_run = Event()
-        self.continue_run = True
-        self.stopped = False
-        self.filter_subreddits = False
-        self.validated_subreddits = []
+        self.cancelled_sessions = set()
+        self.hard_stopped_sessions = set()
 
         self.submission_queue = Queue(maxsize=-1)
         self.extractor = None
@@ -78,13 +59,93 @@ class DownloadRunner(QObject):
         self.download_queue = Queue(maxsize=-1)
         self.downloader = None
         self.download_thread = None
+        # Set once the pool goes idle, cleared as soon as it's busy again -- idle_tick fires on
+        # every ~2s poll timeout, but its DB/merge/signal work must only run on the busy->idle
+        # transition, not on every tick of an indefinitely idle pool.
+        self._pool_was_idle = False
+        # True for the whole span of a start_batch() call -- idle_tick runs concurrently on a
+        # different thread and only sees queue/future state, so without this it could see empty
+        # queues and declare idle while start_batch is still mid-navigation, before it's queued
+        # anything (e.g. get_home_feed_submissions's Playwright call, which can easily take longer
+        # than idle_tick's ~2s poll interval).
+        self._batch_in_progress = False
 
-        self.perpetual_download = self.settings_manager.perpetual_download
-        self.perpetual_queue = Queue(maxsize=-1)
+        # Per-batch state below, reset at the top of every start_batch() call -- safe as plain
+        # instance attributes because start_batch is only ever invoked serially (queued onto this
+        # object's own thread via request_download), never reentrantly.
+        self.user_id_list = None
+        self.subreddit_id_list = None
+        self.reddit_object_id_list = None
+        self.run_unextracted = False
+        self.unextracted_id_list = None
+        self.run_undownloaded = False
+        self.undownloaded_id_list = None
+        self.run_new = True
+        self.single_submission_urls = None
+        self.submissions = None
+
+        self.continue_run = True
+        self.stopped = False
+        self.filter_subreddits = False
+        self.validated_subreddits = []
         self.failed_connection_attempts = 0
         self.download_session_id = None
+        self._current_fetch_object = None
 
-        self.reddit_object_queue = Queue(maxsize=-1)
+        self.request_download.connect(self.start_batch)
+
+    def start_pool(self):
+        """Creates the extractor/downloader and their worker threads. Called once, at app start."""
+        self.extractor = ContentRunner(self.submission_queue, self.download_queue, self.cancelled_sessions,
+                                       self.stop_run, self.idle_tick)
+        self.extraction_thread = Thread(target=self.extractor.run)
+        self.extraction_thread.start()
+        self.downloader = Downloader(self.download_queue, self.cancelled_sessions, self.hard_stopped_sessions,
+                                     self.stop_run)
+        self.download_thread = Thread(target=self.downloader.run)
+        self.download_thread.start()
+
+    def stop_pool(self):
+        """Shuts the pool down for good. Called once, from close(), at real app shutdown."""
+        self.stop_run.set()
+        self.submission_queue.put(None)
+        if self.extraction_thread is not None:
+            self.extraction_thread.join()
+        if self.download_thread is not None:
+            self.download_thread.join()
+
+    def idle_tick(self):
+        """
+        Called from ContentRunner's ~2s poll timeout on its own worker thread. Detects when the
+        whole pool (every open session, explicit or ambient) has drained, stamps end_time for any
+        session left open, and reports the pool as idle. Coarse-grained by design -- see
+        PLAN_background_download.md -- exact per-item timing isn't needed by anything.
+        """
+        idle = (
+            not self._batch_in_progress and
+            not self.extractor.futures and not self.downloader.futures and
+            self.submission_queue.empty() and self.download_queue.empty()
+        )
+        if not idle:
+            self._pool_was_idle = False
+            return
+        if self._pool_was_idle:
+            return
+        self._pool_was_idle = True
+        video_merger.merge_videos()
+        with self.db.get_scoped_session() as session:
+            open_sessions = session.query(DownloadSession).filter(DownloadSession.end_time == None).all()
+            finished_ids = [dl_session.id for dl_session in open_sessions]
+            for dl_session in open_sessions:
+                dl_session.end_time = datetime.now()
+            session.commit()
+        for session_id in finished_ids:
+            self.cancelled_sessions.discard(session_id)
+            self.hard_stopped_sessions.discard(session_id)
+            self.download_session_signal.emit(session_id)
+        if finished_ids:
+            self.logger.debug('Download pool idle', extra={'finished_sessions': finished_ids})
+        self.pool_idle.emit()
 
     def validate_subreddit(self, subreddit_obj):
         result = self.reddit_source.validate_subreddit(subreddit_obj.name)
@@ -160,7 +221,8 @@ class DownloadRunner(QObject):
                     .filter(or_(Post.extraction_error == None, Post.extraction_error.notin_(NON_DOWNLOADABLE)))
         self.logger.debug(f'{post_id_list.count()} unfinished posts to download')
         for post_id, in post_id_list.all():  # comma used to unpack result tuple
-            extraction_set = ExtractionSet(extraction_type='POST', extraction_object=post_id, significant_id=None)
+            extraction_set = ExtractionSet(extraction_type='POST', extraction_object=post_id, significant_id=None,
+                                           download_session_id=self.download_session_id)
             self.submission_queue.put(extraction_set)
         self.logger.debug('Finished unextracted posts')
 
@@ -175,48 +237,77 @@ class DownloadRunner(QObject):
                     .filter(or_(Content.download_error == None, Content.download_error.notin_(NON_DOWNLOADABLE)))
         self.logger.debug(f'{content_id_list.count()} unfinished content items to download')
         for content in content_id_list.all():
-            self.download_queue.put(content.id)
+            self.download_queue.put((content.id, self.download_session_id))
         self.logger.debug('Finished undownloaded content')
 
-    def run(self):
-        # [mine] feat(core): batch single-post download mode - validate every url before creating a session
-        if self.single_submission_urls is not None:
-            self.run_batch(self.prepare_single_submission(url) for url in self.single_submission_urls)
-            return
-        if self.submissions is not None:
-            self.run_batch(self.prepare_submission(submission) for submission in self.submissions)
-            return
-        self.run_normal()
+    @pyqtSlot(object)
+    def start_batch(self, params):
+        """
+        Entry point for a batch of work, explicit or ambient -- replaces what used to be a fresh
+        DownloadRunner's constructor + run(). Called via request_download so it always executes on
+        this runner's own thread, keeping every batch serialized (safe for the per-batch instance
+        state below, and matching reddit_source's own single-worker executor).
+        :param params: dict of the same keys the old DownloadRunner(**kwargs) constructor took --
+                       user_id_list, subreddit_id_list, reddit_object_id_list, run_unextracted,
+                       unextracted_id_list, run_undownloaded, undownloaded_id_list, run_new,
+                       single_submission_urls, submissions.
+        """
+        self.user_id_list = params.get('user_id_list')
+        self.subreddit_id_list = params.get('subreddit_id_list')
+        self.reddit_object_id_list = params.get('reddit_object_id_list')
+        self.run_unextracted = params.get('run_unextracted', False)
+        self.unextracted_id_list = params.get('unextracted_id_list')
+        self.run_undownloaded = params.get('run_undownloaded', False)
+        self.undownloaded_id_list = params.get('undownloaded_id_list')
+        self.run_new = params.get('run_new', True)
+        self.single_submission_urls = params.get('single_submission_urls')
+        self.submissions = params.get('submissions')
+
+        self.continue_run = True
+        self.stopped = False
+        self.filter_subreddits = False
+        self.validated_subreddits = []
+        self.failed_connection_attempts = 0
+        self.download_session_id = None
+        # Cleared here, not just observed in idle_tick -- a batch that turns out to have no work
+        # (e.g. every submission was a duplicate) never queues anything for idle_tick to see, so
+        # without this the GUI's "running" state (set when this batch was requested) would never
+        # be released by a pool_idle emission.
+        self._pool_was_idle = False
+
+        self._batch_in_progress = True
+        try:
+            # [mine] feat(core): batch single-post download mode - validate every url before creating a session
+            if self.single_submission_urls is not None:
+                self.run_batch(self.prepare_single_submission(url) for url in self.single_submission_urls)
+                return
+            if self.submissions is not None:
+                self.run_batch(self.prepare_submission(submission) for submission in self.submissions)
+                return
+            self.run_normal()
+        finally:
+            self._batch_in_progress = False
 
     def run_batch(self, prepared_submissions):
         # Shared by single_submission_urls and submissions: validate everything first, only create
-        # a DownloadSession if at least one survives, then queue and hold (no run_download(), so
-        # this never touches set_date_limit).
+        # a DownloadSession if at least one survives (no run_download(), so this never touches
+        # set_date_limit).
         extraction_sets = [es for es in prepared_submissions if es is not None]
         if not extraction_sets:
-            self.finished.emit()
             return
         self.create_download_session()
-        self.start_extractor()
-        self.start_downloader()
         for extraction_set in extraction_sets:
+            extraction_set = extraction_set._replace(download_session_id=self.download_session_id)
             self.submission_queue.put(extraction_set)
-        self.hold()
 
     def run_normal(self):
         self.create_download_session()
-        self.start_extractor()
-        self.start_downloader()
         if self.run_unextracted:
             self.run_unextracted_posts()
         if self.run_undownloaded:
             self.run_undownloaded_content()
         if self.run_new:
             self.run_download()
-        if self.perpetual_download:
-            self.perpetuate_run()
-        else:
-            self.hold()
 
     def log_download_settings(self):
         self.logger.info('Download runner started.', extra={
@@ -225,7 +316,6 @@ class DownloadRunner(QObject):
             'run_unextracted': self.run_unextracted,
             'run_undownloaded': self.run_undownloaded,
             'run_new': self.run_new,
-            'perpetual_download': self.perpetual_download,
             'last_update': self.settings_manager.last_update,
             'extraction_thread_count': self.settings_manager.extraction_thread_count,
             'download_thread_count': self.settings_manager.download_thread_count,
@@ -244,17 +334,6 @@ class DownloadRunner(QObject):
             session.add(download_session)
             session.commit()
             self.download_session_id = download_session.id
-
-    def start_extractor(self):
-        self.extractor = ContentRunner(self.submission_queue, self.download_queue, self.download_session_id,
-                                       self.stop_run)
-        self.extraction_thread = Thread(target=self.extractor.run)
-        self.extraction_thread.start()
-
-    def start_downloader(self):
-        self.downloader = Downloader(self.download_queue, self.download_session_id, self.stop_run)
-        self.download_thread = Thread(target=self.downloader.run)
-        self.download_thread.start()
 
     def run_download(self):
         if self.reddit_object_id_list is not None:
@@ -297,7 +376,9 @@ class DownloadRunner(QObject):
                 return None
             author_id = author.id
         Message.send_info(f'Downloading single post by {submission.author}')
-        return ExtractionSet(extraction_type='SUBMISSION', extraction_object=submission, significant_id=author_id)
+        # download_session_id filled in by run_batch once a session actually gets created
+        return ExtractionSet(extraction_type='SUBMISSION', extraction_object=submission, significant_id=author_id,
+                             download_session_id=None)
 
     # Ambient extraction: same idea as prepare_single_submission but for a SubmissionData already
     # in hand (no url to re-navigate to). Resolves against whichever of author/subreddit is
@@ -315,7 +396,9 @@ class DownloadRunner(QObject):
                 return None
             significant_id = significant.id
         Message.send_info(f'Ambient extraction: downloading post by {submission.author}')
-        return ExtractionSet(extraction_type='SUBMISSION', extraction_object=submission, significant_id=significant_id)
+        # download_session_id filled in by run_batch once a session actually gets created
+        return ExtractionSet(extraction_type='SUBMISSION', extraction_object=submission,
+                             significant_id=significant_id, download_session_id=None)
 
     def validate_subreddit_list(self):
         """
@@ -389,15 +472,6 @@ class DownloadRunner(QObject):
             submissions = self.filter_submissions(reddit_object, raw_submissions)
             self.queue_submissions(reddit_object, submissions)
 
-    def handle_submissions(self, reddit_object):
-        """
-        Used by the perpetual-download recheck loop only -- the object was already validated once
-        at the start of the run (get_validated_submissions), so subsequent rechecks skip
-        revalidation and go straight to fetching submissions.
-        """
-        submissions = self.get_submissions(reddit_object)
-        self.queue_submissions(reddit_object, submissions)
-
     def queue_submissions(self, reddit_object, submissions):
         date_limit = 0
         if not submissions:
@@ -408,31 +482,11 @@ class DownloadRunner(QObject):
             if created_epoch > date_limit:
                 date_limit = created_epoch
             extraction_set = ExtractionSet(extraction_type='SUBMISSION', extraction_object=submission,
-                                           significant_id=reddit_object.id)
+                                           significant_id=reddit_object.id,
+                                           download_session_id=self.download_session_id)
             self.submission_queue.put(extraction_set)
         if date_limit > 0:
             reddit_object.set_date_limit(date_limit)  # date limit modified after submissions are extracted
-        if self.perpetual_download:
-            pair = RunPair(reddit_object_id=reddit_object.id)
-            self.perpetual_queue.put(pair)
-
-    @verify_run
-    def get_submissions(self, reddit_object):
-        """
-        Extracts submissions from the reddit source's discovery generator for this reddit object. The submissions
-        are passed through the SubmissionFilter before being added for extraction.
-        :param reddit_object: The reddit object (User or Subreddit) submissions are being extracted for.
-        :return: A list of submissions extracted from reddit.  May be an empty list if no passing submissions are found.
-        """
-        try:
-            raw_submissions = self.get_raw_submissions(reddit_object)
-        except PlaywrightError:
-            extra = {'object_type': reddit_object.object_type, 'reddit_object': reddit_object.name}
-            self.logger.error('Browser navigation failed.  Ending submission extraction',
-                              extra=extra, exc_info=True)
-            Message.send_error(f'Failed to extract submissions for: {reddit_object.name}. Please try again shortly.')
-            return []
-        return self.filter_submissions(reddit_object, raw_submissions)
 
     def filter_submissions(self, reddit_object, raw_submissions):
         submissions = []
@@ -492,28 +546,6 @@ class DownloadRunner(QObject):
                 submissions = self.filter_submissions(user, user_raw_submissions)
                 self.queue_submissions(user, submissions)
 
-    def get_raw_submissions(self, reddit_object):
-        """
-        Returns a submission generator for the supplied reddit object, limited by its post_limit setting.
-        BrowserRedditSource always sorts by "new", so a configured post_sort_method other than NEW is not
-        honored; this is a known, accepted scope reduction, not a bug.
-        :param reddit_object: The reddit object (User or Subreddit) a submission generator is to be returned for.
-        :return: A submission generator for the supplied reddit object.
-        """
-        from ..database.model_enums import PostSortMethod
-        if reddit_object.post_sort_method not in (None, PostSortMethod.NEW):
-            self.logger.debug(
-                f'post_sort_method {reddit_object.post_sort_method} for {reddit_object.object_type} '
-                f'{reddit_object.name} is not supported by the browser-based source; using "new"'
-            )
-        known_ids = self.get_known_post_ids(reddit_object)
-        if reddit_object.object_type == 'USER':
-            return self.reddit_source.iter_user_submissions(reddit_object.name, limit=reddit_object.post_limit,
-                                                             known_ids=known_ids)
-        else:
-            return self.reddit_source.iter_subreddit_submissions(reddit_object.name, limit=reddit_object.post_limit,
-                                                                  known_ids=known_ids)
-
     def get_known_post_ids(self, reddit_object):
         with self.db.get_scoped_session() as session:
             rows = session.query(Post.reddit_id) \
@@ -521,134 +553,18 @@ class DownloadRunner(QObject):
                 .all()
             return {row[0] for row in rows}
 
-    def perpetuate_run(self):
-        """
-        Enters a perpetual loop that recycles reddit objects from the perpetual queue and checks for new posts.  After
-        each object from the perpetual queue is checked, a check is also performed for new reddit objects that may have
-        been added to the session after it began.
-        """
-        self.logger.debug('Entering perpetual run')
-        while self.continue_run:
-            self.run_next_perpetual_pair()
-            self.check_added_object_queue(block=False)
-        self.finish_download()
-
-    def run_next_perpetual_pair(self):
-        """
-        Extracts a run_pair from the perpetual download queue and checks it for new submissions.
-        """
-        try:
-            run_pair = self.perpetual_queue.get(timeout=1)
-            if run_pair is not None:
-                reddit_object_id, = run_pair
-                with self.db.get_scoped_session() as session:
-                    reddit_object = session.query(RedditObject).get(reddit_object_id)
-                    self.handle_submissions(reddit_object)
-        except Empty:
-            pass
-
-    def hold(self):
-        """
-        Holds the download runner while the content extractor and downloader finish their work loads.  During this time,
-        reddit objects that were not initially in the download list can be added to the download queue.
-        """
-        self.logger.debug('DownloadRunner holding')
-        self.submission_queue.put('HOLD')
-        while self.continue_run and (self.extractor.running or self.downloader.running):
-            self.check_added_object_queue()
-        self.finish_download()
-
-    def check_added_object_queue(self, block=True):
-        """
-        Checks the added reddit object queue to see if a new reddit object has been added to the download session after
-        it began running.
-        :param block: Indicates whether the reddit object queue check should block or not.  The default is True, which
-                      should be used for holding.  False would be used if a quick check is to happen, but monitoring
-                      the queue is not the main activity.
-        """
-        try:
-            reddit_object_id = self.reddit_object_queue.get(timeout=1, block=block)
-            if reddit_object_id is not None:
-                self.submission_queue.put('RELEASE_HOLD')
-                self.get_reddit_object_submissions(reddit_object_id)
-                self.submission_queue.put('HOLD')  # reapply holds after new submissions added to queue
-        except Empty:
-            pass
-
-    def finish_download(self):
-        """
-        Wraps up the download session by shutting down the extractor and downloader, adding the finishing information
-        to the download session model, saving it to the database and generally any cleanign up that needs to happen.
-        """
-        self.logger.debug('DownloadRunner finished')
-        self.submission_queue.put(None)
-        try:
-            self.extraction_thread.join()
-        except AttributeError:
-            pass
-        try:
-            self.download_thread.join()
-        except AttributeError:
-            pass
-        video_merger.merge_videos()
-        with self.db.get_scoped_session() as session:
-            dl_session = self.finish_download_session(session)
-            self.finish_messages(dl_session)
-        self.download_session_signal.emit(self.download_session_id)
-        self.finished.emit()
-
-    def finish_download_session(self, session):
-        """
-        Adds the finishing information to the current download session and commits it to the database.
-        :param session: The sqlalchemy session that is active for use in committing the download session to storage.
-        :return: The finished download session with all it's information.
-        """
-        download_session = session.query(DownloadSession).get(self.download_session_id)
-        download_session.end_time = datetime.now()
-        session.commit()
-        return download_session
-
-    def finish_messages(self, dl_session):
-        """
-        Constructs and displays a finish message to the user and a log message.
-        :param dl_session: The active download session for this run.
-        """
-        significant_user_count = dl_session.get_downloaded_user_count()
-        total_user_count = dl_session.get_downloaded_user_count(significant=False)
-        significant_subreddit_count = dl_session.get_downloaded_subreddit_count()
-        total_subreddit_count = dl_session.get_downloaded_subreddit_count(significant=False)
-        extracted_post_count = dl_session.get_extracted_post_count()
-        extracted_comment_count = dl_session.get_comment_count()
-        downloaded_content_count = dl_session.get_downloaded_content_count()
-        extra = {
-            'download_time': dl_session.duration_display,
-            'significant_user_count': significant_user_count,
-            'significant_subreddit_count': significant_subreddit_count,
-            'total_user_count': total_user_count,
-            'total_subreddit_count': total_subreddit_count,
-            'post_extraction_count': extracted_post_count,
-            'comment_extraction_count': extracted_comment_count,
-            'download_count': downloaded_content_count,
-        }
-        message = f'Finished\nRun Time: {dl_session.duration_display}\n' \
-                  f'Download Count: {downloaded_content_count}\n' \
-                  f'Downloaded Users: {significant_user_count}\n' \
-                  f'Downloaded Subreddits: {significant_subreddit_count}\n' \
-                  f'Post Count: {extracted_post_count}\n' \
-                  f'Comment Count: {extracted_comment_count}\n'
-        if self.stopped:
-            extra.update(download_stopped=True)
-            message = f'\nDownload stopped{message}'
-        self.logger.info('Download complete', extra=extra)
-        Message.send_info('\n' + message)
-        Message.send_status_tray(message)
-
     def stop_download(self, hard_stop=False):
+        """
+        Cancels whatever's currently open (explicit or ambient), rather than killing the pool --
+        the pool must keep working for the next ambient poll / next explicit download after this.
+        """
         self.stopped = True
         self.continue_run = False
-        self.stop_run.set()
-        # [mine] fix(core): guard against stopping before start_downloader() has run (e.g. a
-        # single-post-by-URL download whose extraction_sets ended up empty and returned early)
-        if self.downloader is not None:
-            self.downloader.hard_stop = hard_stop
+        with self.db.get_scoped_session() as session:
+            open_session_ids = [row[0] for row in session.query(DownloadSession.id)
+                                .filter(DownloadSession.end_time == None).all()]
+        for session_id in open_session_ids:
+            self.cancelled_sessions.add(session_id)
+            if hard_stop:
+                self.hard_stopped_sessions.add(session_id)
         Message.send_warning('\nStopped\n')

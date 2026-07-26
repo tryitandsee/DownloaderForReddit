@@ -20,35 +20,33 @@ class Downloader(Runner):
     The class that is responsible for the actual downloading of content.
     """
 
-    def __init__(self, download_queue, download_session_id, stop_run):
+    def __init__(self, download_queue, cancelled_sessions, hard_stopped_sessions, stop_run):
         """
         Initializes the Downloader class.
-        :param download_queue: A queue of Content items that are to be downloaded.
+        :param download_queue: A queue of (content_id, download_session_id) tuples to be downloaded.
         :type download_queue: Queue
         """
         super().__init__(stop_run)
         self.logger = logging.getLogger(__name__)
-        self.download_queue = download_queue  # contains the id of content created elsewhere that is to be downloaded
-        self.download_session_id = download_session_id
+        self.download_queue = download_queue
+        # See ContentRunner for why cancellation is per-session rather than via stop_run: a
+        # standing pool must keep servicing later sessions after a Stop/Terminate click.
+        self.cancelled_sessions = cancelled_sessions
+        self.hard_stopped_sessions = hard_stopped_sessions
         self.output_queue = injector.get_message_queue()
         self.db = injector.get_database_handler()
         self.settings_manager = injector.get_settings_manager()
 
         self.thread_count = self.settings_manager.download_thread_count
         self.executor = None
-        self.multi_part_executor = ThreadPoolExecutor(8)
         self.futures = []
-        self.hold = False
-        self.hard_stop = False
         self.download_count = 0
         self.duplicate_count = 0
         self._active_downloads = {}  # [mine] feat(gui): download status window
 
     @property
     def running(self):
-        if self.hold:
-            return len(self.futures) > 0
-        return True
+        return len(self.futures) > 0
 
     def run(self):
         """
@@ -58,17 +56,15 @@ class Downloader(Runner):
         self.make_executor()
         while self.continue_run:
             item = self.download_queue.get()
-            if item is not None:
-                if item == 'HOLD':
-                    self.hold = True
-                elif item == 'RELEASE_HOLD':
-                    self.hold = False
-                else:
-                    future = self.executor.submit(self.download, content_id=item)
-                    self.futures.append(future)
-                    future.add_done_callback(self.remove_future)
-            else:
+            if item is None:
                 break
+            content_id, download_session_id = item
+            if download_session_id in self.cancelled_sessions:
+                continue
+            future = self.executor.submit(self.download, content_id=content_id,
+                                          download_session_id=download_session_id)
+            self.futures.append(future)
+            future.add_done_callback(self.remove_future)
         self.executor.shutdown(wait=True)
         HEADERS.clear()
         self.logger.debug('Downloader exiting')
@@ -84,10 +80,11 @@ class Downloader(Runner):
         self.futures.remove(future)
 
     @verify_run
-    def download(self, content_id: int):
+    def download(self, content_id: int, download_session_id: int):
         """
         Connects to the content url and downloads the content item to the file path specified by the content item.
         :param content_id: The id of the content item which is to be queried from the database, then downloaded.
+        :param download_session_id: The id of the DownloadSession this content was queued under.
         """
         thread = threading.current_thread().name
         try:
@@ -95,7 +92,7 @@ class Downloader(Runner):
                 content = session.query(Content).get(content_id)
                 self._active_downloads[thread] = f'{content.user.name}: {content.title}'
                 if self.is_url_duplicate(content, session=session):
-                    content.set_downloaded(self.download_session_id)
+                    content.set_downloaded(download_session_id)
                     Message.send_info(f'Duplicate URL skipped: {content.user.name}: {content.title} {content.url}')
                     return
                 content.download_title = general_utils.ensure_content_download_path(content)
@@ -108,13 +105,14 @@ class Downloader(Runner):
                         self.handle_deleted_content_error(content)
                         return
                     if self.should_use_multi_part(file_size):
-                        self.download_with_multipart(content, content.get_full_file_path(), file_size)
+                        self.download_with_multipart(content, content.get_full_file_path(), file_size,
+                                                     download_session_id)
                     else:
                         if self.should_use_hash(content):
-                            self.download_with_hash(content, response)
+                            self.download_with_hash(content, response, download_session_id)
                         else:
-                            self.download_without_hash(content, response)
-                        self.finish_download(content)
+                            self.download_without_hash(content, response, download_session_id)
+                        self.finish_download(content, download_session_id)
                 else:
                     self.handle_unsuccessful_response(content, response.status_code)
         except ConnectionError:
@@ -142,37 +140,38 @@ class Downloader(Runner):
         settings = self.settings_manager
         return settings.use_multi_part_downloader and file_size > settings.multi_part_threshold
 
-    def download_with_multipart(self, content: Content, file_path: str, file_size: int) -> None:
+    def download_with_multipart(self, content: Content, file_path: str, file_size: int,
+                                download_session_id: int) -> None:
         multi_part_downloader = MultipartDownloader(self.stop_run)
         multi_part_downloader.run(content, file_path, file_size)
-        self.finish_multi_part_download(content, multi_part_downloader)
+        self.finish_multi_part_download(content, multi_part_downloader, download_session_id)
 
     def should_use_hash(self, content: Content) -> bool:
         sig_ro = content.post.significant_reddit_object
         return sig_ro.hash_duplicates
 
-    def download_with_hash(self, content: Content, response: requests.Response) -> None:
+    def download_with_hash(self, content: Content, response: requests.Response, download_session_id: int) -> None:
         file_path = content.get_full_file_path()
         md5 = hashlib.md5()
         with open(file_path, 'wb') as file:
             for chunk in response.iter_content(1024 * 1024):
-                if not self.hard_stop:
+                if download_session_id not in self.hard_stopped_sessions:
                     md5.update(chunk)
                     file.write(chunk)
                 else:
                     break
         content.md5_hash = md5.hexdigest()
 
-    def download_without_hash(self, content: Content, response: requests.Response) -> None:
+    def download_without_hash(self, content: Content, response: requests.Response, download_session_id: int) -> None:
         file_path = content.get_full_file_path()
         with open(file_path, 'wb') as file:
             for chunk in response.iter_content(1024 * 1024):
-                if not self.hard_stop:
+                if download_session_id not in self.hard_stopped_sessions:
                     file.write(chunk)
                 else:
                     break
 
-    def finish_download(self, content: Content) -> None:
+    def finish_download(self, content: Content, download_session_id: int) -> None:
         """
         Finalizes the download process for a given content item. The method updates the content's status, manages
         duplicate detection, sets file modification times, and adjusts the download count. It also provides optional
@@ -180,14 +179,15 @@ class Downloader(Runner):
         handles the error and logs it accordingly.
 
         :param content: An object representing the content being downloaded.
+        :param download_session_id: The id of the DownloadSession this content was queued under.
         """
-        if not self.hard_stop:
+        if download_session_id not in self.hard_stopped_sessions:
             if content.md5_hash is not None and self.is_duplicate_content(content):
                 self.handle_duplicate_content(content)
-                content.set_downloaded(self.download_session_id)  # FIX: was considered an unfinished download and getting retried
+                content.set_downloaded(download_session_id)  # FIX: was considered an unfinished download and getting retried
                 return
             self.handle_date_modified(content)
-            content.set_downloaded(self.download_session_id)
+            content.set_downloaded(download_session_id)
             self.download_count += 1
             self.output_downloaded_message(content)
         else:
@@ -282,7 +282,8 @@ class Downloader(Runner):
         content.set_download_error(Error.DOWNLOAD_STOPPED, message)
         Message.send_download_error(f'{message}. File at path: "{content.get_full_file_path()}" may be corrupted')
 
-    def finish_multi_part_download(self, content: Content, multipart_downloader: MultipartDownloader):
+    def finish_multi_part_download(self, content: Content, multipart_downloader: MultipartDownloader,
+                                   download_session_id: int):
         parts = multipart_downloader.part_count
         failed = multipart_downloader.failed_parts
         if failed > 0:
@@ -292,7 +293,7 @@ class Downloader(Runner):
         else:
             if self.should_use_hash(content):
                 self.hash_complete_multi_part_file(content)
-            self.finish_download(content)
+            self.finish_download(content, download_session_id)
 
     def hash_complete_multi_part_file(self, content: Content) -> None:
         """

@@ -27,6 +27,9 @@ class ScheduleSettingsWidget(AbstractSettingsWidget, Ui_ScheduleSettingsWidget):
 
     def load_ui(self):
         self.error_label.setVisible(False)
+        # [mine] perpetual_download removed -- redundant with ambient extraction, and its blocking
+        # recheck loop can't coexist with the shared standing download runner
+        self.perpetual_download_checkbox.setVisible(False)
         for interval in Interval:
             # This is a patch to fix an issue that has otherwise been resolved.  WEEK is not available and should  be
             # removed in future versions.  This allows us to keep the WEEK enum so that any existing erroneous tasks
@@ -48,13 +51,11 @@ class ScheduleSettingsWidget(AbstractSettingsWidget, Ui_ScheduleSettingsWidget):
         return 'Schedule downloads to run at a certain time and/or interval'
 
     def load_settings(self):
-        self.perpetual_download_checkbox.setChecked(self.settings.perpetual_download)
         with self.db.get_scoped_session() as session:
             for task in session.query(DownloadTask):
                 self.add_task_to_list(task)
 
     def apply_settings(self):
-        self.settings.perpetual_download = self.perpetual_download_checkbox.isChecked()
         self.check_modified()
         for task in self.new_tasks:
             self.scheduler.add_task(task)

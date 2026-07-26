@@ -73,7 +73,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     # rather than trying to convert them to QVariants.
     ambient_matches_found = pyqtSignal(object)
 
-    def __init__(self, queue, receiver, scheduler):
+    def __init__(self, queue, receiver, scheduler, download_runner):
         """
         The main GUI window that all interaction is done through.
 
@@ -81,6 +81,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
          order to update the main GUI output box.
         :param receiver: The receiver that is initialized in the "main" function and moved to another thread.  This
         keeps the queue updated with fresh output from all throughout the program.
+        :param download_runner: The standing DownloadRunner (see main.py) that owns the extraction/download
+        thread pool for the process lifetime -- explicit downloads and ambient extraction both queue work onto it.
         """
         QMainWindow.__init__(self)
         self.setupUi(self)
@@ -112,7 +114,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.horz_splitter.setSizes(self.settings_manager.horizontal_splitter_state)
 
         # [mine] feat(gui): download status panel embedded at the bottom of the main window
-        self.download_status_panel = DownloadStatusDialog(lambda: getattr(self, 'download_runner', None))
+        self.download_status_panel = DownloadStatusDialog(lambda: download_runner)
         self.verticalLayout_4.addWidget(self.download_status_panel)
 
         if self.settings_manager.download_radio_state == 'USER':
@@ -126,6 +128,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.queue = queue
         self.receiver = receiver
         self.scheduler = scheduler
+        self.download_runner = download_runner
 
         self.output_view_model = OutputViewModel()
         self.output_list_view.setModel(self.output_view_model)
@@ -232,11 +235,14 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.download_button.clicked.connect(self.run_full_download)
         self.soft_stop_download_button.clicked.connect(lambda: self.stop_download_signal.emit(False))
         self.terminate_download_button.clicked.connect(lambda: self.stop_download_signal.emit(True))
+        self.stop_download_signal.connect(self.download_runner.stop_download)
+        self.download_runner.remove_invalid_object.connect(self.remove_invalid_reddit_object)
+        self.download_runner.remove_forbidden_object.connect(self.remove_forbidden_reddit_object)
+        self.download_runner.pool_idle.connect(self.finished_download_gui_shift)
         self.shift_download_buttons()
 
         # Ambient extraction: periodically read whatever's currently loaded in the dedicated
         # account's browser window and queue matches against the tracked list for download.
-        self.ambient_runs = []
         self.ambient_matches_found.connect(self.start_ambient_download)
         self.ambient_poll_timer = QTimer(self)
         self.ambient_poll_timer.timeout.connect(self.trigger_ambient_poll)
@@ -282,8 +288,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         layout = QHBoxLayout()
         layout.setContentsMargins(11, 0, 11, 0)
         self.timer_widget.setLayout(layout)
-        self.perpetual_run_label = QLabel('Perpetual Run |')
-        layout.addWidget(self.perpetual_run_label)
         layout.addWidget(QLabel('Run Time: '))
         self.timer_label = QLabel('00:00:00')
         layout.addWidget(self.timer_label)
@@ -677,40 +681,21 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                 self.run(user_id_list, sub_id_list, run_unextracted=run_unextracted, run_undownloaded=run_undownloaded)
 
     def run(self, user_id_list, sub_id_list, reddit_object_id_list=None, **kwargs):
-        self.started_download_gui_shift()
-
-        self.download_runner = DownloadRunner(
-            user_id_list=user_id_list,
-            subreddit_id_list=sub_id_list,
-            reddit_object_id_list=reddit_object_id_list,
-            **kwargs
-        )
-
-        self.stop_download_signal.connect(self.download_runner.stop_download)
-        self.thread = QThread()
-        self.download_runner.moveToThread(self.thread)
-        self.thread.started.connect(self.download_runner.run)
-
-        self.download_runner.remove_invalid_object.connect(self.remove_invalid_reddit_object)
-        self.download_runner.remove_forbidden_object.connect(self.remove_forbidden_reddit_object)
-        self.download_runner.finished.connect(self.thread.quit)
-        self.download_runner.finished.connect(self.download_runner.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.thread.finished.connect(self.finished_download_gui_shift)
-        self.thread.start()
-        self.logger.info('Download thread started')
+        if not self.running:
+            self.started_download_gui_shift()
+        params = dict(user_id_list=user_id_list, subreddit_id_list=sub_id_list,
+                     reddit_object_id_list=reddit_object_id_list, **kwargs)
+        self.download_runner.request_download.emit(params)
+        self.logger.info('Download requested')
 
     def add_to_download(self, *args: int):
         """
-        Adds a list of reddit object id's to a current download session if there is one active, otherwise starts a
-        download session with the supplied id's.
+        Queues a list of reddit object id's for download -- the standing runner's queues are
+        always open, so this is just a run() with reddit_object_id_list, whether or not something
+        else is already downloading.
         :param args: Reddit object id's that are to be downloaded
         """
-        if self.running:
-            for ro_id in args:
-                self.download_runner.reddit_object_queue.put(ro_id)
-        else:
-            self.run(user_id_list=None, sub_id_list=None, reddit_object_id_list=args)
+        self.run(user_id_list=None, sub_id_list=None, reddit_object_id_list=args)
 
     def update_post_scores(self, post_id_list):
         post_count = len(post_id_list)
@@ -757,10 +742,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         pass
 
     def handle_message(self, message):
-        if message.message_type == MessageType.STATUS_TRAY:
-            self.set_tray_icon_message(message)
-        else:
-            self.output_view_model.handle_message(message)
+        self.output_view_model.handle_message(message)
 
     def handle_progress(self, message):
         """
@@ -1206,8 +1188,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     # tracked+download_enabled list, and queues matches for download. Runs regardless of whether
     # an explicit download is in progress; the browser's single-worker executor already serializes
     # Playwright calls, so this just queues behind an in-progress navigation rather than racing it.
-    # Independent of self.download_runner/self.thread (the explicit-download slots) so it can't
-    # clobber a real download session or flip self.running/the GUI's "downloading" shift.
+    # Queues onto the same standing self.download_runner as explicit downloads.
     def trigger_ambient_poll(self):
         threading.Thread(target=self.ambient_poll, daemon=True).start()
 
@@ -1239,23 +1220,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                 'reddit_id': submission.reddit_id, 'author': submission.author,
                 'subreddit': submission.subreddit, 'title': submission.title,
             })
-        runner = DownloadRunner(submissions=submissions)
-        thread = QThread()
-        runner.moveToThread(thread)
-        thread.started.connect(runner.run)
-        runner.finished.connect(thread.quit)
-        runner.finished.connect(runner.deleteLater)
-        runner.finished.connect(self.finish_ambient_download)
-        thread.finished.connect(thread.deleteLater)
-        # Keep a reference so PyQt doesn't garbage-collect the thread/runner mid-run; multiple
-        # ambient downloads can be in flight at once since each is an independent DownloadSession.
-        self.ambient_runs.append((thread, runner))
-        thread.start()
-
-    def finish_ambient_download(self):
-        self.user_list_model.refresh_session()
-        self.subreddit_list_model.refresh_session()
-        self.ambient_runs = [(t, r) for t, r in self.ambient_runs if t.isRunning()]
+        if not self.running:
+            self.started_download_gui_shift()
+        self.download_runner.request_download.emit({'submissions': submissions})
 
     def open_database_statistics_dialog(self):
         dialog = DatabaseStatisticsDialog()
@@ -1274,7 +1241,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.progress_bar.setVisible(True)
         self.shift_download_buttons()
         self.setup_run_timer()
-        Message.send_status_tray('Starting download')
         self.system_tray_icon.setToolTip('Downloader For Reddit (running)')
 
     def finished_download_gui_shift(self):
@@ -1326,7 +1292,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         """
         self.run_timer.start(1000)
         self.timer_widget.setVisible(True)
-        self.perpetual_run_label.setVisible(self.settings_manager.perpetual_download)
 
     def update_run_time(self):
         self.run_time += 1
@@ -1394,6 +1359,12 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.ambient_poll_timer.stop()
         self.receiver.stop_run()
         self.scheduler.stop_run()
+        self.download_runner.stop_pool()
+        # download_runner's own QThread (dispatches start_batch calls) -- quit()/wait() are called
+        # directly here, not via a queued signal, so this can't deadlock the way message_thread/
+        # schedule_thread would if their quit went through a cross-thread queued connection.
+        self.download_runner.thread().quit()
+        self.download_runner.thread().wait()
         self.run_timer.stop()
         self.save_main_window_settings()
         self.settings_manager.save_all()
@@ -1555,11 +1526,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.show()
         self.setWindowState(self.windowState() & ~Qt.WindowMinimized | Qt.WindowActive)
         self.activateWindow()
-
-    def set_tray_icon_message(self, message):
-        if not QApplication.focusWindow() and self.settings_manager.show_system_tray_notifications:
-            self.system_tray_icon.showMessage('Downloader For Reddit', message.message, self.tray_icon_image,
-                                              self.settings_manager.tray_icon_message_display_length * 1000)
 
     def minimize_to_tray(self):
         if QSystemTrayIcon.isSystemTrayAvailable():

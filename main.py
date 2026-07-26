@@ -32,6 +32,7 @@ from PyQt5 import QtWidgets, QtCore
 from DownloaderForReddit.gui.downloader_for_reddit_gui import DownloaderForRedditGUI
 from DownloaderForReddit.messaging.message_receiver import MessageReceiver
 from DownloaderForReddit.database.migration import Migrator
+from DownloaderForReddit.core.download_runner import DownloadRunner
 from DownloaderForReddit.utils import injector
 from DownloaderForReddit.local_logging import logger
 from DownloaderForReddit.core.cli import CLI
@@ -79,7 +80,16 @@ def main():
     receiver = MessageReceiver(queue)
     scheduler = injector.get_scheduler()
 
-    window = DownloaderForRedditGUI(queue, receiver, scheduler)
+    # Standing download runner: owns the extraction/download thread pool for the process
+    # lifetime. Explicit downloads and ambient extraction both queue work onto this one instance
+    # rather than each spinning up their own runner/threads/executors.
+    download_runner = DownloadRunner()
+    download_thread = QtCore.QThread()
+    download_runner.moveToThread(download_thread)
+    download_thread.started.connect(download_runner.start_pool)
+    download_thread.start()
+
+    window = DownloaderForRedditGUI(queue, receiver, scheduler, download_runner)
 
     receiver.text_output.connect(window.handle_message)
     receiver.non_text_output.connect(window.handle_progress)

@@ -46,7 +46,6 @@ class SettingsManager:
             self.get('core', 'finish_incomplete_downloads_at_session_start', False)
         self.download_reddit_hosted_videos = self.get('download_defaults', 'download_reddit_hosted_videos', True)
 
-        self.perpetual_download = self.get('core', 'perpetual_download', False)
         self.validate_names_before_add = self.get('core', 'validate_names_before_add', True)
 
         default_extractor_dict = {

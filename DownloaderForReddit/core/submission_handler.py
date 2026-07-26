@@ -21,8 +21,13 @@ from ..messaging.message import Message
 from ..utils import injector
 
 
-# [mine] fix(submission_handler): skip subreddit links instead of failing extraction
-SUBREDDIT_LINK_RE = re.compile(r'^https?://(\w+\.)?reddit\.com/r/[^/?#]+/?(?:[?#].*)?$', re.IGNORECASE)
+# [mine] fix(submission_handler): skip subreddit/post permalinks instead of failing extraction as an
+# unsupported domain. A bare subreddit link has no content. A reddit.com post permalink reaching here
+# is a crosspost whose post.url points at the original submission's permalink instead of the resolved
+# media URL -- the original submission is extracted as its own Post row with the real url, so this is
+# not a real failure, just an unresolved duplicate reference.
+REDDIT_LINK_RE = re.compile(r'^https?://(\w+\.)?reddit\.com/r/[^/?#]+(/comments/[^/?#]+(/[^/?#]*)?)?/?(?:[?#].*)?$',
+                            re.IGNORECASE)
 
 
 class SubmissionHandler(Runner):
@@ -112,8 +117,7 @@ class SubmissionHandler(Runner):
     @verify_run
     def extract_link(self, url, text_link_extraction=False, **kwargs):
         try:
-            # [mine] fix(submission_handler): subreddit links have no content; skip without marking failed
-            if SUBREDDIT_LINK_RE.match(url):
+            if REDDIT_LINK_RE.match(url):
                 self.post.set_extracted()
                 return
             extractor_class = self.assign_extractor(url)
@@ -144,7 +148,7 @@ class SubmissionHandler(Runner):
                         comment.set_extraction_failed(Error.TEXT_LINK_FAILURE,
                                                       'Failed to extract links from comment text')
             for content in extractor.extracted_content:
-                self.download_queue.put(content.id)
+                self.download_queue.put((content.id, self.download_session_id))
 
     @verify_run
     def assign_extractor(self, url):
