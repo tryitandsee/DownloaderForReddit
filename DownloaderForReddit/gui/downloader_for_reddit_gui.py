@@ -111,6 +111,10 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             self.move(geom['x'], geom['y'])
         self.horz_splitter.setSizes(self.settings_manager.horizontal_splitter_state)
 
+        # [mine] feat(gui): download status panel embedded at the bottom of the main window
+        self.download_status_panel = DownloadStatusDialog(lambda: getattr(self, 'download_runner', None))
+        self.verticalLayout_4.addWidget(self.download_status_panel)
+
         if self.settings_manager.download_radio_state == 'USER':
             self.download_users_radio.setChecked(True)
         elif self.settings_manager.download_radio_state == 'SUBREDDIT':
@@ -190,10 +194,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         # endregion
 
         # region Help Menu
-        # [mine] feat(gui): download status window
-        self._download_status_action = QAction('Download Status', self)
-        self._download_status_action.triggered.connect(self.open_download_status_dialog)
-        self.help_menu.addAction(self._download_status_action)
         self.imgur_credit_dialog_menu_item.triggered.connect(self.display_imgur_client_information)
         self.user_manual_menu_item.triggered.connect(self.open_user_manual)
         self.user_manual_menu_item.setDisabled(True)  # TODO: enable after online user manual is created
@@ -1354,12 +1354,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     def display_about_dialog(self):
         about_dialog = AboutDialog(self)
         about_dialog.exec_()
-
-    # [mine] feat(gui): download status window
-    def open_download_status_dialog(self):
-        get_runner = lambda: getattr(self, 'download_runner', None)
-        self._download_status_dialog = DownloadStatusDialog(get_runner)
-        self._download_status_dialog.show()
 
     def open_user_manual(self):
         """Opens the user manual using the default PDF viewer"""

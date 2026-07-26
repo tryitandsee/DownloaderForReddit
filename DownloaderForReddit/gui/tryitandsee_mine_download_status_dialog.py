@@ -10,10 +10,8 @@ from PyQt5.QtGui import QFont
 class DownloadStatusDialog(QWidget):
 
     def __init__(self, get_runner):
-        super().__init__(None, Qt.Window)
+        super().__init__()
         self.get_runner = get_runner
-        self.setWindowTitle('Download Status')
-        self.resize(700, 450)
         self._build_ui()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.refresh)
