@@ -619,5 +619,8 @@ class DownloadRunner(QObject):
         self.stopped = True
         self.continue_run = False
         self.stop_run.set()
-        self.downloader.hard_stop = hard_stop
+        # [mine] fix(core): guard against stopping before start_downloader() has run (e.g. a
+        # single-post-by-URL download whose extraction_sets ended up empty and returned early)
+        if self.downloader is not None:
+            self.downloader.hard_stop = hard_stop
         Message.send_warning('\nStopped\n')
