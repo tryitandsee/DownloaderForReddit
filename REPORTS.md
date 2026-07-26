@@ -78,12 +78,11 @@ GROUP BY ro.id ORDER BY post_count ASC LIMIT 20;
 
 ## Reading the log
 
-The log is JSON-per-record (one `{...}` block per line group, not JSONL -- each record spans
-multiple lines). Grep for a timestamp prefix or a name/message to jump to the right spot, then
-`Read` the file at that line offset for full context:
+The log is JSONL -- one JSON record per line. Grep for a timestamp prefix or a name/message to
+jump to the right spot:
 
 ```bash
-grep -n "07/25/2026 06:1" DownloaderForReddit.log   # narrow to a time window
+grep -n "2026-07-25T06:1" DownloaderForReddit.log   # narrow to a time window
 grep -n "SomeUsername" DownloaderForReddit.log      # narrow to a reddit_object
 ```
 

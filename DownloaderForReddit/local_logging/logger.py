@@ -36,12 +36,11 @@ def make_logger():
     logger.setLevel(logging.DEBUG)
 
     stream_formatter = JsonStreamFormatter('%(asctime)s: %(levelname)s : %(name)s : %(message)s',
-                                           datefmt='%m/%d/%Y %I:%M:%S %p')
+                                           datefmt='%Y-%m-%dT%H:%M:%S')
 
     json_formatter = jsonlogger.JsonFormatter(
         fmt='%(levelname) %(asctime) %(filename) %(module) %(name) %(funcName) %(lineno) %(message)',
-        datefmt='%m/%d/%Y %I:%M:%S %p',
-        json_indent=4,
+        datefmt='%Y-%m-%dT%H:%M:%S',
         json_ensure_ascii=True
     )
 
