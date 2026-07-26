@@ -13,7 +13,7 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional, Protocol, Tuple
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
 from playwright.sync_api import Error as PlaywrightError, Locator, Page, sync_playwright
 
@@ -80,6 +80,16 @@ def _strip_fullname_prefix(fullname: str) -> str:
 
 def _strip_subreddit_prefix(prefixed_name: str) -> str:
     return re.sub(r'^(r/|u_)', '', prefixed_name)
+
+
+def _normalize_reddit_url(url: str) -> str:
+    # User-supplied post URLs may point at any reddit domain variant (old./np./amp./m.reddit.com,
+    # or bare reddit.com) -- only the shreddit frontend at www.reddit.com renders <shreddit-post>;
+    # old.reddit.com in particular is the legacy plain-HTML UI and has no custom elements at all.
+    parts = urlsplit(url)
+    if parts.netloc.endswith('reddit.com') and parts.netloc != 'www.reddit.com':
+        parts = parts._replace(netloc='www.reddit.com')
+    return urlunsplit(parts)
 
 
 def _parse_post(post: Locator) -> Optional[SubmissionData]:
@@ -285,10 +295,11 @@ class BrowserRedditSource:
         return self._executor.submit(self._get_post_impl, url).result()
 
     def _get_post_impl(self, url: str) -> Optional[SubmissionData]:
-        # ASSUMED, NOT YET PROBED: the permalink/comments page is expected to render the same
-        # <shreddit-post> custom element as the listing pages (same attribute set), at the top
-        # above the comment tree -- see PLAN_reddit_source_rewrite.md "Remaining gaps". Needs a
-        # live smoke test against a real permalink before this is trusted.
+        # A real old.reddit.com URL reached this method and correctly found no <shreddit-post>
+        # (old.reddit.com has no web components at all) -- confirming the assumption that only
+        # www.reddit.com's permalink page renders it, same as the listing pages. Normalize the
+        # domain before navigating.
+        url = _normalize_reddit_url(url)
         page = self._page()
         try:
             page.goto(url)
