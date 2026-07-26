@@ -6,7 +6,7 @@ from datetime import datetime
 from playwright.sync_api import Error as PlaywrightError
 from PyQt5.QtCore import QObject, pyqtSignal
 from collections import defaultdict, namedtuple
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 
 from DownloaderForReddit.core.download.downloader import Downloader
 from . import const
@@ -62,6 +62,9 @@ class DownloadRunner(QObject):
         self.run_new = kwargs.get('run_new', True)
         # [mine] feat(core): batch single-post download mode
         self.single_submission_urls = kwargs.get('single_submission_urls', None)
+        # Ambient extraction: already-fetched SubmissionData (no url to re-navigate to), used
+        # instead of single_submission_urls when the caller already has the post data on hand.
+        self.submissions = kwargs.get('submissions', None)
 
         self.stop_run = Event()
         self.continue_run = True
@@ -178,19 +181,29 @@ class DownloadRunner(QObject):
     def run(self):
         # [mine] feat(core): batch single-post download mode - validate every url before creating a session
         if self.single_submission_urls is not None:
-            extraction_sets = [es for es in
-                               (self.prepare_single_submission(url) for url in self.single_submission_urls)
-                               if es is not None]
-            if not extraction_sets:
-                self.finished.emit()
-                return
-            self.create_download_session()
-            self.start_extractor()
-            self.start_downloader()
-            for extraction_set in extraction_sets:
-                self.submission_queue.put(extraction_set)
-            self.hold()
+            self.run_batch(self.prepare_single_submission(url) for url in self.single_submission_urls)
             return
+        if self.submissions is not None:
+            self.run_batch(self.prepare_submission(submission) for submission in self.submissions)
+            return
+        self.run_normal()
+
+    def run_batch(self, prepared_submissions):
+        # Shared by single_submission_urls and submissions: validate everything first, only create
+        # a DownloadSession if at least one survives, then queue and hold (no run_download(), so
+        # this never touches set_date_limit).
+        extraction_sets = [es for es in prepared_submissions if es is not None]
+        if not extraction_sets:
+            self.finished.emit()
+            return
+        self.create_download_session()
+        self.start_extractor()
+        self.start_downloader()
+        for extraction_set in extraction_sets:
+            self.submission_queue.put(extraction_set)
+        self.hold()
+
+    def run_normal(self):
         self.create_download_session()
         self.start_extractor()
         self.start_downloader()
@@ -285,6 +298,24 @@ class DownloadRunner(QObject):
             author_id = author.id
         Message.send_info(f'Downloading single post by {submission.author}')
         return ExtractionSet(extraction_type='SUBMISSION', extraction_object=submission, significant_id=author_id)
+
+    # Ambient extraction: same idea as prepare_single_submission but for a SubmissionData already
+    # in hand (no url to re-navigate to). Resolves against whichever of author/subreddit is
+    # actually tracked -- the ambient poll already matched on one or both, case-insensitively, so
+    # this looks up the same way rather than the exact-match self.reddit_source lookups elsewhere.
+    def prepare_submission(self, submission):
+        with self.db.get_scoped_session() as session:
+            author = session.query(User).filter(func.lower(User.name) == submission.author.lower()).first()
+            subreddit = session.query(Subreddit).filter(
+                func.lower(Subreddit.name) == submission.subreddit.lower()).first()
+            significant = author or subreddit
+            if significant is None:
+                return None
+            if not SubmittableCreator.check_duplicate_post(submission.reddit_id, submission.url, session):
+                return None
+            significant_id = significant.id
+        Message.send_info(f'Ambient extraction: downloading post by {submission.author}')
+        return ExtractionSet(extraction_type='SUBMISSION', extraction_object=submission, significant_id=significant_id)
 
     def validate_subreddit_list(self):
         """

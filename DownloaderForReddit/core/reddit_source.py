@@ -171,6 +171,24 @@ class BrowserRedditSource:
     def _page(self) -> Page:
         return self._context.pages[0] if self._context.pages else self._context.new_page()
 
+    def read_current_page_posts(self) -> List[SubmissionData]:
+        """
+        Reads whatever <shreddit-post> elements are on the page right now -- no navigation, no
+        scrolling. Used for ambient extraction while the dedicated account's browser window is
+        being browsed casually, as opposed to iter_user_submissions/iter_subreddit_submissions
+        which drive their own navigation.
+        """
+        return self._executor.submit(self._read_current_page_posts_impl).result()
+
+    def _read_current_page_posts_impl(self) -> List[SubmissionData]:
+        page = self._page()
+        results = []
+        for post in page.locator('shreddit-post').all():
+            data = _parse_post(post)
+            if data is not None:
+                results.append(data)
+        return results
+
     def _collect(self, url: str, limit: Optional[int] = None, known_ids: Optional[set] = None) -> List[SubmissionData]:
         page = self._page()
         page.goto(url)

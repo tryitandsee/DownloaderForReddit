@@ -50,7 +50,9 @@ from ..gui.invalid_reddit_object_dialog import InvalidRedditObjectDialog, Invali
 from ..core.download_runner import DownloadRunner
 from ..core.update_runner import UpdateRunner
 from ..core.cli import CLI
-from ..database.models import RedditObject, RedditObjectList, ListAssociation
+from sqlalchemy import func
+
+from ..database.models import RedditObject, RedditObjectList, ListAssociation, User, Subreddit
 from ..database.filters import RedditObjectFilter
 from ..database.model_manager import ModelManger
 from ..utils import (injector, system_util, imgur_utils, video_merger, general_utils, UpdateChecker)
@@ -66,6 +68,10 @@ from ..version import __version__
 class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     stop_download_signal = pyqtSignal(bool)  # bool indicates whether the stop is a hard stop or not
+    # Carries a list[SubmissionData] from ambient_poll (background thread) to start_ambient_download
+    # (GUI thread) -- object, not list, so PyQt passes the SubmissionData instances through as-is
+    # rather than trying to convert them to QVariants.
+    ambient_matches_found = pyqtSignal(object)
 
     def __init__(self, queue, receiver, scheduler):
         """
@@ -227,6 +233,14 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.soft_stop_download_button.clicked.connect(lambda: self.stop_download_signal.emit(False))
         self.terminate_download_button.clicked.connect(lambda: self.stop_download_signal.emit(True))
         self.shift_download_buttons()
+
+        # Ambient extraction: periodically read whatever's currently loaded in the dedicated
+        # account's browser window and queue matches against the tracked list for download.
+        self.ambient_runs = []
+        self.ambient_matches_found.connect(self.start_ambient_download)
+        self.ambient_poll_timer = QTimer(self)
+        self.ambient_poll_timer.timeout.connect(self.trigger_ambient_poll)
+        self.ambient_poll_timer.start(15000)
 
         self.add_user_button.clicked.connect(self.add_user)
         self.remove_user_button.clicked.connect(self.remove_user)
@@ -1174,6 +1188,61 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         path = 'user' if object_type == 'USER' else 'r'
         url = f'https://www.reddit.com/{path}/{reddit_object.name}'
         threading.Thread(target=injector.get_reddit_source().open_url, args=(url,), daemon=True).start()
+
+    # Ambient extraction: reads whatever's on the currently loaded page, matches against the
+    # tracked+download_enabled list, and queues matches for download. Runs regardless of whether
+    # an explicit download is in progress; the browser's single-worker executor already serializes
+    # Playwright calls, so this just queues behind an in-progress navigation rather than racing it.
+    # Independent of self.download_runner/self.thread (the explicit-download slots) so it can't
+    # clobber a real download session or flip self.running/the GUI's "downloading" shift.
+    def trigger_ambient_poll(self):
+        threading.Thread(target=self.ambient_poll, daemon=True).start()
+
+    def ambient_poll(self):
+        try:
+            posts = injector.get_reddit_source().read_current_page_posts()
+        except Exception:
+            self.logger.exception('Ambient extraction poll failed')
+            return
+        if not posts:
+            return
+        authors = {post.author.lower() for post in posts}
+        subreddits = {post.subreddit.lower() for post in posts}
+        with self.db_handler.get_scoped_session() as session:
+            tracked_authors = {name for (name,) in session.query(func.lower(User.name))
+                               .filter(User.significant == True, User.download_enabled == True,
+                                       func.lower(User.name).in_(authors))}
+            tracked_subreddits = {name for (name,) in session.query(func.lower(Subreddit.name))
+                                  .filter(Subreddit.significant == True, Subreddit.download_enabled == True,
+                                          func.lower(Subreddit.name).in_(subreddits))}
+        matches = [post for post in posts
+                  if post.author.lower() in tracked_authors or post.subreddit.lower() in tracked_subreddits]
+        if matches:
+            self.ambient_matches_found.emit(matches)
+
+    def start_ambient_download(self, submissions):
+        for submission in submissions:
+            self.logger.info('Ambient extraction: queuing tracked post', extra={
+                'reddit_id': submission.reddit_id, 'author': submission.author,
+                'subreddit': submission.subreddit, 'title': submission.title,
+            })
+        runner = DownloadRunner(submissions=submissions)
+        thread = QThread()
+        runner.moveToThread(thread)
+        thread.started.connect(runner.run)
+        runner.finished.connect(thread.quit)
+        runner.finished.connect(runner.deleteLater)
+        runner.finished.connect(self.finish_ambient_download)
+        thread.finished.connect(thread.deleteLater)
+        # Keep a reference so PyQt doesn't garbage-collect the thread/runner mid-run; multiple
+        # ambient downloads can be in flight at once since each is an independent DownloadSession.
+        self.ambient_runs.append((thread, runner))
+        thread.start()
+
+    def finish_ambient_download(self):
+        self.user_list_model.refresh_session()
+        self.subreddit_list_model.refresh_session()
+        self.ambient_runs = [(t, r) for t, r in self.ambient_runs if t.isRunning()]
 
     def open_database_statistics_dialog(self):
         dialog = DatabaseStatisticsDialog()
