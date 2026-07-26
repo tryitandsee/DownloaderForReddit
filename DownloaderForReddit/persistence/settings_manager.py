@@ -47,7 +47,6 @@ class SettingsManager:
         self.download_reddit_hosted_videos = self.get('download_defaults', 'download_reddit_hosted_videos', True)
 
         self.perpetual_download = self.get('core', 'perpetual_download', False)
-        self.cascade_list_changes = self.get('core', 'cascade_list_changes', False)
         self.validate_names_before_add = self.get('core', 'validate_names_before_add', True)
 
         default_extractor_dict = {

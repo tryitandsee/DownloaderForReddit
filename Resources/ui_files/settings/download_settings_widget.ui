@@ -15,16 +15,6 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="QCheckBox" name="cascade_changes_checkbox">
-     <property name="toolTip">
-      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;When selected, changes that are made to the selected list will cascade down to each user/subreddit in the list unless that user/subreddit has its settings locked&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-     </property>
-     <property name="text">
-      <string>Cascade changes</string>
-     </property>
-    </widget>
-   </item>
-   <item>
     <widget class="QComboBox" name="list_combo_box"/>
    </item>
    <item>
