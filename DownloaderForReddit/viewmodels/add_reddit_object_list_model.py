@@ -51,8 +51,8 @@ class AddRedditObjectListModel(QAbstractListModel):
         self.start_name_check_thread()
         self.checker_running = True
 
-        valid_path = os.path.abspath('Resources/Images/valid_checkmark.png')
-        non_valid_path = os.path.abspath('Resources/Images/non_valid_x.png')
+        valid_path = os.path.abspath("Resources/Images/valid_checkmark.png")
+        non_valid_path = os.path.abspath("Resources/Images/non_valid_x.png")
         self.valid_img = QPixmap(valid_path)
         self.non_valid_img = QPixmap(non_valid_path)
 

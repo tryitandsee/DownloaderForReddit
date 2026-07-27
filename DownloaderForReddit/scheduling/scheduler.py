@@ -10,7 +10,6 @@ from .tasks import DownloadTask, Interval
 
 
 class Scheduler(QObject):
-
     run_task = pyqtSignal(tuple)
     countdown = pyqtSignal(object)
     finished = pyqtSignal()
@@ -54,12 +53,14 @@ class Scheduler(QObject):
         :type task DownloadTask
         """
         with self.db.get_scoped_session() as session:
-            existing = session.query(DownloadTask)\
-                .filter(DownloadTask.interval == task.interval)\
-                .filter(DownloadTask.value == task.value)\
-                .filter(DownloadTask.user_list_id == task.user_list_id)\
-                .filter(DownloadTask.subreddit_list_id == task.subreddit_list_id)\
+            existing = (
+                session.query(DownloadTask)
+                .filter(DownloadTask.interval == task.interval)
+                .filter(DownloadTask.value == task.value)
+                .filter(DownloadTask.user_list_id == task.user_list_id)
+                .filter(DownloadTask.subreddit_list_id == task.subreddit_list_id)
                 .scalar()
+            )
             if existing is None:
                 try:
                     if task.active:
@@ -81,11 +82,17 @@ class Scheduler(QObject):
             n = getattr(base, task.interval.unit)
             if task.interval != Interval.SECOND:
                 n = n.at(task.value)
-            n.do(self.launch_task, user_list_id=task.user_list_id, subreddit_list_id=task.subreddit_list_id).tag(task.tag)
+            n.do(
+                self.launch_task,
+                user_list_id=task.user_list_id,
+                subreddit_list_id=task.subreddit_list_id,
+            ).tag(task.tag)
             self.update_countdown = True
         except Exception:
             # Log the error no matter what it is, then raise the exception and let the caller handle it as necessary
-            self.logger.exception('Failed to schedule task', extra={'task': task.display})
+            self.logger.exception(
+                "Failed to schedule task", extra={"task": task.display}
+            )
             raise
 
     def pause_task(self, task):

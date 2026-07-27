@@ -21,6 +21,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
+
 from queue import Queue
 
 settings_manager = None
@@ -34,6 +35,7 @@ def get_settings_manager():
     global settings_manager
     if settings_manager is None:
         from ..persistence.settings_manager import SettingsManager
+
         settings_manager = SettingsManager()
     return settings_manager
 
@@ -42,6 +44,7 @@ def get_database_handler():
     global database_handler
     if database_handler is None:
         from ..database.database_handler import DatabaseHandler
+
         database_handler = DatabaseHandler()
     return database_handler
 
@@ -57,6 +60,7 @@ def get_scheduler():
     global scheduler
     if scheduler is None:
         from ..scheduling.scheduler import Scheduler
+
         scheduler = Scheduler()
     return scheduler
 
@@ -69,6 +73,7 @@ def get_reddit_source():
     global reddit_source
     if reddit_source is None:
         from ..core.reddit_source import BrowserRedditSource
+
         reddit_source = BrowserRedditSource()
         reddit_source.start()
     return reddit_source

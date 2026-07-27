@@ -1,4 +1,3 @@
-
 # Form implementation generated from reading ui file 'Resources\ui_files\settings\quick_filter_settings_widget.ui'
 #
 # Created by: PyQt5 UI code generator 5.14.1
@@ -28,10 +27,14 @@ class Ui_QuickFilterSettingsWidget:
         self.add_new_quick_filter_button.setObjectName("add_new_quick_filter_button")
         self.verticalLayout_2.addWidget(self.add_new_quick_filter_button)
         self.name_list_widget = QtWidgets.QListWidget(self.widget)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding
+        )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.name_list_widget.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(
+            self.name_list_widget.sizePolicy().hasHeightForWidth()
+        )
         self.name_list_widget.setSizePolicy(sizePolicy)
         self.name_list_widget.setObjectName("name_list_widget")
         self.verticalLayout_2.addWidget(self.name_list_widget)
@@ -57,6 +60,12 @@ class Ui_QuickFilterSettingsWidget:
 
     def retranslateUi(self, QuickFilterSettingsWidget):
         _translate = QtCore.QCoreApplication.translate
-        QuickFilterSettingsWidget.setWindowTitle(_translate("QuickFilterSettingsWidget", "Quick Filter Settings"))
-        self.add_new_quick_filter_button.setText(_translate("QuickFilterSettingsWidget", "Add Quick Filter"))
+        QuickFilterSettingsWidget.setWindowTitle(
+            _translate("QuickFilterSettingsWidget", "Quick Filter Settings")
+        )
+        self.add_new_quick_filter_button.setText(
+            _translate("QuickFilterSettingsWidget", "Add Quick Filter")
+        )
+
+
 from DownloaderForReddit.gui.database_views.filter_input_widget import FilterInputWidget

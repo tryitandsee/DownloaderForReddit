@@ -24,14 +24,22 @@ from .runner import Runner, verify_run
 # is a crosspost whose post.url points at the original submission's permalink instead of the resolved
 # media URL -- the original submission is extracted as its own Post row with the real url, so this is
 # not a real failure, just an unresolved duplicate reference.
-REDDIT_LINK_RE = re.compile(r'^https?://(\w+\.)?reddit\.com/r/[^/?#]+(/comments/[^/?#]+(/[^/?#]*)?)?/?(?:[?#].*)?$',
-                            re.IGNORECASE)
+REDDIT_LINK_RE = re.compile(
+    r"^https?://(\w+\.)?reddit\.com/r/[^/?#]+(/comments/[^/?#]+(/[^/?#]*)?)?/?(?:[?#].*)?$",
+    re.IGNORECASE,
+)
 
 
 class SubmissionHandler(Runner):
-
-    def __init__(self, submission: Submission | None, post: Post, download_session_id: int, session: Session,
-                 download_queue: Queue, stop_run):
+    def __init__(
+        self,
+        submission: Submission | None,
+        post: Post,
+        download_session_id: int,
+        session: Session,
+        download_queue: Queue,
+        stop_run,
+    ):
         super().__init__(stop_run)
         self.logger = logging.getLogger(__name__)
         self.settings_manager = injector.get_settings_manager()
@@ -60,11 +68,16 @@ class SubmissionHandler(Runner):
         significant_ro = self.post.significant_reddit_object
         try:
             if significant_ro.download_self_post_text:
-                extractor = SelfPostExtractor(self.post, download_session_id=self.download_session_id)
+                extractor = SelfPostExtractor(
+                    self.post, download_session_id=self.download_session_id
+                )
                 self.finish_extractor(extractor)
             if significant_ro.extract_self_post_links:
                 self.extract_text_links(self.post.text_html)
-            if not significant_ro.download_self_post_text and not significant_ro.extract_self_post_links:
+            if (
+                not significant_ro.download_self_post_text
+                and not significant_ro.extract_self_post_links
+            ):
                 self.post.set_extracted()
         except Exception as e:
             self.handle_error(e)
@@ -76,23 +89,38 @@ class SubmissionHandler(Runner):
         # browser-discovered posts, so CommentHandler would crash rather than silently do nothing
         # if allowed through.
         if not isinstance(self.submission, Submission):
-            self.logger.debug('Skipping comment extraction: not yet implemented for the browser-based source',
-                              extra={'post_id': self.post.id})
+            self.logger.debug(
+                "Skipping comment extraction: not yet implemented for the browser-based source",
+                extra={"post_id": self.post.id},
+            )
             return
-        comment_handler = CommentHandler(self.submission, self.post, self.download_session_id, self.stop_run,
-                                         self.session)
+        comment_handler = CommentHandler(
+            self.submission,
+            self.post,
+            self.download_session_id,
+            self.stop_run,
+            self.session,
+        )
         comment_handler.run()
         for comment in comment_handler.comments_to_download:
             self.download_comment(comment)
         for comment in comment_handler.comments_to_extract_links:
-            self.extract_text_links(comment.body_html, comment=comment, user=comment.author,
-                                    subreddit=comment.subreddit,
-                                    significant_reddit_object=self.post.significant_reddit_object,
-                                    creation_date=comment.date_posted)
+            self.extract_text_links(
+                comment.body_html,
+                comment=comment,
+                user=comment.author,
+                subreddit=comment.subreddit,
+                significant_reddit_object=self.post.significant_reddit_object,
+                creation_date=comment.date_posted,
+            )
 
     @verify_run
     def download_comment(self, comment):
-        extractor = CommentExtractor(post=self.post, comment=comment, download_session_id=self.download_session_id)
+        extractor = CommentExtractor(
+            post=self.post,
+            comment=comment,
+            download_session_id=self.download_session_id,
+        )
         self.finish_extractor(extractor, text_link_extraction=True, comment=comment)
 
     @verify_run
@@ -103,14 +131,14 @@ class SubmissionHandler(Runner):
         links = self.parse_html_links(html_text)
         track_count = len(links) > 1
         for link in links:
-            if link.has_attr('href'):
-                url = link['href']
+            if link.has_attr("href"):
+                url = link["href"]
                 if track_count:
-                    kwargs['count'] = links.index(link) + 1
+                    kwargs["count"] = links.index(link) + 1
                 self.extract_link(url, **kwargs, text_link_extraction=True)
 
     def parse_html_links(self, html):
-        return BeautifulSoup(html, parse_only=SoupStrainer('a'), features='html.parser')
+        return BeautifulSoup(html, parse_only=SoupStrainer("a"), features="html.parser")
 
     @verify_run
     def extract_link(self, url, text_link_extraction=False, **kwargs):
@@ -124,7 +152,9 @@ class SubmissionHandler(Runner):
                 self.handle_unsupported_domain()
                 return
 
-            extractor = extractor_class(self.post, url=url, submission=self.submission, **kwargs)
+            extractor = extractor_class(
+                self.post, url=url, submission=self.submission, **kwargs
+            )
             self.finish_extractor(extractor, text_link_extraction=text_link_extraction)
         except Exception as e:
             self.handle_error(e)
@@ -137,14 +167,20 @@ class SubmissionHandler(Runner):
                 self.post.set_extracted()
             else:
                 if not text_link_extraction:
-                    self.post.set_extraction_failed(extractor.extraction_error, extractor.failed_extraction_message)
+                    self.post.set_extraction_failed(
+                        extractor.extraction_error, extractor.failed_extraction_message
+                    )
                 else:
                     if comment is None:
-                        self.post.set_extraction_failed(Error.TEXT_LINK_FAILURE,
-                                                        'Failed to extract link from text post')
+                        self.post.set_extraction_failed(
+                            Error.TEXT_LINK_FAILURE,
+                            "Failed to extract link from text post",
+                        )
                     else:
-                        comment.set_extraction_failed(Error.TEXT_LINK_FAILURE,
-                                                      'Failed to extract links from comment text')
+                        comment.set_extraction_failed(
+                            Error.TEXT_LINK_FAILURE,
+                            "Failed to extract links from comment text",
+                        )
             for content in extractor.extracted_content:
                 self.download_queue.put((content.id, self.download_session_id))
 
@@ -160,12 +196,18 @@ class SubmissionHandler(Runner):
                 # is always caught above by RedditUploadsExtractor/RedditVideoExtractor first, so a reddit.com
                 # URL reaching this point only ever means an unresolvable case -- skip GenericVideoExtractor for
                 # it and let it fail cleanly as unsupported instead.
-                if extractor.__name__ == 'GenericVideoExtractor' and 'reddit.com' in url.lower():
+                if (
+                    extractor.__name__ == "GenericVideoExtractor"
+                    and "reddit.com" in url.lower()
+                ):
                     continue
                 key = extractor.get_url_key()
                 if key is not None and any(x in url.lower() for x in key):
                     return extractor
-        if url.lower().endswith(const.ALL_EXT) and self.settings_manager.extractor_dict['DirectExtractor']:
+        if (
+            url.lower().endswith(const.ALL_EXT)
+            and self.settings_manager.extractor_dict["DirectExtractor"]
+        ):
             return DirectExtractor
         return None
 
@@ -180,39 +222,48 @@ class SubmissionHandler(Runner):
             self.handle_unknown_error()
 
     def handle_unsupported_domain(self, **kwargs):
-        message = 'Unsupported domain'
+        message = "Unsupported domain"
         self.log_error(message, **kwargs)
         self.post.set_extraction_failed(Error.UNSUPPORTED_DOMAIN, message)
         self.output_error(message, **kwargs)
 
     def handle_connection_error(self, **kwargs):
-        message = 'Failed to establish a connection to the server'
+        message = "Failed to establish a connection to the server"
         self.log_error(message, **kwargs)
         self.post.set_extraction_failed(Error.CONNECTION_ERROR, message)
         self.output_error(message, **kwargs)
 
     def handle_too_many_requests_error(self, **kwargs):
-        message = 'Reddit rate limit reached'
+        message = "Reddit rate limit reached"
         self.log_error(message, **kwargs)
         self.post.set_extraction_failed(Error.RATE_LIMIT_ERROR, message)
-        output_message = (f'{message}\nFor more information about this error, please see the link below\n'
-                          f'{const.RATE_LIMIT_DOC_URL}')
+        output_message = (
+            f"{message}\nFor more information about this error, please see the link below\n"
+            f"{const.RATE_LIMIT_DOC_URL}"
+        )
         self.output_error(output_message, **kwargs)
 
     def handle_unknown_error(self, **kwargs):
-        message = 'Unknown error occurred'
+        message = "Unknown error occurred"
         self.log_error(message, **kwargs)
         self.post.set_extraction_failed(Error.UNKNOWN_ERROR, message)
         self.output_error(message, **kwargs)
 
     def log_error(self, message, **kwargs):
-        extra = {'post_title': self.post.title, 'user': self.post.author.name,
-                 'subreddit': self.post.subreddit.name, 'url': self.post.url,
-                 'date_posted': self.post.date_posted, **kwargs}
+        extra = {
+            "post_title": self.post.title,
+            "user": self.post.author.name,
+            "subreddit": self.post.subreddit.name,
+            "url": self.post.url,
+            "date_posted": self.post.date_posted,
+            **kwargs,
+        }
         self.logger.error(message, extra=extra)
 
     def output_error(self, message, **kwargs):
-        message = f'Failed to extract due to: {message}'
-        message_extra = f'\nTitle: {self.post.title}\nUser: {self.post.author.name}\n' \
-                        f'Subreddit: {self.post.subreddit.name}\nUrl: {kwargs.get("url", self.post.url)}\n'
+        message = f"Failed to extract due to: {message}"
+        message_extra = (
+            f"\nTitle: {self.post.title}\nUser: {self.post.author.name}\n"
+            f"Subreddit: {self.post.subreddit.name}\nUrl: {kwargs.get('url', self.post.url)}\n"
+        )
         Message.send_extraction_error(message + message_extra)

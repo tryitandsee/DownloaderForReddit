@@ -30,7 +30,10 @@ from .runner import verify_run
 from .submission_filter import SubmissionFilter
 from .submittable_creator import SubmittableCreator
 
-ExtractionSet = namedtuple('ExtractionSet', 'extraction_type extraction_object significant_id download_session_id')
+ExtractionSet = namedtuple(
+    "ExtractionSet",
+    "extraction_type extraction_object significant_id download_session_id",
+)
 
 
 class DownloadRunner(QObject):
@@ -43,13 +46,19 @@ class DownloadRunner(QObject):
 
     remove_invalid_object = pyqtSignal(int)
     remove_forbidden_object = pyqtSignal(int)
-    download_session_signal = pyqtSignal(int)  # emits the id of a DownloadSession that just finished
-    pool_idle = pyqtSignal()  # emitted once whenever the whole pool (all sessions) goes idle
-    request_download = pyqtSignal(object)  # GUI/ambient emit a params dict; queued onto this runner's thread
+    download_session_signal = pyqtSignal(
+        int
+    )  # emits the id of a DownloadSession that just finished
+    pool_idle = (
+        pyqtSignal()
+    )  # emitted once whenever the whole pool (all sessions) goes idle
+    request_download = pyqtSignal(
+        object
+    )  # GUI/ambient emit a params dict; queued onto this runner's thread
 
     def __init__(self):
         super().__init__()
-        self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
+        self.logger = logging.getLogger(f"DownloaderForReddit.{__name__}")
         self.db = injector.get_database_handler()
         self.settings_manager = injector.get_settings_manager()
         self.reddit_source = injector.get_reddit_source()
@@ -104,12 +113,21 @@ class DownloadRunner(QObject):
 
     def start_pool(self):
         """Creates the extractor/downloader and their worker threads. Called once, at app start."""
-        self.extractor = ContentRunner(self.submission_queue, self.download_queue, self.cancelled_sessions,
-                                       self.stop_run, self.idle_tick)
+        self.extractor = ContentRunner(
+            self.submission_queue,
+            self.download_queue,
+            self.cancelled_sessions,
+            self.stop_run,
+            self.idle_tick,
+        )
         self.extraction_thread = Thread(target=self.extractor.run)
         self.extraction_thread.start()
-        self.downloader = Downloader(self.download_queue, self.cancelled_sessions, self.hard_stopped_sessions,
-                                     self.stop_run)
+        self.downloader = Downloader(
+            self.download_queue,
+            self.cancelled_sessions,
+            self.hard_stopped_sessions,
+            self.stop_run,
+        )
         self.download_thread = Thread(target=self.downloader.run)
         self.download_thread.start()
 
@@ -130,9 +148,11 @@ class DownloadRunner(QObject):
         PLAN_background_download.md -- exact per-item timing isn't needed by anything.
         """
         idle = (
-            not self._batch_in_progress and
-            not self.extractor.futures and not self.downloader.futures and
-            self.submission_queue.empty() and self.download_queue.empty()
+            not self._batch_in_progress
+            and not self.extractor.futures
+            and not self.downloader.futures
+            and self.submission_queue.empty()
+            and self.download_queue.empty()
         )
         if not idle:
             self._pool_was_idle = False
@@ -143,7 +163,11 @@ class DownloadRunner(QObject):
         self._current_fetch_object = None  # [mine] feat(gui): download status window
         video_merger.merge_videos()
         with self.db.get_scoped_session() as session:
-            open_sessions = session.query(DownloadSession).filter(DownloadSession.end_time == None).all()
+            open_sessions = (
+                session.query(DownloadSession)
+                .filter(DownloadSession.end_time == None)
+                .all()
+            )
             finished_ids = [dl_session.id for dl_session in open_sessions]
             for dl_session in open_sessions:
                 dl_session.end_time = datetime.now()
@@ -153,7 +177,9 @@ class DownloadRunner(QObject):
             self.hard_stopped_sessions.discard(session_id)
             self.download_session_signal.emit(session_id)
         if finished_ids:
-            self.logger.debug('Download pool idle', extra={'finished_sessions': finished_ids})
+            self.logger.debug(
+                "Download pool idle", extra={"finished_sessions": finished_ids}
+            )
         self.pool_idle.emit()
 
     def validate_subreddit(self, subreddit_obj):
@@ -165,7 +191,7 @@ class DownloadRunner(QObject):
         # validation no longer touches it, since "exists on reddit" and "is followed" are
         # unrelated facts.
         if result.valid:
-            Message.send_debug(f'{reddit_object.name} is valid')
+            Message.send_debug(f"{reddit_object.name} is valid")
             return True
         if result.error == ValidationError.NOT_FOUND:
             self.handle_invalid_reddit_object(reddit_object)
@@ -180,73 +206,120 @@ class DownloadRunner(QObject):
         return False
 
     def handle_invalid_reddit_object(self, reddit_object):
-        self.logger.warning('Invalid reddit object detected', extra={'object_type': reddit_object.object_type,
-                                                                     'reddit_object': reddit_object.name})
-        Message.send_warning(f'Invalid {reddit_object.object_type.lower()}: {reddit_object.name}')
+        self.logger.warning(
+            "Invalid reddit object detected",
+            extra={
+                "object_type": reddit_object.object_type,
+                "reddit_object": reddit_object.name,
+            },
+        )
+        Message.send_warning(
+            f"Invalid {reddit_object.object_type.lower()}: {reddit_object.name}"
+        )
         self.remove_invalid_object.emit(reddit_object.id)
 
     def handle_forbidden_reddit_object(self, reddit_object):
-        self.logger.warning('Forbidden reddit object detected', extra={'object_type': reddit_object.object_type,
-                                                                       'reddit_object': reddit_object.name})
-        Message.send_warning(f'Forbidden {reddit_object.object_type.lower()}: {reddit_object.name}')
+        self.logger.warning(
+            "Forbidden reddit object detected",
+            extra={
+                "object_type": reddit_object.object_type,
+                "reddit_object": reddit_object.name,
+            },
+        )
+        Message.send_warning(
+            f"Forbidden {reddit_object.object_type.lower()}: {reddit_object.name}"
+        )
         self.remove_forbidden_object.emit(reddit_object.id)
 
     def handle_failed_connection(self):
         if self.failed_connection_attempts >= 3:
             self.continue_run = False
-            self.logger.error('Failed connection attempts exceeded.  Ending download session')
-            Message.send_critical('Failed connection attempts exceeded.  The download session has been canceled.  '
-                                  'Please try the download again later.')
+            self.logger.error(
+                "Failed connection attempts exceeded.  Ending download session"
+            )
+            Message.send_critical(
+                "Failed connection attempts exceeded.  The download session has been canceled.  "
+                "Please try the download again later."
+            )
         else:
-            self.logger.error('Failed to connect to reddit',
-                              extra={'connection_attempts': self.failed_connection_attempts})
-            Message.send_error(f'Failed to connect to reddit.  Connection attempts remaining: '
-                               f'{3 - self.failed_connection_attempts}')
+            self.logger.error(
+                "Failed to connect to reddit",
+                extra={"connection_attempts": self.failed_connection_attempts},
+            )
+            Message.send_error(
+                f"Failed to connect to reddit.  Connection attempts remaining: "
+                f"{3 - self.failed_connection_attempts}"
+            )
             self.failed_connection_attempts += 1
 
     def handle_too_many_requests_error(self, reddit_object):
-        self.logger.error('Too many requests error')
+        self.logger.error("Too many requests error")
         message = (
-            f'Reddit rate limit reached.  {reddit_object.object_type.capitalize()} ({reddit_object.name}) could '
-            f'not be validated.  Please try again later.\n'
-            f'For More information about this error, please visit the link below:\n'
-            f'{const.RATE_LIMIT_DOC_URL}'
+            f"Reddit rate limit reached.  {reddit_object.object_type.capitalize()} ({reddit_object.name}) could "
+            f"not be validated.  Please try again later.\n"
+            f"For More information about this error, please visit the link below:\n"
+            f"{const.RATE_LIMIT_DOC_URL}"
         )
         Message.send_error(message)
 
     def handle_unknown_error(self, reddit_object):
-        self.logger.error('Failed to validate reddit object due to unknown error',
-                          extra={'object_type': reddit_object.object_type, 'reddit_object': reddit_object.name})
+        self.logger.error(
+            "Failed to validate reddit object due to unknown error",
+            extra={
+                "object_type": reddit_object.object_type,
+                "reddit_object": reddit_object.name,
+            },
+        )
 
     def run_unextracted_posts(self):
-        self.logger.debug('Running unextracted posts')
+        self.logger.debug("Running unextracted posts")
         post_id_list = self.unextracted_id_list
         if post_id_list is None:
             with self.db.get_scoped_session() as session:
-                post_id_list = session.query(Post.id)\
-                    .filter(Post.extracted == False) \
-                    .filter(Post.retry_attempts <= 3) \
-                    .filter(or_(Post.extraction_error == None, Post.extraction_error.notin_(NON_DOWNLOADABLE)))
-        self.logger.debug('%s unfinished posts to download', post_id_list.count())
-        for post_id, in post_id_list.all():  # comma used to unpack result tuple
-            extraction_set = ExtractionSet(extraction_type='POST', extraction_object=post_id, significant_id=None,
-                                           download_session_id=self.download_session_id)
+                post_id_list = (
+                    session.query(Post.id)
+                    .filter(Post.extracted == False)
+                    .filter(Post.retry_attempts <= 3)
+                    .filter(
+                        or_(
+                            Post.extraction_error == None,
+                            Post.extraction_error.notin_(NON_DOWNLOADABLE),
+                        )
+                    )
+                )
+        self.logger.debug("%s unfinished posts to download", post_id_list.count())
+        for (post_id,) in post_id_list.all():  # comma used to unpack result tuple
+            extraction_set = ExtractionSet(
+                extraction_type="POST",
+                extraction_object=post_id,
+                significant_id=None,
+                download_session_id=self.download_session_id,
+            )
             self.submission_queue.put(extraction_set)
-        self.logger.debug('Finished unextracted posts')
+        self.logger.debug("Finished unextracted posts")
 
     def run_undownloaded_content(self):
-        self.logger.debug('Running undownloaded content')
+        self.logger.debug("Running undownloaded content")
         content_id_list = self.undownloaded_id_list
         if content_id_list is None:
             with self.db.get_scoped_session() as session:
-                content_id_list = session.query(Content)\
-                    .filter(Content.downloaded == False) \
-                    .filter(Content.retry_attempts <= 3) \
-                    .filter(or_(Content.download_error == None, Content.download_error.notin_(NON_DOWNLOADABLE)))
-        self.logger.debug('%s unfinished content items to download', content_id_list.count())
+                content_id_list = (
+                    session.query(Content)
+                    .filter(Content.downloaded == False)
+                    .filter(Content.retry_attempts <= 3)
+                    .filter(
+                        or_(
+                            Content.download_error == None,
+                            Content.download_error.notin_(NON_DOWNLOADABLE),
+                        )
+                    )
+                )
+        self.logger.debug(
+            "%s unfinished content items to download", content_id_list.count()
+        )
         for content in content_id_list.all():
             self.download_queue.put((content.id, self.download_session_id))
-        self.logger.debug('Finished undownloaded content')
+        self.logger.debug("Finished undownloaded content")
 
     @pyqtSlot(object)
     def start_batch(self, params):
@@ -260,16 +333,16 @@ class DownloadRunner(QObject):
                        unextracted_id_list, run_undownloaded, undownloaded_id_list, run_new,
                        single_submission_urls, submissions.
         """
-        self.user_id_list = params.get('user_id_list')
-        self.subreddit_id_list = params.get('subreddit_id_list')
-        self.reddit_object_id_list = params.get('reddit_object_id_list')
-        self.run_unextracted = params.get('run_unextracted', False)
-        self.unextracted_id_list = params.get('unextracted_id_list')
-        self.run_undownloaded = params.get('run_undownloaded', False)
-        self.undownloaded_id_list = params.get('undownloaded_id_list')
-        self.run_new = params.get('run_new', True)
-        self.single_submission_urls = params.get('single_submission_urls')
-        self.submissions = params.get('submissions')
+        self.user_id_list = params.get("user_id_list")
+        self.subreddit_id_list = params.get("subreddit_id_list")
+        self.reddit_object_id_list = params.get("reddit_object_id_list")
+        self.run_unextracted = params.get("run_unextracted", False)
+        self.unextracted_id_list = params.get("unextracted_id_list")
+        self.run_undownloaded = params.get("run_undownloaded", False)
+        self.undownloaded_id_list = params.get("undownloaded_id_list")
+        self.run_new = params.get("run_new", True)
+        self.single_submission_urls = params.get("single_submission_urls")
+        self.submissions = params.get("submissions")
 
         self.continue_run = True
         self.stopped = False
@@ -287,10 +360,16 @@ class DownloadRunner(QObject):
         try:
             # [mine] feat(core): batch single-post download mode - validate every url before creating a session
             if self.single_submission_urls is not None:
-                self.run_batch(self.prepare_single_submission(url) for url in self.single_submission_urls)
+                self.run_batch(
+                    self.prepare_single_submission(url)
+                    for url in self.single_submission_urls
+                )
                 return
             if self.submissions is not None:
-                self.run_batch(self.prepare_submission(submission) for submission in self.submissions)
+                self.run_batch(
+                    self.prepare_submission(submission)
+                    for submission in self.submissions
+                )
                 return
             self.run_normal()
         finally:
@@ -310,7 +389,9 @@ class DownloadRunner(QObject):
             return
         self.create_download_session()
         for extraction_set in extraction_sets:
-            extraction_set = extraction_set._replace(download_session_id=self.download_session_id)
+            extraction_set = extraction_set._replace(
+                download_session_id=self.download_session_id
+            )
             self.submission_queue.put(extraction_set)
 
     def run_normal(self):
@@ -323,19 +404,22 @@ class DownloadRunner(QObject):
             self.run_download()
 
     def log_download_settings(self):
-        self.logger.info('Download runner started.', extra={
-            'dfr_version': __version__,
-            'platform': platform.platform,
-            'run_unextracted': self.run_unextracted,
-            'run_undownloaded': self.run_undownloaded,
-            'run_new': self.run_new,
-            'last_update': self.settings_manager.last_update,
-            'extraction_thread_count': self.settings_manager.extraction_thread_count,
-            'download_thread_count': self.settings_manager.download_thread_count,
-            'multi_part_threshold': self.settings_manager.multi_part_threshold,
-            'finish_incomplete_extractions': self.settings_manager.finish_incomplete_extractions_at_session_start,
-            'finish_incomplete_downloads': self.settings_manager.finish_incomplete_downloads_at_session_start,
-        })
+        self.logger.info(
+            "Download runner started.",
+            extra={
+                "dfr_version": __version__,
+                "platform": platform.platform,
+                "run_unextracted": self.run_unextracted,
+                "run_undownloaded": self.run_undownloaded,
+                "run_new": self.run_new,
+                "last_update": self.settings_manager.last_update,
+                "extraction_thread_count": self.settings_manager.extraction_thread_count,
+                "download_thread_count": self.settings_manager.download_thread_count,
+                "multi_part_threshold": self.settings_manager.multi_part_threshold,
+                "finish_incomplete_extractions": self.settings_manager.finish_incomplete_extractions_at_session_start,
+                "finish_incomplete_downloads": self.settings_manager.finish_incomplete_downloads_at_session_start,
+            },
+        )
 
     def create_download_session(self):
         with self.db.get_scoped_session() as session:
@@ -371,26 +455,37 @@ class DownloadRunner(QObject):
         try:
             submission = self.reddit_source.get_post(url)
         except PlaywrightError:
-            self.logger.exception('Browser navigation failed while fetching single post', extra={'url': url})
-            Message.send_error(f'Failed to fetch post: {url}')
+            self.logger.exception(
+                "Browser navigation failed while fetching single post",
+                extra={"url": url},
+            )
+            Message.send_error(f"Failed to fetch post: {url}")
             return None
         if submission is None:
-            Message.send_error(f'Failed to fetch post: {url}')
+            Message.send_error(f"Failed to fetch post: {url}")
             return None
         with self.db.get_scoped_session() as session:
             author = session.query(User).filter(User.name == submission.author).first()
             if author is None:
-                Message.send_error(f'Author {submission.author} is not tracked. Add the user before '
-                                   f'downloading their post.')
+                Message.send_error(
+                    f"Author {submission.author} is not tracked. Add the user before "
+                    f"downloading their post."
+                )
                 return None
-            if not SubmittableCreator.check_duplicate_post(submission.reddit_id, submission.url, session):
-                Message.send_warning(f'Already downloaded - skipped: {submission.url}')
+            if not SubmittableCreator.check_duplicate_post(
+                submission.reddit_id, submission.url, session
+            ):
+                Message.send_warning(f"Already downloaded - skipped: {submission.url}")
                 return None
             author_id = author.id
-        Message.send_info(f'Downloading single post by {submission.author}')
+        Message.send_info(f"Downloading single post by {submission.author}")
         # download_session_id filled in by run_batch once a session actually gets created
-        return ExtractionSet(extraction_type='SUBMISSION', extraction_object=submission, significant_id=author_id,
-                             download_session_id=None)
+        return ExtractionSet(
+            extraction_type="SUBMISSION",
+            extraction_object=submission,
+            significant_id=author_id,
+            download_session_id=None,
+        )
 
     # Ambient extraction: same idea as prepare_single_submission but for a SubmissionData already
     # in hand (no url to re-navigate to). Resolves against whichever of author/subreddit is
@@ -403,21 +498,42 @@ class DownloadRunner(QObject):
             # stale, non-tracked User row sharing the author's name (e.g. auto-created as a post's author
             # FK on some earlier, unrelated download) wins over the actually-tracked Subreddit that caused
             # the match, and the post gets saved under the wrong template/path.
-            author = session.query(User).filter(func.lower(User.name) == submission.author.lower(),
-                                                 User.significant == True, User.download_enabled == True).first()
-            subreddit = session.query(Subreddit).filter(
-                func.lower(Subreddit.name) == submission.subreddit.lower(),
-                Subreddit.significant == True, Subreddit.download_enabled == True).first()
+            author = (
+                session.query(User)
+                .filter(
+                    func.lower(User.name) == submission.author.lower(),
+                    User.significant == True,
+                    User.download_enabled == True,
+                )
+                .first()
+            )
+            subreddit = (
+                session.query(Subreddit)
+                .filter(
+                    func.lower(Subreddit.name) == submission.subreddit.lower(),
+                    Subreddit.significant == True,
+                    Subreddit.download_enabled == True,
+                )
+                .first()
+            )
             significant = author or subreddit
             if significant is None:
                 return None
-            if not SubmittableCreator.check_duplicate_post(submission.reddit_id, submission.url, session):
+            if not SubmittableCreator.check_duplicate_post(
+                submission.reddit_id, submission.url, session
+            ):
                 return None
             significant_id = significant.id
-        Message.send_debug(f'checking {submission.author} : {submission.reddit_id} : {submission.url}')
+        Message.send_debug(
+            f"checking {submission.author} : {submission.reddit_id} : {submission.url}"
+        )
         # download_session_id filled in by run_batch once a session actually gets created
-        return ExtractionSet(extraction_type='SUBMISSION', extraction_object=submission,
-                             significant_id=significant_id, download_session_id=None)
+        return ExtractionSet(
+            extraction_type="SUBMISSION",
+            extraction_object=submission,
+            significant_id=significant_id,
+            download_session_id=None,
+        )
 
     def validate_subreddit_list(self):
         """
@@ -443,8 +559,12 @@ class DownloadRunner(QObject):
         :param reddit_object_id: The id of the reddit object to be downloaded.
         """
         with self.db.get_scoped_session() as session:
-            object_type = session.query(RedditObject.object_type).filter(RedditObject.id == reddit_object_id).first()
-            if object_type[0] == 'USER':
+            object_type = (
+                session.query(RedditObject.object_type)
+                .filter(RedditObject.id == reddit_object_id)
+                .first()
+            )
+            if object_type[0] == "USER":
                 self.get_user_submissions(reddit_object_id, session=session)
             else:
                 self.get_subreddit_submissions(reddit_object_id, session=session)
@@ -456,9 +576,15 @@ class DownloadRunner(QObject):
                 return self.get_user_submissions(user_id, session=db_session)
         user = session.query(User).get(user_id)
         user.set_existing()
-        self._current_fetch_object = user.name  # [mine] feat(gui): download status window
-        Message.send_info(f'Downloading user: {user.name}')  # [mine] GUI progress logging
-        self.get_validated_submissions(user, self.reddit_source.validate_and_iter_user_submissions)
+        self._current_fetch_object = (
+            user.name
+        )  # [mine] feat(gui): download status window
+        Message.send_info(
+            f"Downloading user: {user.name}"
+        )  # [mine] GUI progress logging
+        self.get_validated_submissions(
+            user, self.reddit_source.validate_and_iter_user_submissions
+        )
         return None
 
     @verify_run
@@ -468,8 +594,12 @@ class DownloadRunner(QObject):
                 return self.get_subreddit_submissions(subreddit_id, session=db_session)
         subreddit = session.query(Subreddit).get(subreddit_id)
         subreddit.set_existing()
-        self._current_fetch_object = subreddit.name  # [mine] feat(gui): download status window
-        self.get_validated_submissions(subreddit, self.reddit_source.validate_and_iter_subreddit_submissions)
+        self._current_fetch_object = (
+            subreddit.name
+        )  # [mine] feat(gui): download status window
+        self.get_validated_submissions(
+            subreddit, self.reddit_source.validate_and_iter_subreddit_submissions
+        )
         return None
 
     def get_validated_submissions(self, reddit_object, source_method):
@@ -481,12 +611,20 @@ class DownloadRunner(QObject):
         """
         known_ids = self.get_known_post_ids(reddit_object)
         try:
-            result, raw_submissions = source_method(reddit_object.name, limit=reddit_object.post_limit,
-                                                     known_ids=known_ids)
+            result, raw_submissions = source_method(
+                reddit_object.name, limit=reddit_object.post_limit, known_ids=known_ids
+            )
         except PlaywrightError:
-            extra = {'object_type': reddit_object.object_type, 'reddit_object': reddit_object.name}
-            self.logger.exception('Browser navigation failed.  Ending submission extraction', extra=extra)
-            Message.send_error(f'Failed to extract submissions for: {reddit_object.name}. Please try again shortly.')
+            extra = {
+                "object_type": reddit_object.object_type,
+                "reddit_object": reddit_object.name,
+            }
+            self.logger.exception(
+                "Browser navigation failed.  Ending submission extraction", extra=extra
+            )
+            Message.send_error(
+                f"Failed to extract submissions for: {reddit_object.name}. Please try again shortly."
+            )
             return
         if self.validate_object(result, reddit_object):
             submissions = self.filter_submissions(reddit_object, raw_submissions)
@@ -500,12 +638,17 @@ class DownloadRunner(QObject):
         for submission in submissions:
             created_epoch = submission.created.timestamp()
             date_limit = max(date_limit, created_epoch)
-            extraction_set = ExtractionSet(extraction_type='SUBMISSION', extraction_object=submission,
-                                           significant_id=reddit_object.id,
-                                           download_session_id=self.download_session_id)
+            extraction_set = ExtractionSet(
+                extraction_type="SUBMISSION",
+                extraction_object=submission,
+                significant_id=reddit_object.id,
+                download_session_id=self.download_session_id,
+            )
             self.submission_queue.put(extraction_set)
         if date_limit > 0:
-            reddit_object.set_date_limit(date_limit)  # date limit modified after submissions are extracted
+            reddit_object.set_date_limit(
+                date_limit
+            )  # date limit modified after submissions are extracted
 
     def filter_submissions(self, reddit_object, raw_submissions):
         submissions = []
@@ -516,8 +659,10 @@ class DownloadRunner(QObject):
                 # a genuinely new one. Skip it rather than break, so one out-of-order old post
                 # can't silently discard every newer submission after it.
                 continue
-            if (not self.filter_subreddits or submission.subreddit in self.validated_subreddits) \
-                    and self.submission_filter.filter_submission(submission, reddit_object):
+            if (
+                not self.filter_subreddits
+                or submission.subreddit in self.validated_subreddits
+            ) and self.submission_filter.filter_submission(submission, reddit_object):
                 submissions.append(submission)
         return submissions
 
@@ -544,13 +689,17 @@ class DownloadRunner(QObject):
             if not users_by_name:
                 return
 
-            self._current_fetch_object = 'Home Feed'
-            Message.send_info('Downloading home feed')
+            self._current_fetch_object = "Home Feed"
+            Message.send_info("Downloading home feed")
             try:
                 raw_submissions = self.reddit_source.iter_home_feed()
             except PlaywrightError:
-                self.logger.exception('Browser navigation failed while fetching home feed')
-                Message.send_error('Failed to fetch home feed. Please try again shortly.')
+                self.logger.exception(
+                    "Browser navigation failed while fetching home feed"
+                )
+                Message.send_error(
+                    "Failed to fetch home feed. Please try again shortly."
+                )
                 return
 
             by_user = defaultdict(list)
@@ -567,9 +716,11 @@ class DownloadRunner(QObject):
 
     def get_known_post_ids(self, reddit_object):
         with self.db.get_scoped_session() as session:
-            rows = session.query(Post.reddit_id) \
-                .filter(Post.significant_reddit_object_id == reddit_object.id) \
+            rows = (
+                session.query(Post.reddit_id)
+                .filter(Post.significant_reddit_object_id == reddit_object.id)
                 .all()
+            )
             return {row[0] for row in rows}
 
     def stop_download(self, hard_stop=False):
@@ -580,10 +731,14 @@ class DownloadRunner(QObject):
         self.stopped = True
         self.continue_run = False
         with self.db.get_scoped_session() as session:
-            open_session_ids = [row[0] for row in session.query(DownloadSession.id)
-                                .filter(DownloadSession.end_time == None).all()]
+            open_session_ids = [
+                row[0]
+                for row in session.query(DownloadSession.id)
+                .filter(DownloadSession.end_time == None)
+                .all()
+            ]
         for session_id in open_session_ids:
             self.cancelled_sessions.add(session_id)
             if hard_stop:
                 self.hard_stopped_sessions.add(session_id)
-        Message.send_warning('\nStopped\n')
+        Message.send_warning("\nStopped\n")

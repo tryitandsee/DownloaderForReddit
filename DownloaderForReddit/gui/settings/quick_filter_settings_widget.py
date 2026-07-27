@@ -19,7 +19,6 @@ from .abstract_settings_widget import AbstractSettingsWidget
 
 
 class QuickFilterSettingsWidget(AbstractSettingsWidget, Ui_QuickFilterSettingsWidget):
-
     def __init__(self):
         super().__init__()
         self.filters = None
@@ -36,8 +35,10 @@ class QuickFilterSettingsWidget(AbstractSettingsWidget, Ui_QuickFilterSettingsWi
 
     @property
     def description(self):
-        return 'These quick filters are available from a combo box in the database view dialog for quick access to ' \
-               'filters that are used most often.  Multiple filters can be combined together for one quick action.'
+        return (
+            "These quick filters are available from a combo box in the database view dialog for quick access to "
+            "filters that are used most often.  Multiple filters can be combined together for one quick action."
+        )
 
     def load_settings(self):
         self.filters = self.settings.database_view_quick_filters
@@ -56,25 +57,27 @@ class QuickFilterSettingsWidget(AbstractSettingsWidget, Ui_QuickFilterSettingsWi
         widget = QWidget()
         main_layout = QVBoxLayout()
         widget.setLayout(main_layout)
-        main_layout.addWidget(QLabel(filter_item['model']))
+        main_layout.addWidget(QLabel(filter_item["model"]))
 
         filter_layout = QHBoxLayout()
-        filter_layout.addWidget(QLabel(filter_item['field']))
+        filter_layout.addWidget(QLabel(filter_item["field"]))
         filter_layout.addWidget(self.get_line())
-        filter_layout.addWidget(QLabel(filter_item['operator']))
+        filter_layout.addWidget(QLabel(filter_item["operator"]))
         filter_layout.addWidget(self.get_line())
-        filter_layout.addWidget(QLabel(str(filter_item['value'])))
+        filter_layout.addWidget(QLabel(str(filter_item["value"])))
 
         remove_button = QToolButton()
-        remove_button.setText('X')
+        remove_button.setText("X")
         remove_button.clicked.connect(lambda: self.remove_filter(widget, filter_name))
         filter_layout.addWidget(remove_button)
 
         main_layout.addLayout(filter_layout)
 
         item = QListWidgetItem()
-        item.setSizeHint(QSize(widget.sizeHint().width() + 25, widget.sizeHint().height() + 5))
-        item.setBackground(QColor('#C8C8C8'))
+        item.setSizeHint(
+            QSize(widget.sizeHint().width() + 25, widget.sizeHint().height() + 5)
+        )
+        item.setBackground(QColor("#C8C8C8"))
         self.filter_list_widget.addItem(item)
         self.filter_list_widget.setItemWidget(item, widget)
         self.widget_item_map[widget] = item
@@ -95,8 +98,10 @@ class QuickFilterSettingsWidget(AbstractSettingsWidget, Ui_QuickFilterSettingsWi
         del self.widget_filter_map[widget]
 
     def add_quick_filter(self):
-        name, ok = QInputDialog.getText(self, 'New Quick Filter', 'Enter new quick filter name')
-        if ok and name != '' and name not in self.filters:
+        name, ok = QInputDialog.getText(
+            self, "New Quick Filter", "Enter new quick filter name"
+        )
+        if ok and name != "" and name not in self.filters:
             self.filters[name] = []
             self.name_list_widget.addItem(name)
             self.name_list_widget.setCurrentRow(self.name_list_widget.count() - 1)

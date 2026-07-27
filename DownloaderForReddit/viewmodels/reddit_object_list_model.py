@@ -20,7 +20,6 @@ from ..utils import injector
 
 
 class RedditObjectListModel(QAbstractListModel):
-
     starting_add = pyqtSignal(object)
     finished_add = pyqtSignal()
     reddit_object_added = pyqtSignal(int)
@@ -34,7 +33,7 @@ class RedditObjectListModel(QAbstractListModel):
         GUI.
         """
         super().__init__()
-        self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
+        self.logger = logging.getLogger(f"DownloaderForReddit.{__name__}")
         self.settings_manager = injector.get_settings_manager()
         self.db = injector.get_database_handler()
         self.session = self.db.get_session()
@@ -84,18 +83,24 @@ class RedditObjectListModel(QAbstractListModel):
             list_id = self.list.id
             self.reddit_objects.clear()
             self.list = None
-            self.session.query(ListAssociation).filter(ListAssociation.reddit_object_list_id == list_id).delete()
-            self.session.query(RedditObjectList).filter(RedditObjectList.id == list_id).delete()
+            self.session.query(ListAssociation).filter(
+                ListAssociation.reddit_object_list_id == list_id
+            ).delete()
+            self.session.query(RedditObjectList).filter(
+                RedditObjectList.id == list_id
+            ).delete()
             self.session.commit()
         except AttributeError:
             pass
 
     def set_list(self, list_name):
         try:
-            self.list = self.session.query(RedditObjectList)\
-                .filter(RedditObjectList.name == list_name)\
-                .filter(RedditObjectList.list_type == self.list_type)\
+            self.list = (
+                self.session.query(RedditObjectList)
+                .filter(RedditObjectList.name == list_name)
+                .filter(RedditObjectList.list_type == self.list_type)
                 .one()
+            )
             self.sort_list()
         except NoResultFound:
             pass
@@ -105,8 +110,9 @@ class RedditObjectListModel(QAbstractListModel):
             order = self.settings_manager.list_order_method
             desc = self.settings_manager.order_list_desc
             f = RedditObjectFilter()
-            self.reddit_objects = \
-                f.filter(self.session, query=self.list.reddit_objects, order_by=order, desc=desc).all()
+            self.reddit_objects = f.filter(
+                self.session, query=self.list.reddit_objects, order_by=order, desc=desc
+            ).all()
             self.refresh()
             self.check_last_added()
             self.send_count_change()
@@ -122,14 +128,21 @@ class RedditObjectListModel(QAbstractListModel):
     def search_list(self, term):
         try:
             f = RedditObjectFilter()
-            if term is not None and term != '':
-                self.reddit_objects = f.filter(self.session, ('name', 'like', term), query=self.list.reddit_objects,
-                                               order_by=self.settings_manager.list_order_method,
-                                               desc=self.settings_manager.order_list_desc).all()
+            if term is not None and term != "":
+                self.reddit_objects = f.filter(
+                    self.session,
+                    ("name", "like", term),
+                    query=self.list.reddit_objects,
+                    order_by=self.settings_manager.list_order_method,
+                    desc=self.settings_manager.order_list_desc,
+                ).all()
             else:
-                self.reddit_objects = f.filter(self.session, query=self.list.reddit_objects,
-                                               order_by=self.settings_manager.list_order_method,
-                                               desc=self.settings_manager.order_list_desc).all()
+                self.reddit_objects = f.filter(
+                    self.session,
+                    query=self.list.reddit_objects,
+                    order_by=self.settings_manager.list_order_method,
+                    desc=self.settings_manager.order_list_desc,
+                ).all()
             self.refresh()
         except AttributeError:
             pass
@@ -142,7 +155,11 @@ class RedditObjectListModel(QAbstractListModel):
         :type name: str
         :rtype: bool
         """
-        ro = self.session.query(RedditObject).filter(func.lower(RedditObject.name) == func.lower(name)).scalar()
+        ro = (
+            self.session.query(RedditObject)
+            .filter(func.lower(RedditObject.name) == func.lower(name))
+            .scalar()
+        )
         return ro in self.reddit_objects
 
     def remove_reddit_objects(self, *reddit_objects):
@@ -166,11 +183,15 @@ class RedditObjectListModel(QAbstractListModel):
         name_list = self.check_existing(name_list)
         self.validating = True
         self.validation_thread = QThread()
-        self.validator = ObjectValidator(name_list, self.list_type, list_defaults=self.list.get_default_dict())
+        self.validator = ObjectValidator(
+            name_list, self.list_type, list_defaults=self.list.get_default_dict()
+        )
         self.validator.moveToThread(self.validation_thread)
         self.validation_thread.started.connect(self.validator.run)
         self.validator.new_object_signal.connect(self.add_validated_reddit_object)
-        self.validator.invalid_name_signal.connect(lambda name: Message.send_warning(f'Invalid name: {name}'))
+        self.validator.invalid_name_signal.connect(
+            lambda name: Message.send_warning(f"Invalid name: {name}")
+        )
         self.validator.finished.connect(self.validation_thread.quit)
         self.validator.finished.connect(self.validator.deleteLater)
         self.validator.finished.connect(self.finish_adding)
@@ -187,7 +208,11 @@ class RedditObjectListModel(QAbstractListModel):
         existing_ids = []
         existing_names = []
         for name in name_list:
-            ro = self.session.query(RedditObject).filter(func.lower(RedditObject.name) == name.lower()).first()
+            ro = (
+                self.session.query(RedditObject)
+                .filter(func.lower(RedditObject.name) == name.lower())
+                .first()
+            )
             if ro is not None:
                 existing_ids.append(ro.id)
                 existing_names.append(ro.name)
@@ -196,7 +221,9 @@ class RedditObjectListModel(QAbstractListModel):
                     name_list.remove(name)
                     self.last_added = ro
         if len(existing_names) > 0:
-            self.existing_object_added.emit((self.list_type, existing_ids, existing_names))
+            self.existing_object_added.emit(
+                (self.list_type, existing_ids, existing_names)
+            )
             self.check_last_added()
         return name_list
 
@@ -208,7 +235,7 @@ class RedditObjectListModel(QAbstractListModel):
             # [mine] fix(core): a user newly promoted from an incidental post-author row to
             # actually tracked isn't followed by the dedicated account yet -- see active's
             # definition in database/models.py
-            if reddit_object.object_type == 'USER':
+            if reddit_object.object_type == "USER":
                 reddit_object.active = False
             reddit_object.save()
 
@@ -220,8 +247,9 @@ class RedditObjectListModel(QAbstractListModel):
             self.sort_list()
 
     def add_complete_reddit_object(self, reddit_object):
-        reddit_object, _created = self.db.get_or_create(type(reddit_object), session=self.session,
-                                                       name=reddit_object.name)
+        reddit_object, _created = self.db.get_or_create(
+            type(reddit_object), session=self.session, name=reddit_object.name
+        )
         if reddit_object.id not in self.get_id_list(download_enabled=False):
             self.insertRow(reddit_object)
             self.sort_list()
@@ -278,14 +306,26 @@ class RedditObjectListModel(QAbstractListModel):
                 if role == Qt.DisplayRole or role == Qt.EditRole:
                     return self.reddit_objects[row].name
                 if role == Qt.ForegroundRole:
-                    if not self.reddit_objects[row].download_enabled and \
-                            self.settings_manager.colorize_disabled_reddit_objects:
-                        r, g, b = self.settings_manager.disabled_reddit_object_display_color
+                    if (
+                        not self.reddit_objects[row].download_enabled
+                        and self.settings_manager.colorize_disabled_reddit_objects
+                    ):
+                        r, g, b = (
+                            self.settings_manager.disabled_reddit_object_display_color
+                        )
                         return QColor(r, g, b, 255)
-                    if not self.reddit_objects[row].active and self.settings_manager.colorize_inactive_reddit_objects:
-                        r, g, b = self.settings_manager.inactive_reddit_object_display_color
+                    if (
+                        not self.reddit_objects[row].active
+                        and self.settings_manager.colorize_inactive_reddit_objects
+                    ):
+                        r, g, b = (
+                            self.settings_manager.inactive_reddit_object_display_color
+                        )
                         return QColor(r, g, b, 255)
-                    if self.reddit_objects[row].new and self.settings_manager.colorize_new_reddit_objects:
+                    if (
+                        self.reddit_objects[row].new
+                        and self.settings_manager.colorize_new_reddit_objects
+                    ):
                         r, g, b = self.settings_manager.new_reddit_object_display_color
                         return QColor(r, g, b, 255)
                     return None
@@ -313,28 +353,28 @@ class RedditObjectListModel(QAbstractListModel):
         :rtype: str
         """
         tooltip_dict = {
-            'name': f'Name: {reddit_object.name}',
-            'download_enabled': f'Download Enabled: {reddit_object.download_enabled}',
-            'lock_settings': f'Settings Locked: {reddit_object.lock_settings}',
-            'last_download_date': f'Last Download: {reddit_object.last_download}',
-            'date_limit': f'Date Limit: {reddit_object.date_limit}',
-            'absolute_date_limit': f'Absolute Date Limit: {reddit_object.absolute_date_limit}',
-            'post_limit': f'Post Limit: {reddit_object.post_limit}',
-            'download_naming_method': f'Name Downloads By: {reddit_object.post_download_naming_method}',
-            'subreddit_save_method': f'Subreddit Save Method: {reddit_object.post_save_structure}',
-            'download_images': f'Download Images: {reddit_object.download_images}',
-            'download_videos': f'Download Videos: {reddit_object.download_videos}',
-            'download_nsfw': f'NSFW Filter: {reddit_object.download_nsfw.display_name}',
-            'date_added': f'Date Added: {reddit_object.date_added_display}',
-            'total_score': f'Total Score: {reddit_object.total_score_display}',
-            'post_count': f'Post Count: {reddit_object.post_count}',
-            'content_count': f'Content Count: {reddit_object.content_count}',
-            'comment_count': f'Comment Count: {reddit_object.comment_count}',
+            "name": f"Name: {reddit_object.name}",
+            "download_enabled": f"Download Enabled: {reddit_object.download_enabled}",
+            "lock_settings": f"Settings Locked: {reddit_object.lock_settings}",
+            "last_download_date": f"Last Download: {reddit_object.last_download}",
+            "date_limit": f"Date Limit: {reddit_object.date_limit}",
+            "absolute_date_limit": f"Absolute Date Limit: {reddit_object.absolute_date_limit}",
+            "post_limit": f"Post Limit: {reddit_object.post_limit}",
+            "download_naming_method": f"Name Downloads By: {reddit_object.post_download_naming_method}",
+            "subreddit_save_method": f"Subreddit Save Method: {reddit_object.post_save_structure}",
+            "download_images": f"Download Images: {reddit_object.download_images}",
+            "download_videos": f"Download Videos: {reddit_object.download_videos}",
+            "download_nsfw": f"NSFW Filter: {reddit_object.download_nsfw.display_name}",
+            "date_added": f"Date Added: {reddit_object.date_added_display}",
+            "total_score": f"Total Score: {reddit_object.total_score_display}",
+            "post_count": f"Post Count: {reddit_object.post_count}",
+            "content_count": f"Content Count: {reddit_object.content_count}",
+            "comment_count": f"Comment Count: {reddit_object.comment_count}",
         }
-        tooltip = ''
+        tooltip = ""
         for key, value in tooltip_dict.items():
             if self.settings_manager.main_window_tooltip_display_dict[key]:
-                tooltip += f'{value}\n'
+                tooltip += f"{value}\n"
         return tooltip.strip()
 
     def nsfw_filter_display(self, filter_method):
@@ -378,7 +418,6 @@ class RedditObjectListModel(QAbstractListModel):
 
 
 class ObjectValidator(QObject):
-
     new_object_signal = pyqtSignal(int)
     invalid_name_signal = pyqtSignal(str)
     finished = pyqtSignal()
@@ -392,7 +431,9 @@ class ObjectValidator(QObject):
     def run(self):
         object_creator = RedditObjectCreator(self.list_type)
         for name in self.name_list:
-            creation_tuple = object_creator.create_reddit_object(name, self.list_defaults)
+            creation_tuple = object_creator.create_reddit_object(
+                name, self.list_defaults
+            )
             if creation_tuple is not None:
                 reddit_object_id, _created = creation_tuple
                 self.new_object_signal.emit(reddit_object_id)

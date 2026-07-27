@@ -1,4 +1,3 @@
-
 # Form implementation generated from reading ui file 'Resources\ui_files\database_views\filter_widget.ui'
 #
 # Created by: PyQt5 UI code generator 5.14.1
@@ -13,7 +12,9 @@ class Ui_FilterWidget:
     def setupUi(self, FilterWidget):
         FilterWidget.setObjectName("FilterWidget")
         FilterWidget.resize(350, 850)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred
+        )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(FilterWidget.sizePolicy().hasHeightForWidth())
@@ -26,10 +27,18 @@ class Ui_FilterWidget:
         self.filter_input_widget.setObjectName("filter_input_widget")
         self.verticalLayout.addWidget(self.filter_input_widget)
         self.filter_box_list_widget = QtWidgets.QListWidget(FilterWidget)
-        self.filter_box_list_widget.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        self.filter_box_list_widget.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustIgnored)
-        self.filter_box_list_widget.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
-        self.filter_box_list_widget.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.filter_box_list_widget.setHorizontalScrollBarPolicy(
+            QtCore.Qt.ScrollBarAsNeeded
+        )
+        self.filter_box_list_widget.setSizeAdjustPolicy(
+            QtWidgets.QAbstractScrollArea.AdjustIgnored
+        )
+        self.filter_box_list_widget.setEditTriggers(
+            QtWidgets.QAbstractItemView.NoEditTriggers
+        )
+        self.filter_box_list_widget.setSelectionMode(
+            QtWidgets.QAbstractItemView.ExtendedSelection
+        )
         self.filter_box_list_widget.setMovement(QtWidgets.QListView.Static)
         self.filter_box_list_widget.setFlow(QtWidgets.QListView.TopToBottom)
         self.filter_box_list_widget.setProperty("isWrapping", True)
@@ -49,4 +58,6 @@ class Ui_FilterWidget:
     def retranslateUi(self, FilterWidget):
         _translate = QtCore.QCoreApplication.translate
         FilterWidget.setWindowTitle(_translate("FilterWidget", "Filter"))
+
+
 from DownloaderForReddit.gui.database_views.filter_input_widget import FilterInputWidget

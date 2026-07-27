@@ -25,7 +25,6 @@ from .filter_item import FilterItem
 
 
 class FilterInputWidget(QWidget, Ui_FilterInputWidget):
-
     export_filter = pyqtSignal(list)
 
     def __init__(self, parent=None):
@@ -34,18 +33,18 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
         self.settings_manager = injector.get_settings_manager()
         self.launch_quick_filter = True
         self.filter_model_map = {
-            'DOWNLOAD_SESSION': DownloadSessionFilter,
-            'REDDIT_OBJECT': RedditObjectFilter,
-            'POST': PostFilter,
-            'CONTENT': ContentFilter,
-            'COMMENT': CommentFilter
+            "DOWNLOAD_SESSION": DownloadSessionFilter,
+            "REDDIT_OBJECT": RedditObjectFilter,
+            "POST": PostFilter,
+            "CONTENT": ContentFilter,
+            "COMMENT": CommentFilter,
         }
 
         self.field_type_map = {
             Boolean: self.get_boolean_field,
             Integer: self.get_integer_field,
             String: self.get_string_field,
-            DateTime: self.get_datetime_field
+            DateTime: self.get_datetime_field,
         }
 
         self.value_field = None
@@ -53,12 +52,27 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
         self.add_filter_button.clicked.connect(self.add_filter)
         self.model_combo.currentIndexChanged.connect(self.set_fields)
 
-        self.model_list = ['DOWNLOAD_SESSION', 'REDDIT_OBJECT', 'POST', 'CONTENT', 'COMMENT']
+        self.model_list = [
+            "DOWNLOAD_SESSION",
+            "REDDIT_OBJECT",
+            "POST",
+            "CONTENT",
+            "COMMENT",
+        ]
         for model in self.model_list:
-            self.model_combo.addItem(model.replace('_', ' ').title(), model)
+            self.model_combo.addItem(model.replace("_", " ").title(), model)
 
-        operators = [('Equal To', 'eq'), ('Not Equal', 'not'), ('<', 'lt'), ('<=', 'lte'), ('>', 'gt'), ('>=', 'gte'),
-                     ('In', 'in'), ('Like', 'like'), ('Contains', 'contains')]
+        operators = [
+            ("Equal To", "eq"),
+            ("Not Equal", "not"),
+            ("<", "lt"),
+            ("<=", "lte"),
+            (">", "gt"),
+            (">=", "gte"),
+            ("In", "in"),
+            ("Like", "like"),
+            ("Contains", "contains"),
+        ]
         for x in operators:
             self.operator_combo.addItem(x[0], x[1])
 
@@ -66,8 +80,10 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
         self.field_combo.currentIndexChanged.connect(self.set_value_field)
         self.set_value_field()
 
-        self.quick_filter_combo.addItem('Quick Filters')
-        self.quick_filter_combo.addItems(self.settings_manager.database_view_quick_filters.keys())
+        self.quick_filter_combo.addItem("Quick Filters")
+        self.quick_filter_combo.addItems(
+            self.settings_manager.database_view_quick_filters.keys()
+        )
         self.quick_filter_combo.currentIndexChanged.connect(self.handle_quick_filter)
 
     @property
@@ -92,7 +108,7 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
         self.field_combo.clear()
         f = self.filter_model_map[self.current_model]
         for field in f.get_filter_fields():
-            self.field_combo.addItem(field.replace('_', ' ').title(), field)
+            self.field_combo.addItem(field.replace("_", " ").title(), field)
 
     def set_value_field(self):
         current_field = self.current_field
@@ -126,8 +142,12 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
         if self.launch_quick_filter and self.quick_filter_combo.currentIndex() != 0:
             self.launch_quick_filter = False
             filter_name = self.quick_filter_combo.currentText()
-            filters = [FilterItem(**filter_dict) for filter_dict in
-                       self.settings_manager.database_view_quick_filters[filter_name]]
+            filters = [
+                FilterItem(**filter_dict)
+                for filter_dict in self.settings_manager.database_view_quick_filters[
+                    filter_name
+                ]
+            ]
             self.add_filter(filters)
             self.quick_filter_combo.setCurrentIndex(0)
             self.launch_quick_filter = True
@@ -138,12 +158,17 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
         self.export_filter.emit(filters)
 
     def create_filter(self):
-        return FilterItem(self.current_model, self.current_field, self.current_operator, self.get_value())
+        return FilterItem(
+            self.current_model,
+            self.current_field,
+            self.current_operator,
+            self.get_value(),
+        )
 
     def get_boolean_field(self):
         combo = QComboBox()
-        combo.addItem('True', True)
-        combo.addItem('False', False)
+        combo.addItem("True", True)
+        combo.addItem("False", False)
         return combo
 
     def get_integer_field(self):

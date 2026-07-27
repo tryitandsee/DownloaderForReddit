@@ -3,7 +3,6 @@ from PyQt5.QtWidgets import QDialog, QVBoxLayout
 
 
 class BlankDialog(QDialog):
-
     closing = pyqtSignal()
 
     def __init__(self, parent=None):

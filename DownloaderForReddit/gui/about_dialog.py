@@ -22,7 +22,6 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 from ..guiresources.about_dialog_auto import Ui_About
@@ -31,7 +30,6 @@ from ..version import __version__
 
 
 class AboutDialog(QtWidgets.QDialog, Ui_About):
-
     def __init__(self, parent=None):
         """
         Opens the "about" dialog box which displays the licensing information
@@ -42,18 +40,22 @@ class AboutDialog(QtWidgets.QDialog, Ui_About):
 
         self.buttonBox.accepted.connect(self.accept)
 
-        pixmap = QtGui.QPixmap('Resources/Images/RedditDownloaderIcon.png')
+        pixmap = QtGui.QPixmap("Resources/Images/RedditDownloaderIcon.png")
         pixmap = pixmap.scaled(QtCore.QSize(183, 186), QtCore.Qt.KeepAspectRatio)
         self.logo_label.setFixedWidth(80)
         self.logo_label.setFixedHeight(82)
         self.logo_label.setPixmap(pixmap)
         self.logo_label.setScaledContents(True)
 
-        self.info_label.setText(f'Version: {__version__}\nAuthor: Kyle H')
+        self.info_label.setText(f"Version: {__version__}\nAuthor: Kyle H")
         self.info_label.setScaledContents(True)
 
-        self.link_label.setText('Homepage: <a href="https://github.com/MalloyDelacroix/DownloaderForReddit">Downloader for Reddit</a>')
-        self.link_label.setToolTip('https://github.com/MalloyDelacroix/DownloaderForReddit')
+        self.link_label.setText(
+            'Homepage: <a href="https://github.com/MalloyDelacroix/DownloaderForReddit">Downloader for Reddit</a>'
+        )
+        self.link_label.setToolTip(
+            "https://github.com/MalloyDelacroix/DownloaderForReddit"
+        )
 
         self.license_box.setOpenExternalLinks(True)
 

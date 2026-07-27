@@ -1,4 +1,3 @@
-
 # Form implementation generated from reading ui file 'Resources\ui_files\settings\schedule_settings_widget.ui'
 #
 # Created by: PyQt5 UI code generator 5.14.1
@@ -32,7 +31,9 @@ class Ui_ScheduleSettingsWidget:
         self.label.setObjectName("label")
         self.verticalLayout_6.addWidget(self.label)
         self.splitter = QtWidgets.QSplitter(self.scheduling_group_box)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
+        )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.splitter.sizePolicy().hasHeightForWidth())
@@ -40,7 +41,9 @@ class Ui_ScheduleSettingsWidget:
         self.splitter.setOrientation(QtCore.Qt.Horizontal)
         self.splitter.setObjectName("splitter")
         self.scheduled_downloads_list_widget = QtWidgets.QListWidget(self.splitter)
-        self.scheduled_downloads_list_widget.setObjectName("scheduled_downloads_list_widget")
+        self.scheduled_downloads_list_widget.setObjectName(
+            "scheduled_downloads_list_widget"
+        )
         self.layoutWidget = QtWidgets.QWidget(self.splitter)
         self.layoutWidget.setObjectName("layoutWidget")
         self.verticalLayout_5 = QtWidgets.QVBoxLayout(self.layoutWidget)
@@ -101,7 +104,9 @@ class Ui_ScheduleSettingsWidget:
         self.schedule_download_button = QtWidgets.QPushButton(self.layoutWidget)
         self.schedule_download_button.setObjectName("schedule_download_button")
         self.verticalLayout_5.addWidget(self.schedule_download_button)
-        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        spacerItem = QtWidgets.QSpacerItem(
+            20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding
+        )
         self.verticalLayout_5.addItem(spacerItem)
         self.verticalLayout_6.addWidget(self.splitter)
         self.verticalLayout_7.addWidget(self.scheduling_group_box)
@@ -111,16 +116,39 @@ class Ui_ScheduleSettingsWidget:
 
     def retranslateUi(self, ScheduleSettingsWidget):
         _translate = QtCore.QCoreApplication.translate
-        ScheduleSettingsWidget.setWindowTitle(_translate("ScheduleSettingsWidget", "Schedule Settings"))
-        self.perpetual_download_checkbox.setToolTip(_translate("ScheduleSettingsWidget", "<html><head/><body><p>If checked, a download session will not terminate itself when it makes it through a list, but will then restart at the beginning of the list and check for new downloads indefinitely until the application exits or one of the stop buttons is clicked</p></body></html>"))
-        self.perpetual_download_checkbox.setText(_translate("ScheduleSettingsWidget", "Perpetual download"))
-        self.scheduling_group_box.setTitle(_translate("ScheduleSettingsWidget", "Scheduling"))
-        self.label_7.setText(_translate("ScheduleSettingsWidget", "<html><head/><body><p>Scheduled downloads will only be run if the application is open. If it comes time for a scheduled download to run and there is already a download in progress, the scheduled download will be skipped until next time.</p></body></html>"))
+        ScheduleSettingsWidget.setWindowTitle(
+            _translate("ScheduleSettingsWidget", "Schedule Settings")
+        )
+        self.perpetual_download_checkbox.setToolTip(
+            _translate(
+                "ScheduleSettingsWidget",
+                "<html><head/><body><p>If checked, a download session will not terminate itself when it makes it through a list, but will then restart at the beginning of the list and check for new downloads indefinitely until the application exits or one of the stop buttons is clicked</p></body></html>",
+            )
+        )
+        self.perpetual_download_checkbox.setText(
+            _translate("ScheduleSettingsWidget", "Perpetual download")
+        )
+        self.scheduling_group_box.setTitle(
+            _translate("ScheduleSettingsWidget", "Scheduling")
+        )
+        self.label_7.setText(
+            _translate(
+                "ScheduleSettingsWidget",
+                "<html><head/><body><p>Scheduled downloads will only be run if the application is open. If it comes time for a scheduled download to run and there is already a download in progress, the scheduled download will be skipped until next time.</p></body></html>",
+            )
+        )
         self.label.setText(_translate("ScheduleSettingsWidget", "Scheduled Downloads:"))
         self.error_label.setText(_translate("ScheduleSettingsWidget", "Error Label"))
         self.label_2.setText(_translate("ScheduleSettingsWidget", "Download every:"))
         self.label_3.setText(_translate("ScheduleSettingsWidget", "at:"))
-        self.label_6.setText(_translate("ScheduleSettingsWidget", "<html><head/><body><p>Enter in time format. </p><p>Ex: [Download every MINUTE at &quot;:20&quot;| download at the 20th second of every minute]</p><p>[Download every HOUR at &quot;10:25&quot;| download at the 25th second of the 10th minute of every hour]</p><p>[Download every MONDAY at &quot;6:42:55&quot;| download at this time every Monday]</p><p><br/></p></body></html>"))
+        self.label_6.setText(
+            _translate(
+                "ScheduleSettingsWidget",
+                "<html><head/><body><p>Enter in time format. </p><p>Ex: [Download every MINUTE at &quot;:20&quot;| download at the 20th second of every minute]</p><p>[Download every HOUR at &quot;10:25&quot;| download at the 25th second of the 10th minute of every hour]</p><p>[Download every MONDAY at &quot;6:42:55&quot;| download at this time every Monday]</p><p><br/></p></body></html>",
+            )
+        )
         self.label_4.setText(_translate("ScheduleSettingsWidget", "User list:"))
         self.label_5.setText(_translate("ScheduleSettingsWidget", "Subreddit list:"))
-        self.schedule_download_button.setText(_translate("ScheduleSettingsWidget", "Schedule Download"))
+        self.schedule_download_button.setText(
+            _translate("ScheduleSettingsWidget", "Schedule Download")
+        )

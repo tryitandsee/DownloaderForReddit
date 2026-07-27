@@ -26,7 +26,6 @@ from pythonjsonlogger import jsonlogger
 
 
 class JsonStreamFormatter(jsonlogger.JsonFormatter):
-
     """
     A custom formatter to display log items each on a new line when logging
     to stream.
@@ -50,22 +49,22 @@ class JsonStreamFormatter(jsonlogger.JsonFormatter):
 
         # Display formatted exception, but allow overriding it in the
         # user-supplied dict.
-        if record.exc_info and not message_dict.get('exc_info'):
-            message_dict['exc_info'] = self.formatException(record.exc_info)
-        if not message_dict.get('exc_info') and record.exc_text:
-            message_dict['exc_info'] = record.exc_text
+        if record.exc_info and not message_dict.get("exc_info"):
+            message_dict["exc_info"] = self.formatException(record.exc_info)
+        if not message_dict.get("exc_info") and record.exc_text:
+            message_dict["exc_info"] = record.exc_text
 
         log_record = {}
 
         self.add_fields(log_record, record, message_dict)
         log_record = self.process_log_record(log_record)
 
-        return f'{self.prefix}{self.format_return(log_record)}\n'
+        return f"{self.prefix}{self.format_return(log_record)}\n"
 
     @staticmethod
     def format_return(log_record):
         """Formats the log_record to display each item on a new line to increase readability"""
         ret_list = []
         for key, value in log_record.items():
-            ret_list.append(f'{key}: {value}')
-        return '\n'.join(ret_list)
+            ret_list.append(f"{key}: {value}")
+        return "\n".join(ret_list)

@@ -2,7 +2,6 @@ from PyQt5.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayo
 
 
 class ExistingRedditObjectAddDialog(QDialog):
-
     """
     A dialog that gets user input as to whether or not to run a download when an attempt to add a reddit object to a
     list in which it already exists is made.
@@ -14,13 +13,15 @@ class ExistingRedditObjectAddDialog(QDialog):
         self.multiple = len(args) > 1
 
         self.label = QLabel(
-            f'{", ".join(args)} {"are" if self.multiple else "is"} already in the list.\n'
-            f'Would you like to run a download for {"these" if self.multiple else "this"} '
-            f'{self.object_type} {"s" if self.multiple else ""}?'
+            f"{', '.join(args)} {'are' if self.multiple else 'is'} already in the list.\n"
+            f"Would you like to run a download for {'these' if self.multiple else 'this'} "
+            f"{self.object_type} {'s' if self.multiple else ''}?"
         )
 
-        self.download_button = QPushButton(f'Download {self.object_type.title()}{"s" if self.multiple else ""}')
-        self.close_button = QPushButton('Close')
+        self.download_button = QPushButton(
+            f"Download {self.object_type.title()}{'s' if self.multiple else ''}"
+        )
+        self.close_button = QPushButton("Close")
         self.download_button.clicked.connect(self.accept)
         self.close_button.clicked.connect(self.close)
 

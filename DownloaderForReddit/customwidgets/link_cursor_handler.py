@@ -17,6 +17,7 @@ class LinkCursorHandler(QObject):
     :ivar view: The associated list view widget whose mouse events are being tracked.
     :type view: QListView
     """
+
     def __init__(self, list_view):
         super().__init__()
         self.view = list_view

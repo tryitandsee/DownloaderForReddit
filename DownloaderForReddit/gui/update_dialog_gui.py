@@ -22,7 +22,6 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-
 from PyQt5.QtWidgets import QDialog
 
 from ..guiresources.update_dialog_auto import Ui_update_dialog_box
@@ -31,7 +30,6 @@ from ..version import __version__
 
 
 class UpdateDialog(QDialog, Ui_update_dialog_box):
-
     def __init__(self, update_variables, parent=None):
         """
         Class that displays update information if it is available with a link to the github release page to download
@@ -53,20 +51,27 @@ class UpdateDialog(QDialog, Ui_update_dialog_box):
         self.label.setWordWrap(True)
         self.link_label.setOpenExternalLinks(True)
         self.link_label.setWordWrap(True)
-        self.label.setText(f"A new version of The Downloader for Reddit is available.\n\nCurrent Version: {self.old_version}\nNew "
-                           f"Version: {self.new_version}")
-        self.link_label.setText('Please follow this link to download the new version: '
-                                '<a href="https://github.com/MalloyDelacroix/DownloaderForReddit/releases">Downloader '
-                                f'for Reddit - Version {self.new_version} '
-                                '</a>')
-        self.link_label.setToolTip("https://github.com/MalloyDelacroix/DownloaderForReddit/releases")
+        self.label.setText(
+            f"A new version of The Downloader for Reddit is available.\n\nCurrent Version: {self.old_version}\nNew "
+            f"Version: {self.new_version}"
+        )
+        self.link_label.setText(
+            "Please follow this link to download the new version: "
+            '<a href="https://github.com/MalloyDelacroix/DownloaderForReddit/releases">Downloader '
+            f"for Reddit - Version {self.new_version} "
+            "</a>"
+        )
+        self.link_label.setToolTip(
+            "https://github.com/MalloyDelacroix/DownloaderForReddit/releases"
+        )
 
         self.direct_link_label.setVisible(False)
 
         self.buttonBox.accepted.connect(self.close_dialog)
 
         self.go_to_settings_label.clicked.connect(
-            lambda: self.parent.open_settings_dialog(open_display='Notifications'))
+            lambda: self.parent.open_settings_dialog(open_display="Notifications")
+        )
 
     def close_dialog(self):
         self.close()

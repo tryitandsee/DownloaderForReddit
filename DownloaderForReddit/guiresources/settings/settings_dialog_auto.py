@@ -1,4 +1,3 @@
-
 # Form implementation generated from reading ui file 'Resources\ui_files\settings\settings_dialog.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.4
@@ -15,7 +14,13 @@ class Ui_SettingsDialog:
         SettingsDialog.setObjectName("SettingsDialog")
         SettingsDialog.resize(1169, 820)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("Resources\\ui_files\\settings\\../../images/settings_single_gear.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(
+            QtGui.QPixmap(
+                "Resources\\ui_files\\settings\\../../images/settings_single_gear.png"
+            ),
+            QtGui.QIcon.Normal,
+            QtGui.QIcon.Off,
+        )
         SettingsDialog.setWindowIcon(icon)
         font = QtGui.QFont()
         font.setPointSize(10)
@@ -26,10 +31,14 @@ class Ui_SettingsDialog:
         self.splitter.setOrientation(QtCore.Qt.Horizontal)
         self.splitter.setObjectName("splitter")
         self.settings_list_widget = QtWidgets.QListWidget(self.splitter)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding
+        )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.settings_list_widget.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(
+            self.settings_list_widget.sizePolicy().hasHeightForWidth()
+        )
         self.settings_list_widget.setSizePolicy(sizePolicy)
         self.settings_list_widget.setMaximumSize(QtCore.QSize(260, 16777215))
         self.settings_list_widget.setObjectName("settings_list_widget")
@@ -56,7 +65,9 @@ class Ui_SettingsDialog:
         self.verticalLayout.addWidget(self.description_label)
         self.verticalLayout_2.addLayout(self.verticalLayout)
         self.frame = QtWidgets.QFrame(self.layoutWidget)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
+        )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.frame.sizePolicy().hasHeightForWidth())
@@ -71,7 +82,11 @@ class Ui_SettingsDialog:
         self.verticalLayout_2.addWidget(self.frame)
         self.verticalLayout_3.addWidget(self.splitter)
         self.button_box = QtWidgets.QDialogButtonBox(SettingsDialog)
-        self.button_box.setStandardButtons(QtWidgets.QDialogButtonBox.Apply|QtWidgets.QDialogButtonBox.Cancel|QtWidgets.QDialogButtonBox.Ok)
+        self.button_box.setStandardButtons(
+            QtWidgets.QDialogButtonBox.Apply
+            | QtWidgets.QDialogButtonBox.Cancel
+            | QtWidgets.QDialogButtonBox.Ok
+        )
         self.button_box.setObjectName("button_box")
         self.verticalLayout_3.addWidget(self.button_box)
 
@@ -82,4 +97,6 @@ class Ui_SettingsDialog:
         _translate = QtCore.QCoreApplication.translate
         SettingsDialog.setWindowTitle(_translate("SettingsDialog", "Settings"))
         self.title_label.setText(_translate("SettingsDialog", "Settings Title"))
-        self.description_label.setText(_translate("SettingsDialog", "Description label"))
+        self.description_label.setText(
+            _translate("SettingsDialog", "Description label")
+        )

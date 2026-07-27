@@ -7,30 +7,53 @@ from ..version import __version__
 
 
 class CLI:
-
     """
     A class that allows for certain command line setup arguments.
     """
 
     def __init__(self):
-        self.parser = argparse.ArgumentParser(description='Run the Downloader For Reddit application with additional '
-                                                          'setup options')
-        self.parser.add_argument('-d', '--data', type=str,
-                                 help='Specify the directory in which the application data files will be stored. '
-                                      '(Must be a valid directory path)')
-        self.parser.add_argument('-u', '--userpath', type=str,
-                                 help='Specify the directory in which user posts will be saved. (Must be a valid '
-                                      'directory path)')
-        self.parser.add_argument('-s', '--subpath', type=str,
-                                 help='Specify the directory in which subreddit posts will be saved. (Must be a valid '
-                                      'directory path)')
-        self.parser.add_argument('-o', '--onedir', type=str,
-                                 help='Specify a directory which will be used as the data directory, and the download '
-                                      'location for users and subreddits.  Keeps all app created files in one place.')
-        self.parser.add_argument('-v', '--version', action='store_true',
-                                 help='Show the application version info.')
-        self.path_error_message = 'The path specified is not valid.  Please make sure this path exists and that you ' \
-                                  'have write permission.'
+        self.parser = argparse.ArgumentParser(
+            description="Run the Downloader For Reddit application with additional "
+            "setup options"
+        )
+        self.parser.add_argument(
+            "-d",
+            "--data",
+            type=str,
+            help="Specify the directory in which the application data files will be stored. "
+            "(Must be a valid directory path)",
+        )
+        self.parser.add_argument(
+            "-u",
+            "--userpath",
+            type=str,
+            help="Specify the directory in which user posts will be saved. (Must be a valid "
+            "directory path)",
+        )
+        self.parser.add_argument(
+            "-s",
+            "--subpath",
+            type=str,
+            help="Specify the directory in which subreddit posts will be saved. (Must be a valid "
+            "directory path)",
+        )
+        self.parser.add_argument(
+            "-o",
+            "--onedir",
+            type=str,
+            help="Specify a directory which will be used as the data directory, and the download "
+            "location for users and subreddits.  Keeps all app created files in one place.",
+        )
+        self.parser.add_argument(
+            "-v",
+            "--version",
+            action="store_true",
+            help="Show the application version info.",
+        )
+        self.path_error_message = (
+            "The path specified is not valid.  Please make sure this path exists and that you "
+            "have write permission."
+        )
 
     def parse_args(self, args):
         args = self.parser.parse_args(args)
@@ -92,4 +115,4 @@ class CLI:
 
     def print_version(self):
         print(__version__)
-        Message.send_requested(f'Version: {__version__}')
+        Message.send_requested(f"Version: {__version__}")

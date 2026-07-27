@@ -13,7 +13,6 @@ from ..guiresources.invalid_reddit_object_dialog_auto import (
 
 
 class InvalidRedditObjectDialog(QDialog, Ui_InvalidRedditObjectDialog):
-
     def __init__(self, invalid_ros: list):
         QDialog.__init__(self)
         self.setupUi(self)
@@ -29,8 +28,8 @@ class InvalidRedditObjectDialog(QDialog, Ui_InvalidRedditObjectDialog):
             widget = QWidget()
             box = QHBoxLayout()
             box.addWidget(QLabel(ro.name))
-            checkbox = QCheckBox('')
-            checkbox.toggled.connect(lambda x, ro=ro: setattr(ro, 'remove', x))
+            checkbox = QCheckBox("")
+            checkbox.toggled.connect(lambda x, ro=ro: setattr(ro, "remove", x))
             self.checkbox_list.append(checkbox)
             box.addWidget(checkbox)
             box.addWidget(QLabel(ro.status))
@@ -45,7 +44,6 @@ class InvalidRedditObjectDialog(QDialog, Ui_InvalidRedditObjectDialog):
 
 
 class InvalidObject:
-
     def __init__(self, name, id_, status):
         self.name = name
         self.id = id_

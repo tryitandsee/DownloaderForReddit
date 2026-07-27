@@ -1,4 +1,3 @@
-
 # Form implementation generated from reading ui file 'Resources\ui_files\settings\notification_settings_widget.ui'
 #
 # Created by: PyQt5 UI code generator 5.14.1
@@ -25,33 +24,65 @@ class Ui_NotificationSettingsWidget:
         self.update_level_combo.setMinimumSize(QtCore.QSize(200, 0))
         self.update_level_combo.setObjectName("update_level_combo")
         self.horizontalLayout.addWidget(self.update_level_combo)
-        spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        spacerItem = QtWidgets.QSpacerItem(
+            40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum
+        )
         self.horizontalLayout.addItem(spacerItem)
         self.verticalLayout_2.addLayout(self.horizontalLayout)
-        self.auto_display_failed_downloads_checkbox = QtWidgets.QCheckBox(NotificationSettingsWidget)
-        self.auto_display_failed_downloads_checkbox.setObjectName("auto_display_failed_downloads_checkbox")
+        self.auto_display_failed_downloads_checkbox = QtWidgets.QCheckBox(
+            NotificationSettingsWidget
+        )
+        self.auto_display_failed_downloads_checkbox.setObjectName(
+            "auto_display_failed_downloads_checkbox"
+        )
         self.verticalLayout_2.addWidget(self.auto_display_failed_downloads_checkbox)
         # [mine] feat(settings): add toggle to skip invalid reddit object dialog after download
-        self.show_invalid_reddit_object_dialog_checkbox = QtWidgets.QCheckBox(NotificationSettingsWidget)
-        self.show_invalid_reddit_object_dialog_checkbox.setObjectName("show_invalid_reddit_object_dialog_checkbox")
+        self.show_invalid_reddit_object_dialog_checkbox = QtWidgets.QCheckBox(
+            NotificationSettingsWidget
+        )
+        self.show_invalid_reddit_object_dialog_checkbox.setObjectName(
+            "show_invalid_reddit_object_dialog_checkbox"
+        )
         self.verticalLayout_2.addWidget(self.show_invalid_reddit_object_dialog_checkbox)
-        self.notification_dialog_group_box = QtWidgets.QGroupBox(NotificationSettingsWidget)
-        self.notification_dialog_group_box.setObjectName("notification_dialog_group_box")
+        self.notification_dialog_group_box = QtWidgets.QGroupBox(
+            NotificationSettingsWidget
+        )
+        self.notification_dialog_group_box.setObjectName(
+            "notification_dialog_group_box"
+        )
         self.verticalLayout = QtWidgets.QVBoxLayout(self.notification_dialog_group_box)
         self.verticalLayout.setObjectName("verticalLayout")
-        self.remove_reddit_object_warning_checkbox = QtWidgets.QCheckBox(self.notification_dialog_group_box)
-        self.remove_reddit_object_warning_checkbox.setObjectName("remove_reddit_object_warning_checkbox")
+        self.remove_reddit_object_warning_checkbox = QtWidgets.QCheckBox(
+            self.notification_dialog_group_box
+        )
+        self.remove_reddit_object_warning_checkbox.setObjectName(
+            "remove_reddit_object_warning_checkbox"
+        )
         self.verticalLayout.addWidget(self.remove_reddit_object_warning_checkbox)
-        self.remove_reddit_object_list_warning_checkbox = QtWidgets.QCheckBox(self.notification_dialog_group_box)
-        self.remove_reddit_object_list_warning_checkbox.setObjectName("remove_reddit_object_list_warning_checkbox")
+        self.remove_reddit_object_list_warning_checkbox = QtWidgets.QCheckBox(
+            self.notification_dialog_group_box
+        )
+        self.remove_reddit_object_list_warning_checkbox.setObjectName(
+            "remove_reddit_object_list_warning_checkbox"
+        )
         self.verticalLayout.addWidget(self.remove_reddit_object_list_warning_checkbox)
-        self.large_post_update_warning_checkbox = QtWidgets.QCheckBox(self.notification_dialog_group_box)
-        self.large_post_update_warning_checkbox.setObjectName("large_post_update_warning_checkbox")
+        self.large_post_update_warning_checkbox = QtWidgets.QCheckBox(
+            self.notification_dialog_group_box
+        )
+        self.large_post_update_warning_checkbox.setObjectName(
+            "large_post_update_warning_checkbox"
+        )
         self.verticalLayout.addWidget(self.large_post_update_warning_checkbox)
-        self.existing_reddit_object_dialog_checkbox = QtWidgets.QCheckBox(self.notification_dialog_group_box)
-        self.existing_reddit_object_dialog_checkbox.setObjectName("existing_reddit_object_dialog_checkbox")
+        self.existing_reddit_object_dialog_checkbox = QtWidgets.QCheckBox(
+            self.notification_dialog_group_box
+        )
+        self.existing_reddit_object_dialog_checkbox.setObjectName(
+            "existing_reddit_object_dialog_checkbox"
+        )
         self.verticalLayout.addWidget(self.existing_reddit_object_dialog_checkbox)
-        self.ask_to_sync_on_move_checkbox = QtWidgets.QCheckBox(self.notification_dialog_group_box)
+        self.ask_to_sync_on_move_checkbox = QtWidgets.QCheckBox(
+            self.notification_dialog_group_box
+        )
         self.ask_to_sync_on_move_checkbox.setObjectName("ask_to_sync_on_move_checkbox")
         self.verticalLayout.addWidget(self.ask_to_sync_on_move_checkbox)
         self.verticalLayout_2.addWidget(self.notification_dialog_group_box)
@@ -59,25 +90,43 @@ class Ui_NotificationSettingsWidget:
         self.system_tray_group_box.setObjectName("system_tray_group_box")
         self.verticalLayout_3 = QtWidgets.QVBoxLayout(self.system_tray_group_box)
         self.verticalLayout_3.setObjectName("verticalLayout_3")
-        self.show_system_tray_icon_checkbox = QtWidgets.QCheckBox(self.system_tray_group_box)
-        self.show_system_tray_icon_checkbox.setObjectName("show_system_tray_icon_checkbox")
+        self.show_system_tray_icon_checkbox = QtWidgets.QCheckBox(
+            self.system_tray_group_box
+        )
+        self.show_system_tray_icon_checkbox.setObjectName(
+            "show_system_tray_icon_checkbox"
+        )
         self.verticalLayout_3.addWidget(self.show_system_tray_icon_checkbox)
-        self.show_system_tray_notifications_checkbox = QtWidgets.QCheckBox(self.system_tray_group_box)
-        self.show_system_tray_notifications_checkbox.setObjectName("show_system_tray_notifications_checkbox")
+        self.show_system_tray_notifications_checkbox = QtWidgets.QCheckBox(
+            self.system_tray_group_box
+        )
+        self.show_system_tray_notifications_checkbox.setObjectName(
+            "show_system_tray_notifications_checkbox"
+        )
         self.verticalLayout_3.addWidget(self.show_system_tray_notifications_checkbox)
         self.horizontalLayout_2 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_2.setObjectName("horizontalLayout_2")
         self.label_2 = QtWidgets.QLabel(self.system_tray_group_box)
         self.label_2.setObjectName("label_2")
         self.horizontalLayout_2.addWidget(self.label_2)
-        self.status_tray_message_display_length_spinbox = QtWidgets.QSpinBox(self.system_tray_group_box)
-        self.status_tray_message_display_length_spinbox.setObjectName("status_tray_message_display_length_spinbox")
-        self.horizontalLayout_2.addWidget(self.status_tray_message_display_length_spinbox)
-        spacerItem1 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        self.status_tray_message_display_length_spinbox = QtWidgets.QSpinBox(
+            self.system_tray_group_box
+        )
+        self.status_tray_message_display_length_spinbox.setObjectName(
+            "status_tray_message_display_length_spinbox"
+        )
+        self.horizontalLayout_2.addWidget(
+            self.status_tray_message_display_length_spinbox
+        )
+        spacerItem1 = QtWidgets.QSpacerItem(
+            40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum
+        )
         self.horizontalLayout_2.addItem(spacerItem1)
         self.verticalLayout_3.addLayout(self.horizontalLayout_2)
         self.verticalLayout_2.addWidget(self.system_tray_group_box)
-        spacerItem2 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        spacerItem2 = QtWidgets.QSpacerItem(
+            20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding
+        )
         self.verticalLayout_2.addItem(spacerItem2)
 
         self.retranslateUi(NotificationSettingsWidget)
@@ -85,23 +134,95 @@ class Ui_NotificationSettingsWidget:
 
     def retranslateUi(self, NotificationSettingsWidget):
         _translate = QtCore.QCoreApplication.translate
-        NotificationSettingsWidget.setWindowTitle(_translate("NotificationSettingsWidget", "Notification Settings"))
-        self.label.setToolTip(_translate("NotificationSettingsWidget", "<html><head/><body><p>This is the update level at which an update must be before you will be notified of its release</p></body></html>"))
-        self.label.setText(_translate("NotificationSettingsWidget", "Update notification level:"))
-        self.auto_display_failed_downloads_checkbox.setText(_translate("NotificationSettingsWidget", "Show failed downloads dialog after download"))
+        NotificationSettingsWidget.setWindowTitle(
+            _translate("NotificationSettingsWidget", "Notification Settings")
+        )
+        self.label.setToolTip(
+            _translate(
+                "NotificationSettingsWidget",
+                "<html><head/><body><p>This is the update level at which an update must be before you will be notified of its release</p></body></html>",
+            )
+        )
+        self.label.setText(
+            _translate("NotificationSettingsWidget", "Update notification level:")
+        )
+        self.auto_display_failed_downloads_checkbox.setText(
+            _translate(
+                "NotificationSettingsWidget",
+                "Show failed downloads dialog after download",
+            )
+        )
         # [mine] feat(settings): add toggle to skip invalid reddit object dialog after download
-        self.show_invalid_reddit_object_dialog_checkbox.setText(_translate("NotificationSettingsWidget", "Show invalid reddit object dialog after download"))
-        self.notification_dialog_group_box.setTitle(_translate("NotificationSettingsWidget", "Notification Dialogs"))
-        self.remove_reddit_object_warning_checkbox.setText(_translate("NotificationSettingsWidget", "Ask before removing user/subreddit"))
-        self.remove_reddit_object_list_warning_checkbox.setText(_translate("NotificationSettingsWidget", "Ask before removing list"))
-        self.large_post_update_warning_checkbox.setText(_translate("NotificationSettingsWidget", "Ask before updating large number of posts"))
-        self.existing_reddit_object_dialog_checkbox.setText(_translate("NotificationSettingsWidget", "Ask before adding existing users/subreddits that are located in other lists"))
-        self.ask_to_sync_on_move_checkbox.setText(_translate("NotificationSettingsWidget", "Ask before syncing user/subreddit settings on move"))
-        self.system_tray_group_box.setTitle(_translate("NotificationSettingsWidget", "System Tray"))
-        self.show_system_tray_icon_checkbox.setToolTip(_translate("NotificationSettingsWidget", "<html><head/><body><p>An icon with some options will be shown in the system tray when the application is started.</p></body></html>"))
-        self.show_system_tray_icon_checkbox.setText(_translate("NotificationSettingsWidget", "Show system tray icon"))
-        self.show_system_tray_notifications_checkbox.setToolTip(_translate("NotificationSettingsWidget", "<html><head/><body><p>Some notifications will be shown by the system when the tray icon is enabled and the application window does not have focus.</p></body></html>"))
-        self.show_system_tray_notifications_checkbox.setText(_translate("NotificationSettingsWidget", "Show notifications from system tray"))
-        self.label_2.setToolTip(_translate("NotificationSettingsWidget", "<html><head/><body><p>Messages displayed by the system will last for this many seconds before disappearing.</p></body></html>"))
-        self.label_2.setText(_translate("NotificationSettingsWidget", "Amount of time to display status tray messages:"))
-        self.status_tray_message_display_length_spinbox.setSuffix(_translate("NotificationSettingsWidget", " secs."))
+        self.show_invalid_reddit_object_dialog_checkbox.setText(
+            _translate(
+                "NotificationSettingsWidget",
+                "Show invalid reddit object dialog after download",
+            )
+        )
+        self.notification_dialog_group_box.setTitle(
+            _translate("NotificationSettingsWidget", "Notification Dialogs")
+        )
+        self.remove_reddit_object_warning_checkbox.setText(
+            _translate(
+                "NotificationSettingsWidget", "Ask before removing user/subreddit"
+            )
+        )
+        self.remove_reddit_object_list_warning_checkbox.setText(
+            _translate("NotificationSettingsWidget", "Ask before removing list")
+        )
+        self.large_post_update_warning_checkbox.setText(
+            _translate(
+                "NotificationSettingsWidget",
+                "Ask before updating large number of posts",
+            )
+        )
+        self.existing_reddit_object_dialog_checkbox.setText(
+            _translate(
+                "NotificationSettingsWidget",
+                "Ask before adding existing users/subreddits that are located in other lists",
+            )
+        )
+        self.ask_to_sync_on_move_checkbox.setText(
+            _translate(
+                "NotificationSettingsWidget",
+                "Ask before syncing user/subreddit settings on move",
+            )
+        )
+        self.system_tray_group_box.setTitle(
+            _translate("NotificationSettingsWidget", "System Tray")
+        )
+        self.show_system_tray_icon_checkbox.setToolTip(
+            _translate(
+                "NotificationSettingsWidget",
+                "<html><head/><body><p>An icon with some options will be shown in the system tray when the application is started.</p></body></html>",
+            )
+        )
+        self.show_system_tray_icon_checkbox.setText(
+            _translate("NotificationSettingsWidget", "Show system tray icon")
+        )
+        self.show_system_tray_notifications_checkbox.setToolTip(
+            _translate(
+                "NotificationSettingsWidget",
+                "<html><head/><body><p>Some notifications will be shown by the system when the tray icon is enabled and the application window does not have focus.</p></body></html>",
+            )
+        )
+        self.show_system_tray_notifications_checkbox.setText(
+            _translate(
+                "NotificationSettingsWidget", "Show notifications from system tray"
+            )
+        )
+        self.label_2.setToolTip(
+            _translate(
+                "NotificationSettingsWidget",
+                "<html><head/><body><p>Messages displayed by the system will last for this many seconds before disappearing.</p></body></html>",
+            )
+        )
+        self.label_2.setText(
+            _translate(
+                "NotificationSettingsWidget",
+                "Amount of time to display status tray messages:",
+            )
+        )
+        self.status_tray_message_display_length_spinbox.setSuffix(
+            _translate("NotificationSettingsWidget", " secs.")
+        )

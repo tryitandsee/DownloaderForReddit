@@ -1,10 +1,8 @@
-
 from ..database.models import Comment, Content, Post
 from . import TokenParser, injector, system_util
 
 
 class FilenameGenerator:
-
     """
     Provides functionality to generate filenames and directory paths based on given Reddit objects, handling duplicates,
     custom save paths, and naming methods.
@@ -85,7 +83,7 @@ class FilenameGenerator:
         # them out (ObjectSettingsWidget.sync_line_edit sets '' to represent "mixed values", which
         # its own textChanged handler then wrote back to every selected object) -- removing the
         # per-object path removes that failure mode too, not just the confusion.
-        if self.reddit_object.object_type == 'USER':
+        if self.reddit_object.object_type == "USER":
             return self.settings_manager.user_download_defaults
         return self.settings_manager.subreddit_download_defaults
 
@@ -101,10 +99,10 @@ class FilenameGenerator:
         """
         defaults = self._get_defaults()
         if self.comment is not None:
-            return defaults['comment_naming_method']
+            return defaults["comment_naming_method"]
         if self.is_duplicate:
-            return defaults['duplicate_naming_method']
-        return defaults['post_download_naming_method']
+            return defaults["duplicate_naming_method"]
+        return defaults["post_download_naming_method"]
 
     def make_dir_path(self):
         """
@@ -129,10 +127,10 @@ class FilenameGenerator:
         """
         defaults = self._get_defaults()
         if self.is_duplicate:
-            return defaults['duplicate_save_structure']
+            return defaults["duplicate_save_structure"]
         if self.comment is not None:
-            return defaults['comment_save_structure']
-        return defaults['post_save_structure']
+            return defaults["comment_save_structure"]
+        return defaults["post_save_structure"]
 
     def _get_base_path(self) -> str:
         """
@@ -141,6 +139,6 @@ class FilenameGenerator:
 
         :returns: The appropriate base path for saving files as a string.
         """
-        if self.reddit_object.object_type == 'USER':
+        if self.reddit_object.object_type == "USER":
             return self.settings_manager.user_save_directory
         return self.settings_manager.subreddit_save_directory

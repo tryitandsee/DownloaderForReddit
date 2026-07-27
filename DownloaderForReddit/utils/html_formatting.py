@@ -9,9 +9,9 @@ def format_html(html_text: str) -> str:
     :param html_text: The HTML text to format.
     :return: The formatted HTML text.
     """
-    html_text = html_text.replace('\n', '<br/>')
+    html_text = html_text.replace("\n", "<br/>")
     html_text = linkify_urls(html_text)
-    return f'<p>{html_text}</p>'
+    return f"<p>{html_text}</p>"
 
 
 def linkify_urls(text: str) -> str:
@@ -25,7 +25,7 @@ def linkify_urls(text: str) -> str:
     """
     url_regex = re.compile(
         r'(https?://[^\s"<>()]+)',  # match http(s) URLs excluding common HTML-breaking chars
-        re.IGNORECASE
+        re.IGNORECASE,
     )
 
     return url_regex.sub(r'<a href="\1">\1</a>', text)

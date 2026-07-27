@@ -26,15 +26,17 @@ def rename_invalid_directory(path):
 
 
 def reformat_invalid_name(path, formatting):
-    path = path[:-1] if path.endswith((os.sep, '/')) else path
+    path = path[:-1] if path.endswith((os.sep, "/")) else path
     dir_path, dir_name = os.path.split(path)
-    new_name = formatting.replace('%[dir_name]', dir_name)
+    new_name = formatting.replace("%[dir_name]", dir_name)
     return system_util.join_path(dir_path, new_name)
 
 
 def get_reddit_object_download_folder(reddit_object):
-    sub_path = TokenParser.parse_tokens(reddit_object, reddit_object.post_save_structure)
-    if reddit_object.object_type == 'USER':
+    sub_path = TokenParser.parse_tokens(
+        reddit_object, reddit_object.post_save_structure
+    )
+    if reddit_object.object_type == "USER":
         base_path = injector.get_settings_manager().user_save_directory
     else:
         base_path = injector.get_settings_manager().subreddit_save_directory
@@ -46,7 +48,9 @@ def open_reddit_object_download_folder(reddit_object, calling_window):
         path = get_reddit_object_download_folder(reddit_object)
         system_util.open_in_system(path)
     except FileNotFoundError:
-        message_dialogs.no_download_folder(calling_window, reddit_object.object_type.lower())
+        message_dialogs.no_download_folder(
+            calling_window, reddit_object.object_type.lower()
+        )
 
 
 def open_post_in_browser(post):
@@ -66,13 +70,16 @@ def ensure_content_download_path(content):
     try:
         system_util.create_directory(content.directory_path)
     except PermissionError:
-        logger.exception('Could not create directory path', extra={'directory_path': content.directory_path})
+        logger.exception(
+            "Could not create directory path",
+            extra={"directory_path": content.directory_path},
+        )
     unique_count = 1
     clean_title = system_util.clean(content.title)
     download_title = clean_title
     path = content.get_full_file_path(download_title)
     while os.path.exists(path):
-        download_title = f'{clean_title}({unique_count})'
+        download_title = f"{clean_title}({unique_count})"
         path = content.get_full_file_path(download_title)
         unique_count += 1
     return download_title
@@ -91,12 +98,14 @@ def ensure_file_path(file_path: str) -> str:
     try:
         system_util.create_directory(base_path)
     except PermissionError:
-        logger.exception('Could not create directory path', extra={'directory_path': base_path})
+        logger.exception(
+            "Could not create directory path", extra={"directory_path": base_path}
+        )
     unique_count = 1
     clean_title = system_util.clean_path(title)
-    path = system_util.join_path(base_path, f'{clean_title}{ext}')
+    path = system_util.join_path(base_path, f"{clean_title}{ext}")
     while os.path.exists(path):
-        title = f'{clean_title}({unique_count}){ext}'
+        title = f"{clean_title}({unique_count}){ext}"
         path = system_util.join_path(base_path, title)
         unique_count += 1
     return path
@@ -134,7 +143,7 @@ def format_date_path(formatted_date):
     :param formatted_date: A formatted date string.
     :return: The supplied formatted date string in a format that can be used for file paths.
     """
-    return formatted_date.replace('/', '-').replace('\\', '-').replace(':', '--')
+    return formatted_date.replace("/", "-").replace("\\", "-").replace(":", "--")
 
 
 def format_raw_datetime(date_time, format_str):

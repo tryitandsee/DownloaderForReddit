@@ -81,7 +81,7 @@ def get_filename(self, media_id):
     :return: The file name that should be used when creating the Content object from the extracted url.
     :rtype: str
     """
-    return self.post_title if self.name_downloads_by == 'Post Title' else media_id
+    return self.post_title if self.name_downloads_by == "Post Title" else media_id
 ```
 
 #### Imports

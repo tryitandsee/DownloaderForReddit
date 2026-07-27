@@ -35,8 +35,7 @@ from ..utils.filename_generator import FilenameGenerator
 
 
 class BaseExtractor:
-
-    url_key = (None, )
+    url_key = (None,)
 
     def __init__(self, post, **kwargs):
         """
@@ -47,18 +46,20 @@ class BaseExtractor:
         :param post: The post object created from the submission extracted from reddit.
         :type post: Post
         """
-        self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
+        self.logger = logging.getLogger(f"DownloaderForReddit.{__name__}")
         self.settings_manager = injector.get_settings_manager()
         self.content_filter = ContentFilter()
         self.post = post
-        self.submission = kwargs.get('submission', None)
-        self.comment = kwargs.get('comment', None)
-        self.url = kwargs.get('url', post.url)
-        self.user = kwargs.get('user', post.author)
-        self.subreddit = kwargs.get('subreddit', post.subreddit)
-        self.significant_reddit_object = kwargs.get('significant_reddit_object', post.significant_reddit_object)
-        self.creation_date = kwargs.get('date_posted', post.date_posted)
-        self.count = kwargs.get('count', None)
+        self.submission = kwargs.get("submission", None)
+        self.comment = kwargs.get("comment", None)
+        self.url = kwargs.get("url", post.url)
+        self.user = kwargs.get("user", post.author)
+        self.subreddit = kwargs.get("subreddit", post.subreddit)
+        self.significant_reddit_object = kwargs.get(
+            "significant_reddit_object", post.significant_reddit_object
+        )
+        self.creation_date = kwargs.get("date_posted", post.date_posted)
+        self.count = kwargs.get("count", None)
         self.extracted_content = []
         self.failed_extraction = False
         self.extraction_error = None
@@ -107,29 +108,35 @@ class BaseExtractor:
         the same and subclasses can call this method directly.  There are some cases where this is not the case and
         this method must be overwritten.
         """
-        _domain, id_with_ext = self.url.rsplit('/', 1)
-        _media_id, extension = id_with_ext.rsplit('.', 1)
+        _domain, id_with_ext = self.url.rsplit("/", 1)
+        _media_id, extension = id_with_ext.rsplit(".", 1)
         self.make_content(self.url, extension)
 
     def get_json(self, url):
         """Makes sure that a request is valid and handles without errors if the connection is not successful"""
         response = requests.get(url, timeout=10)
-        if response.status_code == 200 and 'json' in response.headers['Content-Type']:
+        if response.status_code == 200 and "json" in response.headers["Content-Type"]:
             return response.json()
-        self.handle_failed_extract(error=Error.FAILED_TO_LOCATE, message='Failed to retrieve json data from link',
-                                   status_code=response.status_code)
+        self.handle_failed_extract(
+            error=Error.FAILED_TO_LOCATE,
+            message="Failed to retrieve json data from link",
+            status_code=response.status_code,
+        )
         return None
 
     def get_text(self, url):
         """See get_json"""
         response = requests.get(url, timeout=10)
-        if response.status_code == 200 and 'text' in response.headers['Content-Type']:
+        if response.status_code == 200 and "text" in response.headers["Content-Type"]:
             return response.text
-        self.handle_failed_extract(error=Error.FAILED_TO_LOCATE, message='Failed to retrieve data from link',
-                                   status_code=response.status_code)
+        self.handle_failed_extract(
+            error=Error.FAILED_TO_LOCATE,
+            message="Failed to retrieve data from link",
+            status_code=response.status_code,
+        )
         return None
 
-    def make_content(self, url, extension, count=None, name_modifier='', **kwargs):
+    def make_content(self, url, extension, count=None, name_modifier="", **kwargs):
         """
         Takes content elements that are extracted and creates a Content object with the extracted parts and the global
         extractor items, then sends the new Content object to the extracted content list.
@@ -149,8 +156,8 @@ class BaseExtractor:
         if self.filter_content(url, extension):
             if count is None:
                 count = self.count
-            count = f' {count}' if count and self.use_count else ''
-            title = f'{self.make_title(**kwargs)}{name_modifier}{count}'
+            count = f" {count}" if count and self.use_count else ""
+            title = f"{self.make_title(**kwargs)}{name_modifier}{count}"
             directory = self.make_dir_path()
             comment_id = self.comment.id if self.comment is not None else None
             content = Content(
@@ -161,7 +168,7 @@ class BaseExtractor:
                 subreddit=self.subreddit,
                 post=self.post,
                 directory_path=directory,
-                comment_id=comment_id
+                comment_id=comment_id,
             )
             session = self.post.get_session()
             session.add(content)
@@ -211,19 +218,32 @@ class BaseExtractor:
         if not passes:
             self.failed_extraction = True
             # [mine] fix(extractor): use DUPLICATE_CONTENT so duplicates are excluded from retry queue
-            if self.content_filter.filter_message == 'Duplicate content':
+            if self.content_filter.filter_message == "Duplicate content":
                 self.extraction_error = Error.DUPLICATE_CONTENT
             else:
                 self.extraction_error = Error.FAILED_FILTER
             self.failed_extraction_message = self.content_filter.filter_message
             # [mine] fix(extractor): log content-filter rejections -- previously silent, making
             # duplicate/filtered content undiagnosable without querying the db directly
-            self.logger.debug('Content filtered: %s', self.content_filter.filter_message, extra={
-                'url': url, 'extension': extension, 'submission_id': self.post.reddit_id,
-            })
+            self.logger.debug(
+                "Content filtered: %s",
+                self.content_filter.filter_message,
+                extra={
+                    "url": url,
+                    "extension": extension,
+                    "submission_id": self.post.reddit_id,
+                },
+            )
         return passes
 
-    def handle_failed_extract(self, error: Error, message: str | None = None, log: bool = True, log_exception: bool = False, **kwargs) -> None:
+    def handle_failed_extract(
+        self,
+        error: Error,
+        message: str | None = None,
+        log: bool = True,
+        log_exception: bool = False,
+        **kwargs,
+    ) -> None:
         """
         Handles the logging and output of error messages encountered while extracting content and saves posts if
         instructed to do so.
@@ -243,11 +263,16 @@ class BaseExtractor:
         self.failed_extraction = True
         self.extraction_error = error
         self.failed_extraction_message = message
-        extra = {'extractor_data': self.get_log_data()}
+        extra = {"extractor_data": self.get_log_data()}
         extra.update(kwargs)
         if log:
-            self.logger.error('Failed to extract content: %s', message, extra=extra, exc_info=log_exception)
-        message += f'\nTitle: {self.post.title}\nUrl: {self.url}'
+            self.logger.error(
+                "Failed to extract content: %s",
+                message,
+                extra=extra,
+                exc_info=log_exception,
+            )
+        message += f"\nTitle: {self.post.title}\nUrl: {self.url}"
         Message.send_extraction_error(message)
 
     def get_log_data(self):
@@ -255,11 +280,11 @@ class BaseExtractor:
         Returns a loggable dictionary of the extractors current variables to be put into the log.
         """
         return {
-            'url': self.url,
-            'user': self.user.name,
-            'subreddit': self.subreddit.name,
-            'post_title': self.post.title,
-            'submission_id': self.post.reddit_id,
-            'extracted_content_count': len(self.extracted_content),
-            'extraction_failed': self.failed_extraction,
+            "url": self.url,
+            "user": self.user.name,
+            "subreddit": self.subreddit.name,
+            "post_title": self.post.title,
+            "submission_id": self.post.reddit_id,
+            "extracted_content_count": len(self.extracted_content),
+            "extraction_failed": self.failed_extraction,
         }

@@ -22,17 +22,15 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 
 class FfmpegInfoDialog(QtWidgets.QDialog):
-
     def __init__(self, parent=None):
         QtWidgets.QDialog.__init__(self, parent=parent)
         self.layout = QtWidgets.QVBoxLayout()
-        self.setWindowTitle('FFmpeg Info')
-        self.setWindowIcon(QtGui.QIcon('Resources/Images/RedditDownloaderIcon.png'))
+        self.setWindowTitle("FFmpeg Info")
+        self.setWindowIcon(QtGui.QIcon("Resources/Images/RedditDownloaderIcon.png"))
 
         self.label = QtWidgets.QLabel(
             """

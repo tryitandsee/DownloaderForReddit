@@ -36,8 +36,7 @@ _GFYCAT_ENDPOINT = "https://api.gfycat.com/v1/gfycats/"
 
 
 class GfycatExtractor(BaseExtractor):
-
-    url_key: ClassVar[list[str]] = ['gfycat']
+    url_key: ClassVar[list[str]] = ["gfycat"]
 
     def __init__(self, post, **kwargs):
         """
@@ -50,35 +49,47 @@ class GfycatExtractor(BaseExtractor):
     def extract_content(self):
         """Dictates which extraction method should be used"""
         try:
-            if self.url.lower().endswith(const.GIF_EXT) or self.url.lower().endswith(const.VID_EXT):
+            if self.url.lower().endswith(const.GIF_EXT) or self.url.lower().endswith(
+                const.VID_EXT
+            ):
                 self.extract_direct_link()
             else:
                 self.extract_single()
         except:
-            message = 'Failed to locate content'
-            self.handle_failed_extract(error=Error.FAILED_TO_LOCATE, message=message, extractor_error_message=message)
+            message = "Failed to locate content"
+            self.handle_failed_extract(
+                error=Error.FAILED_TO_LOCATE,
+                message=message,
+                extractor_error_message=message,
+            )
 
     def extract_single(self):
         item = urlparse(self.url)
         gif_id = item.path
         gif_id = gif_id.removeprefix("/watch/")
-        gif_id = path.basename(gif_id).split('-')[0]
+        gif_id = path.basename(gif_id).split("-")[0]
 
         response = requests.get(_GFYCAT_ENDPOINT + gif_id, timeout=10)
-        if response.status_code == 200 and 'json' in response.headers['Content-Type']:
+        if response.status_code == 200 and "json" in response.headers["Content-Type"]:
             gfy_json = response.json()
         else:
             return  # if no json is available, the error has been handled, so we abort
 
         # First we attempt to extract the preferred mp4 url, if that is not successful we try the webm url.  If neither
         # are available, the error is handled.
-        gfy_url = gfy_json.get('gfyItem').get('mp4Url')
+        gfy_url = gfy_json.get("gfyItem").get("mp4Url")
         if gfy_url is not None:
-            self.make_content(gfy_url, 'mp4', media_id=gif_id)
+            self.make_content(gfy_url, "mp4", media_id=gif_id)
             return
-        gfy_url = gfy_json.get('gfyItem').get('webmUrl')
+        gfy_url = gfy_json.get("gfyItem").get("webmUrl")
         if gfy_url is None:
-            message = 'Failed to locate an appropriate download url within the response json'
-            self.handle_failed_extract(error=Error.FAILED_TO_LOCATE, message=message, extraction_error_message=message)
+            message = (
+                "Failed to locate an appropriate download url within the response json"
+            )
+            self.handle_failed_extract(
+                error=Error.FAILED_TO_LOCATE,
+                message=message,
+                extraction_error_message=message,
+            )
         else:
-            self.make_content(gfy_url, 'webm', media_id=gif_id)
+            self.make_content(gfy_url, "webm", media_id=gif_id)

@@ -22,7 +22,6 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-
 from time import time
 
 from yt_dlp import YoutubeDL
@@ -35,22 +34,26 @@ from .base_extractor import BaseExtractor
 
 
 class GenericVideoExtractor(BaseExtractor):
-
     key = None
     load_time = None
 
     @classmethod
     def get_url_key(cls):
-        if cls.load_time is None or cls.load_time < injector.get_settings_manager().supported_videos_updated:
+        if (
+            cls.load_time is None
+            or cls.load_time < injector.get_settings_manager().supported_videos_updated
+        ):
             try:
                 with open(const.SUPPORTED_SITES_FILE) as file:
-                    cls.key = [x.strip().strip('*') for x in file if x.endswith('*\n')]
+                    cls.key = [x.strip().strip("*") for x in file if x.endswith("*\n")]
                     load_time = time()
                     cls.load_time = load_time
                     injector.get_settings_manager().supported_videos_updated = load_time
             except FileNotFoundError:
                 cls.key = None
-                log_utils.log_proxy(__name__, 'WARNING', message='Failed to load supported video sites')
+                log_utils.log_proxy(
+                    __name__, "WARNING", message="Failed to load supported video sites"
+                )
         return cls.key
 
     def __init__(self, post, **kwargs):
@@ -59,22 +62,26 @@ class GenericVideoExtractor(BaseExtractor):
     def extract_content(self):
         try:
             # TODO: need way to kill this when session is terminated
-            with YoutubeDL({'format': 'mp4'}) as ydl:
+            with YoutubeDL({"format": "mp4"}) as ydl:
                 result = ydl.extract_info(self.url, download=False)
-            if 'entries' in result:
-                self.extract_playlist(result['entries'])
+            if "entries" in result:
+                self.extract_playlist(result["entries"])
             else:
                 self.extract_single_video(result)
         except:
-            message = 'Failed to locate content'
-            self.handle_failed_extract(error=Error.FAILED_TO_LOCATE, message=message, extractor_error_message=message,
-                                       failed_domain=self.post.domain)
+            message = "Failed to locate content"
+            self.handle_failed_extract(
+                error=Error.FAILED_TO_LOCATE,
+                message=message,
+                extractor_error_message=message,
+                failed_domain=self.post.domain,
+            )
 
     def extract_single_video(self, entry):
-        self.make_content(entry['url'], 'mp4')
+        self.make_content(entry["url"], "mp4")
 
     def extract_playlist(self, playlist):
         count = 1
         for entry in playlist:
-            self.make_content(entry['url'], 'mp4', count=count)
+            self.make_content(entry["url"], "mp4", count=count)
             count += 1

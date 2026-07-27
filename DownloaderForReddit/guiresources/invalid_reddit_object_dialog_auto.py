@@ -1,4 +1,3 @@
-
 # Form implementation generated from reading ui file 'Resources\ui_files\invalid_reddit_object_dialog.ui'
 #
 # Created by: PyQt5 UI code generator 5.14.1
@@ -51,6 +50,15 @@ class Ui_InvalidRedditObjectDialog:
 
     def retranslateUi(self, InvalidRedditObjectDialog):
         _translate = QtCore.QCoreApplication.translate
-        InvalidRedditObjectDialog.setWindowTitle(_translate("InvalidRedditObjectDialog", "Invalid Reddit Objects"))
-        self.label.setText(_translate("InvalidRedditObjectDialog", "<html><head/><body><p>The following users/subreddits are not valid. They have either been deleted, or banned/suspended by reddit. </p><p>How would you like to handle these users/subreddits?</p></body></html>"))
-        self.select_all_checkbox.setText(_translate("InvalidRedditObjectDialog", "Select All"))
+        InvalidRedditObjectDialog.setWindowTitle(
+            _translate("InvalidRedditObjectDialog", "Invalid Reddit Objects")
+        )
+        self.label.setText(
+            _translate(
+                "InvalidRedditObjectDialog",
+                "<html><head/><body><p>The following users/subreddits are not valid. They have either been deleted, or banned/suspended by reddit. </p><p>How would you like to handle these users/subreddits?</p></body></html>",
+            )
+        )
+        self.select_all_checkbox.setText(
+            _translate("InvalidRedditObjectDialog", "Select All")
+        )

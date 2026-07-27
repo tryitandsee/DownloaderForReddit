@@ -1,4 +1,3 @@
-
 # Form implementation generated from reading ui file 'Resources\ui_files\settings\display_settings_widget.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.4
@@ -29,22 +28,32 @@ class Ui_DispalySettingsWidget:
         self.short_title_length_spin_box.setMinimumSize(QtCore.QSize(100, 0))
         self.short_title_length_spin_box.setObjectName("short_title_length_spin_box")
         self.horizontalLayout.addWidget(self.short_title_length_spin_box)
-        spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        spacerItem = QtWidgets.QSpacerItem(
+            40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum
+        )
         self.horizontalLayout.addItem(spacerItem)
-        self.formLayout.setLayout(0, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout)
+        self.formLayout.setLayout(
+            0, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout
+        )
         self.label_2 = QtWidgets.QLabel(DispalySettingsWidget)
         self.label_2.setObjectName("label_2")
         self.formLayout.setWidget(1, QtWidgets.QFormLayout.LabelRole, self.label_2)
         self.schedule_countdown_combo = QtWidgets.QComboBox(DispalySettingsWidget)
         self.schedule_countdown_combo.setObjectName("schedule_countdown_combo")
-        self.formLayout.setWidget(1, QtWidgets.QFormLayout.FieldRole, self.schedule_countdown_combo)
+        self.formLayout.setWidget(
+            1, QtWidgets.QFormLayout.FieldRole, self.schedule_countdown_combo
+        )
         self.label_3 = QtWidgets.QLabel(DispalySettingsWidget)
         self.label_3.setObjectName("label_3")
         self.formLayout.setWidget(2, QtWidgets.QFormLayout.LabelRole, self.label_3)
         self.scroll_to_last_added_checkbox = QtWidgets.QCheckBox(DispalySettingsWidget)
         self.scroll_to_last_added_checkbox.setText("")
-        self.scroll_to_last_added_checkbox.setObjectName("scroll_to_last_added_checkbox")
-        self.formLayout.setWidget(2, QtWidgets.QFormLayout.FieldRole, self.scroll_to_last_added_checkbox)
+        self.scroll_to_last_added_checkbox.setObjectName(
+            "scroll_to_last_added_checkbox"
+        )
+        self.formLayout.setWidget(
+            2, QtWidgets.QFormLayout.FieldRole, self.scroll_to_last_added_checkbox
+        )
         self.label_4 = QtWidgets.QLabel(DispalySettingsWidget)
         self.label_4.setObjectName("label_4")
         self.formLayout.setWidget(3, QtWidgets.QFormLayout.LabelRole, self.label_4)
@@ -66,9 +75,13 @@ class Ui_DispalySettingsWidget:
         self.new_ro_color_label = QtWidgets.QLabel(DispalySettingsWidget)
         self.new_ro_color_label.setObjectName("new_ro_color_label")
         self.horizontalLayout_2.addWidget(self.new_ro_color_label)
-        spacerItem1 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        spacerItem1 = QtWidgets.QSpacerItem(
+            40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum
+        )
         self.horizontalLayout_2.addItem(spacerItem1)
-        self.formLayout.setLayout(3, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_2)
+        self.formLayout.setLayout(
+            3, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_2
+        )
         self.horizontalLayout_3 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_3.setSpacing(20)
         self.horizontalLayout_3.setObjectName("horizontalLayout_3")
@@ -84,9 +97,13 @@ class Ui_DispalySettingsWidget:
         self.disabled_ro_color_label = QtWidgets.QLabel(DispalySettingsWidget)
         self.disabled_ro_color_label.setObjectName("disabled_ro_color_label")
         self.horizontalLayout_3.addWidget(self.disabled_ro_color_label)
-        spacerItem2 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        spacerItem2 = QtWidgets.QSpacerItem(
+            40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum
+        )
         self.horizontalLayout_3.addItem(spacerItem2)
-        self.formLayout.setLayout(4, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_3)
+        self.formLayout.setLayout(
+            4, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_3
+        )
         self.label_6 = QtWidgets.QLabel(DispalySettingsWidget)
         self.label_6.setObjectName("label_6")
         self.formLayout.setWidget(5, QtWidgets.QFormLayout.LabelRole, self.label_6)
@@ -105,9 +122,13 @@ class Ui_DispalySettingsWidget:
         self.inactive_ro_color_label = QtWidgets.QLabel(DispalySettingsWidget)
         self.inactive_ro_color_label.setObjectName("inactive_ro_color_label")
         self.horizontalLayout_4.addWidget(self.inactive_ro_color_label)
-        spacerItem3 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        spacerItem3 = QtWidgets.QSpacerItem(
+            40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum
+        )
         self.horizontalLayout_4.addItem(spacerItem3)
-        self.formLayout.setLayout(5, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_4)
+        self.formLayout.setLayout(
+            5, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_4
+        )
         self.verticalLayout.addLayout(self.formLayout)
         self.line_3 = QtWidgets.QFrame(DispalySettingsWidget)
         self.line_3.setFrameShape(QtWidgets.QFrame.HLine)
@@ -129,7 +150,9 @@ class Ui_DispalySettingsWidget:
         self.horizontalLayout_5.addWidget(self.datetime_token_button)
         self.datetime_format_layout.addLayout(self.horizontalLayout_5)
         self.date_time_format_example_label = QtWidgets.QLabel(DispalySettingsWidget)
-        self.date_time_format_example_label.setObjectName("date_time_format_example_label")
+        self.date_time_format_example_label.setObjectName(
+            "date_time_format_example_label"
+        )
         self.datetime_format_layout.addWidget(self.date_time_format_example_label)
         self.verticalLayout.addLayout(self.datetime_format_layout)
         self.line_2 = QtWidgets.QFrame(DispalySettingsWidget)
@@ -161,10 +184,14 @@ class Ui_DispalySettingsWidget:
         self.line.setObjectName("line")
         self.verticalLayout.addWidget(self.line)
         self.tooltip_groupbox = QtWidgets.QGroupBox(DispalySettingsWidget)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred
+        )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.tooltip_groupbox.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(
+            self.tooltip_groupbox.sizePolicy().hasHeightForWidth()
+        )
         self.tooltip_groupbox.setSizePolicy(sizePolicy)
         self.tooltip_groupbox.setObjectName("tooltip_groupbox")
         self.gridLayout_2 = QtWidgets.QGridLayout(self.tooltip_groupbox)
@@ -176,28 +203,85 @@ class Ui_DispalySettingsWidget:
 
     def retranslateUi(self, DispalySettingsWidget):
         _translate = QtCore.QCoreApplication.translate
-        DispalySettingsWidget.setWindowTitle(_translate("DispalySettingsWidget", "Display Settings"))
-        self.label.setToolTip(_translate("DispalySettingsWidget", "<html><head/><body><p>In most displays titles are shortened in order to display better. This dictates how many characters titles will be shortened to (set to &quot;0&quot; if you don\'t want titles shortened)</p></body></html>"))
-        self.label.setText(_translate("DispalySettingsWidget", "Short title char length:"))
-        self.label_2.setText(_translate("DispalySettingsWidget", "Display Schedule Countdown:"))
-        self.label_3.setToolTip(_translate("DispalySettingsWidget", "<html><head/><body><p>When selected, the user/subreddit list will scroll to the new entry when a new user/subreddit is added</p></body></html>"))
-        self.label_3.setText(_translate("DispalySettingsWidget", "Scoll to last added:"))
-        self.label_4.setText(_translate("DispalySettingsWidget", "Colorize new users/subreddits:"))
-        self.label_5.setText(_translate("DispalySettingsWidget", "Colorize disabled users/subreddits:"))
-        self.choose_new_color_button.setText(_translate("DispalySettingsWidget", "Choose Color"))
-        self.new_ro_color_label.setText(_translate("DispalySettingsWidget", "new user/subreddit color"))
-        self.choose_disabled_color_button.setText(_translate("DispalySettingsWidget", "Choose Color"))
-        self.disabled_ro_color_label.setText(_translate("DispalySettingsWidget", "disabled user/subreddit color"))
-        self.label_6.setText(_translate("DispalySettingsWidget", "Colorize inactive users/subreddits:"))
-        self.choose_inactive_color_button.setText(_translate("DispalySettingsWidget", "Choose Color"))
-        self.inactive_ro_color_label.setText(_translate("DispalySettingsWidget", "inactive user/subreddit color"))
+        DispalySettingsWidget.setWindowTitle(
+            _translate("DispalySettingsWidget", "Display Settings")
+        )
+        self.label.setToolTip(
+            _translate(
+                "DispalySettingsWidget",
+                "<html><head/><body><p>In most displays titles are shortened in order to display better. This dictates how many characters titles will be shortened to (set to &quot;0&quot; if you don't want titles shortened)</p></body></html>",
+            )
+        )
+        self.label.setText(
+            _translate("DispalySettingsWidget", "Short title char length:")
+        )
+        self.label_2.setText(
+            _translate("DispalySettingsWidget", "Display Schedule Countdown:")
+        )
+        self.label_3.setToolTip(
+            _translate(
+                "DispalySettingsWidget",
+                "<html><head/><body><p>When selected, the user/subreddit list will scroll to the new entry when a new user/subreddit is added</p></body></html>",
+            )
+        )
+        self.label_3.setText(
+            _translate("DispalySettingsWidget", "Scoll to last added:")
+        )
+        self.label_4.setText(
+            _translate("DispalySettingsWidget", "Colorize new users/subreddits:")
+        )
+        self.label_5.setText(
+            _translate("DispalySettingsWidget", "Colorize disabled users/subreddits:")
+        )
+        self.choose_new_color_button.setText(
+            _translate("DispalySettingsWidget", "Choose Color")
+        )
+        self.new_ro_color_label.setText(
+            _translate("DispalySettingsWidget", "new user/subreddit color")
+        )
+        self.choose_disabled_color_button.setText(
+            _translate("DispalySettingsWidget", "Choose Color")
+        )
+        self.disabled_ro_color_label.setText(
+            _translate("DispalySettingsWidget", "disabled user/subreddit color")
+        )
+        self.label_6.setText(
+            _translate("DispalySettingsWidget", "Colorize inactive users/subreddits:")
+        )
+        self.choose_inactive_color_button.setText(
+            _translate("DispalySettingsWidget", "Choose Color")
+        )
+        self.inactive_ro_color_label.setText(
+            _translate("DispalySettingsWidget", "inactive user/subreddit color")
+        )
         self.label_8.setText(_translate("DispalySettingsWidget", "Date Time Format:"))
-        self.datetime_format_line_edit.setToolTip(_translate("DispalySettingsWidget", "<html><head/><body><p>Dictates how <span style=\" font-weight:600;\">dates with times</span> are displayed throughout the application.  Depending on the characters used, this may vary slightly when used in save paths.</p></body></html>"))
+        self.datetime_format_line_edit.setToolTip(
+            _translate(
+                "DispalySettingsWidget",
+                '<html><head/><body><p>Dictates how <span style=" font-weight:600;">dates with times</span> are displayed throughout the application.  Depending on the characters used, this may vary slightly when used in save paths.</p></body></html>',
+            )
+        )
         self.datetime_token_button.setText(_translate("DispalySettingsWidget", "..."))
-        self.date_time_format_example_label.setText(_translate("DispalySettingsWidget", "datetime example"))
+        self.date_time_format_example_label.setText(
+            _translate("DispalySettingsWidget", "datetime example")
+        )
         self.label_9.setText(_translate("DispalySettingsWidget", "Date Format:"))
-        self.date_format_line_edit.setToolTip(_translate("DispalySettingsWidget", "<html><head/><body><p>Dictates how <span style=\" font-weight:600;\">dates without times</span> are displayed throughout the application.</p></body></html>"))
+        self.date_format_line_edit.setToolTip(
+            _translate(
+                "DispalySettingsWidget",
+                '<html><head/><body><p>Dictates how <span style=" font-weight:600;">dates without times</span> are displayed throughout the application.</p></body></html>',
+            )
+        )
         self.date_token_button.setText(_translate("DispalySettingsWidget", "..."))
-        self.date_format_example_label.setText(_translate("DispalySettingsWidget", "date example"))
-        self.tooltip_groupbox.setToolTip(_translate("DispalySettingsWidget", "<html><head/><body><p>These are user/subreddit attributes that will be displayed in a tooltip from the main window when the mouse is hovered over their name</p></body></html>"))
-        self.tooltip_groupbox.setTitle(_translate("DispalySettingsWidget", "User/Subreddit Tooltip Display"))
+        self.date_format_example_label.setText(
+            _translate("DispalySettingsWidget", "date example")
+        )
+        self.tooltip_groupbox.setToolTip(
+            _translate(
+                "DispalySettingsWidget",
+                "<html><head/><body><p>These are user/subreddit attributes that will be displayed in a tooltip from the main window when the mouse is hovered over their name</p></body></html>",
+            )
+        )
+        self.tooltip_groupbox.setTitle(
+            _translate("DispalySettingsWidget", "User/Subreddit Tooltip Display")
+        )

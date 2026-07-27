@@ -18,18 +18,18 @@ from playwright._impl._errors import TargetClosedError
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Locator, Page, sync_playwright
 
-PROFILE_DIR = Path(__file__).resolve().parent.parent.parent / 'browser_profile'
-REDDIT_BASE_URL = 'https://www.reddit.com'
+PROFILE_DIR = Path(__file__).resolve().parent.parent.parent / "browser_profile"
+REDDIT_BASE_URL = "https://www.reddit.com"
 
-logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
+logger = logging.getLogger(f"DownloaderForReddit.{__name__}")
 
 
 class ValidationError(Enum):
-    NOT_FOUND = 'not_found'
-    FORBIDDEN = 'forbidden'
-    RATE_LIMITED = 'rate_limited'
-    CONNECTION_ERROR = 'connection_error'
-    UNKNOWN = 'unknown'
+    NOT_FOUND = "not_found"
+    FORBIDDEN = "forbidden"
+    RATE_LIMITED = "rate_limited"
+    CONNECTION_ERROR = "connection_error"
+    UNKNOWN = "unknown"
 
 
 @dataclass
@@ -51,11 +51,12 @@ class SubmissionData:
     nsfw: bool
     is_self: bool
     permalink: str
-    post_type: str  # raw shreddit post-type: image, text, link, video, gallery, crosspost
+    post_type: (
+        str  # raw shreddit post-type: image, text, link, video, gallery, crosspost
+    )
 
 
 class RedditSource(Protocol):
-
     def validate_user(self, name: str) -> ValidationResult: ...
 
     def validate_subreddit(self, name: str) -> ValidationResult: ...
@@ -68,9 +69,13 @@ class RedditSource(Protocol):
 
     # Combined single-navigation validate + collect, for the initial fetch of a single user/subreddit
     # -- avoids a separate profile-page visit before the submitted/new-listing visit.
-    def validate_and_iter_user_submissions(self, name: str) -> tuple[ValidationResult, list[SubmissionData]]: ...
+    def validate_and_iter_user_submissions(
+        self, name: str
+    ) -> tuple[ValidationResult, list[SubmissionData]]: ...
 
-    def validate_and_iter_subreddit_submissions(self, name: str) -> tuple[ValidationResult, list[SubmissionData]]: ...
+    def validate_and_iter_subreddit_submissions(
+        self, name: str
+    ) -> tuple[ValidationResult, list[SubmissionData]]: ...
 
     def get_post(self, url: str) -> SubmissionData | None: ...
 
@@ -78,57 +83,61 @@ class RedditSource(Protocol):
 
 
 def _strip_fullname_prefix(fullname: str) -> str:
-    return re.sub(r'^t\d+_', '', fullname)
+    return re.sub(r"^t\d+_", "", fullname)
 
 
 def _strip_subreddit_prefix(prefixed_name: str) -> str:
-    return re.sub(r'^(r/|u_)', '', prefixed_name)
+    return re.sub(r"^(r/|u_)", "", prefixed_name)
 
 
 def _normalize_reddit_url(url: str) -> str:
     """Rewrite any reddit domain variant (old./np./amp./m.reddit.com, bare reddit.com) to
     www.reddit.com, since only shreddit renders <shreddit-post>."""
     parts = urlsplit(url)
-    if parts.netloc.endswith('reddit.com') and parts.netloc != 'www.reddit.com':
-        parts = parts._replace(netloc='www.reddit.com')
+    if parts.netloc.endswith("reddit.com") and parts.netloc != "www.reddit.com":
+        parts = parts._replace(netloc="www.reddit.com")
     return urlunsplit(parts)
 
 
 def _parse_post(post: Locator) -> SubmissionData | None:
-    raw_id = post.get_attribute('id')
+    raw_id = post.get_attribute("id")
     if not raw_id:
         return None
     try:
         # content-href/permalink are relative for some post types (crossposts, self posts) --
         # urljoin leaves already-absolute URLs (i.redd.it, v.redd.it, outbound links) untouched.
-        post_type = post.get_attribute('post-type') or ''
+        post_type = post.get_attribute("post-type") or ""
         reddit_id = _strip_fullname_prefix(raw_id)
-        if post_type == 'gallery':
+        if post_type == "gallery":
             # content-href for a gallery is unreliable -- observed as the bare comments permalink
             # on a feed card but https://www.reddit.com/gallery/<id> when read from the permalink
             # page itself. Build the /gallery/<id> form directly so it's the same regardless of
             # which page the post was read from; RedditUploadsExtractor dispatches on this exact
             # pattern (its url_key includes 'reddit.com/gallery').
-            url = f'{REDDIT_BASE_URL}/gallery/{reddit_id}'
+            url = f"{REDDIT_BASE_URL}/gallery/{reddit_id}"
         else:
-            url = urljoin(REDDIT_BASE_URL, post.get_attribute('content-href') or '')
-        permalink = urljoin(REDDIT_BASE_URL, post.get_attribute('permalink') or '')
+            url = urljoin(REDDIT_BASE_URL, post.get_attribute("content-href") or "")
+        permalink = urljoin(REDDIT_BASE_URL, post.get_attribute("permalink") or "")
         return SubmissionData(
             reddit_id=reddit_id,
-            title=post.get_attribute('post-title') or '',
+            title=post.get_attribute("post-title") or "",
             url=url,
-            domain=post.get_attribute('domain') or '',
-            author=post.get_attribute('author') or '',
-            subreddit=_strip_subreddit_prefix(post.get_attribute('subreddit-prefixed-name') or ''),
-            created=datetime.fromisoformat(post.get_attribute('created-timestamp')),
-            score=int(post.get_attribute('score') or 0),
-            nsfw=post.get_attribute('nsfw') is not None,
-            is_self=post_type == 'text',
+            domain=post.get_attribute("domain") or "",
+            author=post.get_attribute("author") or "",
+            subreddit=_strip_subreddit_prefix(
+                post.get_attribute("subreddit-prefixed-name") or ""
+            ),
+            created=datetime.fromisoformat(post.get_attribute("created-timestamp")),
+            score=int(post.get_attribute("score") or 0),
+            nsfw=post.get_attribute("nsfw") is not None,
+            is_self=post_type == "text",
             permalink=permalink,
             post_type=post_type,
         )
     except (TypeError, ValueError):
-        logger.warning('Failed to parse shreddit-post attributes', extra={'raw_id': raw_id})
+        logger.warning(
+            "Failed to parse shreddit-post attributes", extra={"raw_id": raw_id}
+        )
         return None
 
 
@@ -175,7 +184,7 @@ class BrowserRedditSource:
         # If the user closes the browser window, all pages close and the persistent context
         # closes with them -- null it out so the next call relaunches instead of raising into
         # the ambient poll timer or an explicit download.
-        self._context.on('close', lambda _: setattr(self, '_context', None))
+        self._context.on("close", lambda _: setattr(self, "_context", None))
 
     def stop(self):
         self._executor.submit(self._stop_impl).result()
@@ -189,9 +198,11 @@ class BrowserRedditSource:
 
     def _page(self) -> Page:
         if self._context is None:
-            logger.info('Playwright browser window was closed, relaunching')
+            logger.info("Playwright browser window was closed, relaunching")
             self._launch_context()
-        return self._context.pages[0] if self._context.pages else self._context.new_page()
+        return (
+            self._context.pages[0] if self._context.pages else self._context.new_page()
+        )
 
     def read_current_page_posts(self) -> list[SubmissionData]:
         """
@@ -211,7 +222,7 @@ class BrowserRedditSource:
         try:
             page = self._page()
             results = []
-            for post in page.locator('shreddit-post').all():
+            for post in page.locator("shreddit-post").all():
                 data = _parse_post(post)
                 if data is not None:
                     results.append(data)
@@ -225,19 +236,26 @@ class BrowserRedditSource:
             self._context = None
             return []
 
-    def _collect(self, url: str, limit: int | None = None, known_ids: set | None = None) -> list[SubmissionData]:
+    def _collect(
+        self, url: str, limit: int | None = None, known_ids: set | None = None
+    ) -> list[SubmissionData]:
         page = self._page()
         page.goto(url)
         page.wait_for_timeout(2000)
         return self._scroll_and_collect(page, url, limit, known_ids)
 
-    def _scroll_and_collect(self, page: Page, url: str, limit: int | None = None,
-                            known_ids: set | None = None) -> list[SubmissionData]:
+    def _scroll_and_collect(
+        self,
+        page: Page,
+        url: str,
+        limit: int | None = None,
+        known_ids: set | None = None,
+    ) -> list[SubmissionData]:
         seen = set()
         results = []
         consecutive_known = 0
         for scroll_pass in range(self.SCROLL_PASSES):
-            for post in page.locator('shreddit-post').all():
+            for post in page.locator("shreddit-post").all():
                 data = _parse_post(post)
                 if data is not None and data.reddit_id not in seen:
                     seen.add(data.reddit_id)
@@ -252,43 +270,62 @@ class BrowserRedditSource:
                     if known_ids is not None and data.reddit_id in known_ids:
                         consecutive_known += 1
                         if consecutive_known >= self.KNOWN_POST_STOP_THRESHOLD:
-                            logger.debug('Caught up with already-downloaded posts, stopping scroll', extra={
-                                'url': url, 'scroll_pass': scroll_pass + 1, 'collected': len(results),
-                            })
+                            logger.debug(
+                                "Caught up with already-downloaded posts, stopping scroll",
+                                extra={
+                                    "url": url,
+                                    "scroll_pass": scroll_pass + 1,
+                                    "collected": len(results),
+                                },
+                            )
                             return results
                     else:
                         consecutive_known = 0
                     if limit is not None and len(results) >= limit:
-                        logger.debug('Reached post limit, stopping scroll', extra={
-                            'url': url, 'scroll_pass': scroll_pass + 1, 'collected': len(results),
-                        })
+                        logger.debug(
+                            "Reached post limit, stopping scroll",
+                            extra={
+                                "url": url,
+                                "scroll_pass": scroll_pass + 1,
+                                "collected": len(results),
+                            },
+                        )
                         return results
             page.mouse.wheel(0, 2000)
             page.wait_for_timeout(self.SCROLL_PAUSE_MS)
-        logger.debug('Reached SCROLL_PASSES limit without catching up or hitting post limit', extra={
-            'url': url, 'scroll_passes': self.SCROLL_PASSES, 'collected': len(results),
-        })
+        logger.debug(
+            "Reached SCROLL_PASSES limit without catching up or hitting post limit",
+            extra={
+                "url": url,
+                "scroll_passes": self.SCROLL_PASSES,
+                "collected": len(results),
+            },
+        )
         return results
 
-    def iter_user_submissions(self, name: str, limit: int | None = None,
-                              known_ids: set | None = None) -> list[SubmissionData]:
-        url = f'https://www.reddit.com/user/{name}/submitted/?sort=new'
+    def iter_user_submissions(
+        self, name: str, limit: int | None = None, known_ids: set | None = None
+    ) -> list[SubmissionData]:
+        url = f"https://www.reddit.com/user/{name}/submitted/?sort=new"
         return self._executor.submit(self._collect, url, limit, known_ids).result()
 
-    def iter_subreddit_submissions(self, name: str, limit: int | None = None,
-                                   known_ids: set | None = None) -> list[SubmissionData]:
-        url = f'https://www.reddit.com/r/{name}/new/'
+    def iter_subreddit_submissions(
+        self, name: str, limit: int | None = None, known_ids: set | None = None
+    ) -> list[SubmissionData]:
+        url = f"https://www.reddit.com/r/{name}/new/"
         return self._executor.submit(self._collect, url, limit, known_ids).result()
 
     def iter_home_feed(self, limit: int | None = None) -> list[SubmissionData]:
-        return self._executor.submit(self._collect, 'https://www.reddit.com/new/', limit).result()
+        return self._executor.submit(
+            self._collect, "https://www.reddit.com/new/", limit
+        ).result()
 
     def validate_user(self, name: str) -> ValidationResult:
-        url = f'https://www.reddit.com/user/{name}/'
+        url = f"https://www.reddit.com/user/{name}/"
         return self._executor.submit(self._validate, url).result()
 
     def validate_subreddit(self, name: str) -> ValidationResult:
-        url = f'https://www.reddit.com/r/{name}/'
+        url = f"https://www.reddit.com/r/{name}/"
         return self._executor.submit(self._validate, url).result()
 
     def _validate(self, url: str) -> ValidationResult:
@@ -296,7 +333,9 @@ class BrowserRedditSource:
         try:
             page.goto(url)
         except PlaywrightError:
-            logger.warning('Navigation failed during validation', extra={'url': url}, exc_info=True)
+            logger.warning(
+                "Navigation failed during validation", extra={"url": url}, exc_info=True
+            )
             return ValidationResult(valid=False, error=ValidationError.CONNECTION_ERROR)
         page.wait_for_timeout(1500)
         return self._check_validity(page)
@@ -306,29 +345,37 @@ class BrowserRedditSource:
         # Best-effort: matches reddit's known 404/private-community copy. NOT_FOUND is confirmed
         # working against a real nonexistent user; FORBIDDEN (private/suspended) is still
         # unverified -- no real example inspected yet.
-        body_text = page.locator('body').inner_text().lower()
-        if 'nobody on reddit goes by that name' in body_text or 'this user has deleted their account' in body_text:
+        body_text = page.locator("body").inner_text().lower()
+        if (
+            "nobody on reddit goes by that name" in body_text
+            or "this user has deleted their account" in body_text
+        ):
             return ValidationResult(valid=False, error=ValidationError.NOT_FOUND)
-        if 'community doesn’t exist' in body_text or 'page not found' in body_text:  # noqa: RUF001 -- matches reddit's actual page copy, which uses a curly apostrophe
+        if "community doesn’t exist" in body_text or "page not found" in body_text:  # noqa: RUF001 -- matches reddit's actual page copy, which uses a curly apostrophe
             return ValidationResult(valid=False, error=ValidationError.NOT_FOUND)
-        if 'this community is private' in body_text or 'suspended' in body_text:
+        if "this community is private" in body_text or "suspended" in body_text:
             return ValidationResult(valid=False, error=ValidationError.FORBIDDEN)
         return ValidationResult(valid=True)
 
-    def validate_and_iter_user_submissions(self, name: str, limit: int | None = None,
-                                           known_ids: set | None = None
-                                           ) -> tuple[ValidationResult, list[SubmissionData]]:
-        url = f'https://www.reddit.com/user/{name}/submitted/?sort=new'
-        return self._executor.submit(self._validate_and_collect, url, limit, known_ids).result()
+    def validate_and_iter_user_submissions(
+        self, name: str, limit: int | None = None, known_ids: set | None = None
+    ) -> tuple[ValidationResult, list[SubmissionData]]:
+        url = f"https://www.reddit.com/user/{name}/submitted/?sort=new"
+        return self._executor.submit(
+            self._validate_and_collect, url, limit, known_ids
+        ).result()
 
-    def validate_and_iter_subreddit_submissions(self, name: str, limit: int | None = None,
-                                                known_ids: set | None = None
-                                                ) -> tuple[ValidationResult, list[SubmissionData]]:
-        url = f'https://www.reddit.com/r/{name}/new/'
-        return self._executor.submit(self._validate_and_collect, url, limit, known_ids).result()
+    def validate_and_iter_subreddit_submissions(
+        self, name: str, limit: int | None = None, known_ids: set | None = None
+    ) -> tuple[ValidationResult, list[SubmissionData]]:
+        url = f"https://www.reddit.com/r/{name}/new/"
+        return self._executor.submit(
+            self._validate_and_collect, url, limit, known_ids
+        ).result()
 
-    def _validate_and_collect(self, url: str, limit: int | None = None, known_ids: set | None = None
-                              ) -> tuple[ValidationResult, list[SubmissionData]]:
+    def _validate_and_collect(
+        self, url: str, limit: int | None = None, known_ids: set | None = None
+    ) -> tuple[ValidationResult, list[SubmissionData]]:
         # A single navigation serves both validation and the submissions scrape -- the submitted/new
         # listing page shows the same 404/private/suspended copy as the plain profile page, so there's
         # no need to visit the profile page first just to check it exists.
@@ -336,8 +383,12 @@ class BrowserRedditSource:
         try:
             page.goto(url)
         except PlaywrightError:
-            logger.warning('Navigation failed during validation', extra={'url': url}, exc_info=True)
-            return ValidationResult(valid=False, error=ValidationError.CONNECTION_ERROR), []
+            logger.warning(
+                "Navigation failed during validation", extra={"url": url}, exc_info=True
+            )
+            return ValidationResult(
+                valid=False, error=ValidationError.CONNECTION_ERROR
+            ), []
         page.wait_for_timeout(2000)
         validation = self._check_validity(page)
         if not validation.valid:
@@ -357,12 +408,16 @@ class BrowserRedditSource:
         try:
             page.goto(url)
         except PlaywrightError:
-            logger.warning('Navigation failed fetching single post', extra={'url': url}, exc_info=True)
+            logger.warning(
+                "Navigation failed fetching single post",
+                extra={"url": url},
+                exc_info=True,
+            )
             return None
         page.wait_for_timeout(2000)
-        post = page.locator('shreddit-post').first
+        post = page.locator("shreddit-post").first
         if post.count() == 0:
-            logger.warning('No shreddit-post found at url', extra={'url': url})
+            logger.warning("No shreddit-post found at url", extra={"url": url})
             return None
         return _parse_post(post)
 
@@ -377,30 +432,41 @@ class BrowserRedditSource:
         lookup, not a bulk discovery pattern that would look anomalous.
         Reference: https://github.com/mikf/gallery-dl/blob/master/gallery_dl/extractor/reddit.py
         """
-        return self._executor.submit(self._get_gallery_media_metadata_impl, permalink).result()
+        return self._executor.submit(
+            self._get_gallery_media_metadata_impl, permalink
+        ).result()
 
     def _get_gallery_media_metadata_impl(self, permalink: str) -> dict:
-        url = _normalize_reddit_url(urljoin(REDDIT_BASE_URL, permalink)).rstrip('/') + '.json'
+        url = (
+            _normalize_reddit_url(urljoin(REDDIT_BASE_URL, permalink)).rstrip("/")
+            + ".json"
+        )
         page = self._page()
         try:
-            data = page.evaluate('(url) => fetch(url).then(r => r.ok ? r.json() : null)', url)
+            data = page.evaluate(
+                "(url) => fetch(url).then(r => r.ok ? r.json() : null)", url
+            )
         except PlaywrightError:
-            logger.warning('Navigation failed fetching gallery json', extra={'url': url}, exc_info=True)
+            logger.warning(
+                "Navigation failed fetching gallery json",
+                extra={"url": url},
+                exc_info=True,
+            )
             return {}
         if not data:
             return {}
         try:
-            post = data[0]['data']['children'][0]['data']
+            post = data[0]["data"]["children"][0]["data"]
         except (KeyError, IndexError, TypeError):
-            logger.warning('Unexpected gallery json shape', extra={'url': url})
+            logger.warning("Unexpected gallery json shape", extra={"url": url})
             return {}
-        media_metadata = post.get('media_metadata') or {}
+        media_metadata = post.get("media_metadata") or {}
         # Values come back with HTML-entity-escaped URLs (e.g. "&amp;" for "&") -- PRAW always
         # unescaped these before code elsewhere ever saw them, so do the same here.
         for value in media_metadata.values():
-            source = value.get('s')
+            source = value.get("s")
             if isinstance(source, dict):
-                for key in ('u', 'gif', 'mp4'):
+                for key in ("u", "gif", "mp4"):
                     if key in source:
                         source[key] = html.unescape(source[key])
         return media_metadata
@@ -417,4 +483,6 @@ class BrowserRedditSource:
             page.goto(_normalize_reddit_url(url))
             page.bring_to_front()
         except PlaywrightError:
-            logger.warning('Navigation failed opening url', extra={'url': url}, exc_info=True)
+            logger.warning(
+                "Navigation failed opening url", extra={"url": url}, exc_info=True
+            )

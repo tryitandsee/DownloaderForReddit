@@ -1,4 +1,3 @@
-
 # Form implementation generated from reading ui file 'Resources\ui_files\update_dialog.ui'
 #
 # Created by: PyQt5 UI code generator 5.14.1
@@ -17,7 +16,11 @@ class Ui_update_dialog_box:
         font.setPointSize(10)
         update_dialog_box.setFont(font)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("Resources\\ui_files\\../images/update.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(
+            QtGui.QPixmap("Resources\\ui_files\\../images/update.png"),
+            QtGui.QIcon.Normal,
+            QtGui.QIcon.Off,
+        )
         update_dialog_box.setWindowIcon(icon)
         self.gridLayout_2 = QtWidgets.QGridLayout(update_dialog_box)
         self.gridLayout_2.setObjectName("gridLayout_2")
@@ -53,7 +56,9 @@ class Ui_update_dialog_box:
         self.direct_link_label = QtWidgets.QLabel(update_dialog_box)
         self.direct_link_label.setObjectName("direct_link_label")
         self.gridLayout.addWidget(self.direct_link_label, 2, 0, 1, 1)
-        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
+        spacerItem = QtWidgets.QSpacerItem(
+            20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed
+        )
         self.gridLayout.addItem(spacerItem, 3, 0, 1, 1)
         self.gridLayout_2.addLayout(self.gridLayout, 0, 0, 1, 1)
 
@@ -66,8 +71,17 @@ class Ui_update_dialog_box:
         _translate = QtCore.QCoreApplication.translate
         update_dialog_box.setWindowTitle(_translate("update_dialog_box", "Update"))
         self.label.setText(_translate("update_dialog_box", "TextLabel"))
-        self.do_not_notify_checkbox.setText(_translate("update_dialog_box", "Do not notify me about this update again"))
-        self.go_to_settings_label.setText(_translate("update_dialog_box", "<html><head/><body><p><span style=\" color:#0000ee;\">Go to update notification settings</span></p></body></html>"))
+        self.do_not_notify_checkbox.setText(
+            _translate("update_dialog_box", "Do not notify me about this update again")
+        )
+        self.go_to_settings_label.setText(
+            _translate(
+                "update_dialog_box",
+                '<html><head/><body><p><span style=" color:#0000ee;">Go to update notification settings</span></p></body></html>',
+            )
+        )
         self.link_label.setText(_translate("update_dialog_box", "TextLabel"))
         self.direct_link_label.setText(_translate("update_dialog_box", "TextLabel"))
+
+
 from DownloaderForReddit.customwidgets.clickable_label import ClickableLabel

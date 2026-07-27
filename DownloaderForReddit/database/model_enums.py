@@ -2,35 +2,30 @@ from enum import Enum
 
 
 class DisplayableEnum(Enum):
-
     @property
     def display_name(self):
-        return self.name.replace('_', ' ')
+        return self.name.replace("_", " ")
 
 
 class CommentDownload(DisplayableEnum):
-
     DOWNLOAD = 1
     DO_NOT_DOWNLOAD = 2
     DOWNLOAD_ONLY_AUTHOR = 3
 
 
 class NsfwFilter(DisplayableEnum):
-
     EXCLUDE = -1
     INCLUDE = 0
     ONLY = 1
 
 
 class LimitOperator(DisplayableEnum):
-
     LESS_THAN = -1
     NO_LIMIT = 0
     GREATER_THAN = 1
 
 
 class PostSortMethod(DisplayableEnum):
-
     NEW = 1
     HOT = 2
     RISING = 3
@@ -44,7 +39,6 @@ class PostSortMethod(DisplayableEnum):
 
 
 class CommentSortMethod(DisplayableEnum):
-
     NEW = 1
     TOP = 2
     BEST = 3
@@ -54,7 +48,6 @@ class CommentSortMethod(DisplayableEnum):
 
 
 class DuplicateControlMethod(DisplayableEnum):
-
     KEEP = 1
     DELETE = 2
     MOVE = 3

@@ -26,7 +26,6 @@ from ..database.model_enums import LimitOperator, NsfwFilter
 
 
 class SubmissionFilter:
-
     def filter_submission(self, submission, reddit_object):
         """
         Filters a submission by calling various methods to see if the submission meets the methods criteria based on
@@ -35,8 +34,11 @@ class SubmissionFilter:
         :param reddit_object: The reddit object to which the submission belongs.
         :return: True or False depending on if the submission passed the filter criteria.
         """
-        return self.score_filter(submission, reddit_object) and self.nsfw_filter(submission, reddit_object) and \
-               self.date_filter(submission, reddit_object)
+        return (
+            self.score_filter(submission, reddit_object)
+            and self.nsfw_filter(submission, reddit_object)
+            and self.date_filter(submission, reddit_object)
+        )
 
     def score_filter(self, submission, reddit_object):
         """

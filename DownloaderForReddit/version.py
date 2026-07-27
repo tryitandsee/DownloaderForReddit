@@ -1,4 +1,4 @@
-__version__ = 'v3.17.1'
+__version__ = "v3.17.1"
 
 
 def get_major_version():
@@ -17,8 +17,8 @@ def get_patch_version():
 
 
 def get_version_parts(version_string):
-    v = version_string.lower().replace('v', '')
-    return v.split('.')
+    v = version_string.lower().replace("v", "")
+    return v.split(".")
 
 
 def is_updated(tested_for: str, tested_against: str) -> bool:
@@ -28,7 +28,7 @@ def is_updated(tested_for: str, tested_against: str) -> bool:
 
 
 def compile_version(ver: str) -> int:
-    return int(''.join(x for x in ver if x.isdigit()))
+    return int("".join(x for x in ver if x.isdigit()))
 
 
 def update_type(ver: str) -> int:

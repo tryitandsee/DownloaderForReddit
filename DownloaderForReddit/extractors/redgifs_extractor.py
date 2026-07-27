@@ -9,8 +9,7 @@ from .base_extractor import BaseExtractor
 
 
 class RedgifsExtractor(BaseExtractor):
-
-    url_key: ClassVar[list[str]] = ['redgifs']
+    url_key: ClassVar[list[str]] = ["redgifs"]
 
     # redgifs.API().login() fetches a brand new temporary token every call (the package never
     # caches one) -- extraction runs on a ThreadPoolExecutor, so every concurrent post extraction
@@ -46,15 +45,20 @@ class RedgifsExtractor(BaseExtractor):
                 api = self._get_api(force_relogin=True)
                 response = api.get_gif(gif_id)
             url = self.get_download_url(response)
-            content = self.make_content(url, 'mp4')
+            content = self.make_content(url, "mp4")
             if content is not None:
                 HEADERS[content.id] = api.http.headers
         except Exception as exc:
-            message = 'Failed to extract content from redgifs'
-            self.handle_failed_extract(error=Error.FAILED_TO_LOCATE, message=message, extractor_error_message=str(exc), gif_id=gif_id)
+            message = "Failed to extract content from redgifs"
+            self.handle_failed_extract(
+                error=Error.FAILED_TO_LOCATE,
+                message=message,
+                extractor_error_message=str(exc),
+                gif_id=gif_id,
+            )
 
     def get_gif_id(self):
-        return self.url.rsplit('/', 1)[-1]
+        return self.url.rsplit("/", 1)[-1]
 
     @staticmethod
     def get_download_url(data):

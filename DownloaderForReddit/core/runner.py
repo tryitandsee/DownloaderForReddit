@@ -4,6 +4,7 @@ def verify_run(method):
     supplied method.
     :param method: The method that should be called if the run condition is met.
     """
+
     def check(instance, *args, **kwargs):
         if instance.continue_run:
             return method(instance, *args, **kwargs)
@@ -13,7 +14,6 @@ def verify_run(method):
 
 
 class Runner:
-
     def __init__(self, stop_run):
         self.stop_run = stop_run
 

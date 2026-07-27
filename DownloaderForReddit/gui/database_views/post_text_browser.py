@@ -15,17 +15,20 @@ from ...utils import injector
 
 
 class PostTextBrowser(QTextBrowser):
-
     detach_signal = pyqtSignal()
     attach_signal = pyqtSignal()
 
     def __init__(self, parent=None, **kwargs):
         QTextBrowser.__init__(self, parent=parent)
         self.settings_manager = injector.get_settings_manager()
-        self.stand_alone = kwargs.get('stand_alone', False)
+        self.stand_alone = kwargs.get("stand_alone", False)
 
-        self.post_text_font_size = self.settings_manager.database_view_post_text_font_size
-        self.post_text_font = QFont(self.settings_manager.database_view_post_text_font, self.post_text_font_size)
+        self.post_text_font_size = (
+            self.settings_manager.database_view_post_text_font_size
+        )
+        self.post_text_font = QFont(
+            self.settings_manager.database_view_post_text_font, self.post_text_font_size
+        )
         self.setFont(self.post_text_font)
 
         self.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -35,9 +38,11 @@ class PostTextBrowser(QTextBrowser):
         menu = QMenu()
         font_box = QFontComboBox()
         font_box.setCurrentFont(self.post_text_font)
-        font_box.currentFontChanged.connect(lambda: self.set_post_text_font(font=font_box.currentFont()))
+        font_box.currentFontChanged.connect(
+            lambda: self.set_post_text_font(font=font_box.currentFont())
+        )
         font_box.currentFontChanged.connect(menu.close)
-        font_box_label = QLabel('Font:')
+        font_box_label = QLabel("Font:")
         layout = QHBoxLayout()
         layout.addWidget(font_box_label)
         layout.addWidget(font_box)
@@ -49,14 +54,15 @@ class PostTextBrowser(QTextBrowser):
         font_size_box = QComboBox()
         font_size_box.addItems(str(x) for x in range(4, 30))
         font_size_box.setCurrentText(str(self.post_text_font_size))
-        font_size_label = QLabel('Font Size:')
+        font_size_label = QLabel("Font Size:")
         size_layout = QHBoxLayout()
         size_layout.addWidget(font_size_label)
         size_layout.addWidget(font_size_box)
         font_size_widget = QWidget(self)
         font_size_widget.setLayout(size_layout)
-        font_size_box.currentIndexChanged.connect(lambda:
-                                                  self.set_post_text_font(size=int(font_size_box.currentText())))
+        font_size_box.currentIndexChanged.connect(
+            lambda: self.set_post_text_font(size=int(font_size_box.currentText()))
+        )
         font_size_box.currentIndexChanged.connect(menu.close)
         font_size_item = QWidgetAction(self)
         font_size_item.setDefaultWidget(font_size_widget)
@@ -65,7 +71,7 @@ class PostTextBrowser(QTextBrowser):
         menu.addAction(font_size_item)
         menu.addSeparator()
         if not self.stand_alone:
-            menu.addAction('Detach Text Box', lambda: self.detach_signal.emit())
+            menu.addAction("Detach Text Box", lambda: self.detach_signal.emit())
         menu.exec_(QCursor.pos())
 
     def set_post_text_font(self, font=None, size=None):

@@ -1,4 +1,3 @@
-
 # Form implementation generated from reading ui file 'Resources\ui_files\settings\download_settings_widget.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.11
@@ -28,10 +27,14 @@ class Ui_DownloadSettingsWidget:
         self.verticalLayout_2 = QtWidgets.QVBoxLayout(self.scrollAreaWidgetContents)
         self.verticalLayout_2.setObjectName("verticalLayout_2")
         self.list_settings_widget = ObjectSettingsWidget(self.scrollAreaWidgetContents)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred
+        )
         sizePolicy.setHorizontalStretch(1)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.list_settings_widget.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(
+            self.list_settings_widget.sizePolicy().hasHeightForWidth()
+        )
         self.list_settings_widget.setSizePolicy(sizePolicy)
         self.list_settings_widget.setObjectName("list_settings_widget")
         self.verticalLayout_2.addWidget(self.list_settings_widget)
@@ -43,11 +46,16 @@ class Ui_DownloadSettingsWidget:
 
     def retranslateUi(self, DownloadSettingsWidget):
         _translate = QtCore.QCoreApplication.translate
-        DownloadSettingsWidget.setWindowTitle(_translate("DownloadSettingsWidget", "Download Default Settings"))
+        DownloadSettingsWidget.setWindowTitle(
+            _translate("DownloadSettingsWidget", "Download Default Settings")
+        )
+
+
 from DownloaderForReddit.gui.widgets.object_settings_widget import ObjectSettingsWidget
 
 if __name__ == "__main__":
     import sys
+
     app = QtWidgets.QApplication(sys.argv)
     DownloadSettingsWidget = QtWidgets.QWidget()
     ui = Ui_DownloadSettingsWidget()

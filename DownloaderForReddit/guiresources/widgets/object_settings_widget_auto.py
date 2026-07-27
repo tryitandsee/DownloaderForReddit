@@ -1,4 +1,3 @@
-
 # Form implementation generated from reading ui file 'Resources\ui_files\widgets\object_settings_widget.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.11
@@ -14,10 +13,14 @@ class Ui_ObjectSettingsWidget:
     def setupUi(self, ObjectSettingsWidget):
         ObjectSettingsWidget.setObjectName("ObjectSettingsWidget")
         ObjectSettingsWidget.resize(403, 1407)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Preferred)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Preferred
+        )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(ObjectSettingsWidget.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(
+            ObjectSettingsWidget.sizePolicy().hasHeightForWidth()
+        )
         ObjectSettingsWidget.setSizePolicy(sizePolicy)
         self.verticalLayout_2 = QtWidgets.QVBoxLayout(ObjectSettingsWidget)
         self.verticalLayout_2.setObjectName("verticalLayout_2")
@@ -51,18 +54,26 @@ class Ui_ObjectSettingsWidget:
         self.line_2.setFrameShape(QtWidgets.QFrame.HLine)
         self.line_2.setFrameShadow(QtWidgets.QFrame.Sunken)
         self.line_2.setObjectName("line_2")
-        self.post_download_form.setWidget(0, QtWidgets.QFormLayout.LabelRole, self.line_2)
+        self.post_download_form.setWidget(
+            0, QtWidgets.QFormLayout.LabelRole, self.line_2
+        )
         self.label_19 = QtWidgets.QLabel(ObjectSettingsWidget)
         font = QtGui.QFont()
         font.setBold(True)
         font.setWeight(75)
         self.label_19.setFont(font)
-        self.label_19.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
+        self.label_19.setAlignment(
+            QtCore.Qt.AlignLeading | QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter
+        )
         self.label_19.setObjectName("label_19")
-        self.post_download_form.setWidget(1, QtWidgets.QFormLayout.SpanningRole, self.label_19)
+        self.post_download_form.setWidget(
+            1, QtWidgets.QFormLayout.SpanningRole, self.label_19
+        )
         self.label_7 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_7.setObjectName("label_7")
-        self.post_download_form.setWidget(3, QtWidgets.QFormLayout.LabelRole, self.label_7)
+        self.post_download_form.setWidget(
+            3, QtWidgets.QFormLayout.LabelRole, self.label_7
+        )
         self.horizontalLayout_3 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_3.setObjectName("horizontalLayout_3")
         self.post_limit_spinbox = QtWidgets.QSpinBox(ObjectSettingsWidget)
@@ -72,100 +83,174 @@ class Ui_ObjectSettingsWidget:
         self.post_limit_max_button = QtWidgets.QToolButton(ObjectSettingsWidget)
         self.post_limit_max_button.setObjectName("post_limit_max_button")
         self.horizontalLayout_3.addWidget(self.post_limit_max_button)
-        self.post_download_form.setLayout(3, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_3)
+        self.post_download_form.setLayout(
+            3, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_3
+        )
         self.label_11 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_11.setObjectName("label_11")
-        self.post_download_form.setWidget(4, QtWidgets.QFormLayout.LabelRole, self.label_11)
+        self.post_download_form.setWidget(
+            4, QtWidgets.QFormLayout.LabelRole, self.label_11
+        )
         self.score_limit_operator_combo = QtWidgets.QComboBox(ObjectSettingsWidget)
         self.score_limit_operator_combo.setObjectName("score_limit_operator_combo")
-        self.post_download_form.setWidget(4, QtWidgets.QFormLayout.FieldRole, self.score_limit_operator_combo)
+        self.post_download_form.setWidget(
+            4, QtWidgets.QFormLayout.FieldRole, self.score_limit_operator_combo
+        )
         self.label_9 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_9.setObjectName("label_9")
-        self.post_download_form.setWidget(5, QtWidgets.QFormLayout.LabelRole, self.label_9)
+        self.post_download_form.setWidget(
+            5, QtWidgets.QFormLayout.LabelRole, self.label_9
+        )
         self.score_limit_spinbox = QtWidgets.QSpinBox(ObjectSettingsWidget)
         self.score_limit_spinbox.setMaximum(10000000)
         self.score_limit_spinbox.setObjectName("score_limit_spinbox")
-        self.post_download_form.setWidget(5, QtWidgets.QFormLayout.FieldRole, self.score_limit_spinbox)
+        self.post_download_form.setWidget(
+            5, QtWidgets.QFormLayout.FieldRole, self.score_limit_spinbox
+        )
         self.limit_date_checkbox = QtWidgets.QCheckBox(ObjectSettingsWidget)
         self.limit_date_checkbox.setLayoutDirection(QtCore.Qt.LeftToRight)
         self.limit_date_checkbox.setObjectName("limit_date_checkbox")
-        self.post_download_form.setWidget(7, QtWidgets.QFormLayout.LabelRole, self.limit_date_checkbox)
+        self.post_download_form.setWidget(
+            7, QtWidgets.QFormLayout.LabelRole, self.limit_date_checkbox
+        )
         self.absolute_date_limit_radio = QtWidgets.QRadioButton(ObjectSettingsWidget)
         self.absolute_date_limit_radio.setObjectName("absolute_date_limit_radio")
-        self.post_download_form.setWidget(8, QtWidgets.QFormLayout.LabelRole, self.absolute_date_limit_radio)
+        self.post_download_form.setWidget(
+            8, QtWidgets.QFormLayout.LabelRole, self.absolute_date_limit_radio
+        )
         self.absolute_date_limit_label = QtWidgets.QLabel(ObjectSettingsWidget)
         self.absolute_date_limit_label.setObjectName("absolute_date_limit_label")
-        self.post_download_form.setWidget(8, QtWidgets.QFormLayout.FieldRole, self.absolute_date_limit_label)
+        self.post_download_form.setWidget(
+            8, QtWidgets.QFormLayout.FieldRole, self.absolute_date_limit_label
+        )
         self.custom_date_limit_radio = QtWidgets.QRadioButton(ObjectSettingsWidget)
         self.custom_date_limit_radio.setObjectName("custom_date_limit_radio")
-        self.post_download_form.setWidget(9, QtWidgets.QFormLayout.LabelRole, self.custom_date_limit_radio)
+        self.post_download_form.setWidget(
+            9, QtWidgets.QFormLayout.LabelRole, self.custom_date_limit_radio
+        )
         self.custom_date_limit_edit = QtWidgets.QDateTimeEdit(ObjectSettingsWidget)
-        self.custom_date_limit_edit.setDateTime(QtCore.QDateTime(QtCore.QDate(2005, 6, 23), QtCore.QTime(14, 43, 53)))
-        self.custom_date_limit_edit.setMinimumDateTime(QtCore.QDateTime(QtCore.QDate(2005, 6, 1), QtCore.QTime(12, 0, 0)))
+        self.custom_date_limit_edit.setDateTime(
+            QtCore.QDateTime(QtCore.QDate(2005, 6, 23), QtCore.QTime(14, 43, 53))
+        )
+        self.custom_date_limit_edit.setMinimumDateTime(
+            QtCore.QDateTime(QtCore.QDate(2005, 6, 1), QtCore.QTime(12, 0, 0))
+        )
         self.custom_date_limit_edit.setObjectName("custom_date_limit_edit")
-        self.post_download_form.setWidget(9, QtWidgets.QFormLayout.FieldRole, self.custom_date_limit_edit)
+        self.post_download_form.setWidget(
+            9, QtWidgets.QFormLayout.FieldRole, self.custom_date_limit_edit
+        )
         self.horizontalLayout_10 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_10.setObjectName("horizontalLayout_10")
-        self.update_custom_date_limit_radio = QtWidgets.QRadioButton(ObjectSettingsWidget)
-        self.update_custom_date_limit_radio.setObjectName("update_custom_date_limit_radio")
+        self.update_custom_date_limit_radio = QtWidgets.QRadioButton(
+            ObjectSettingsWidget
+        )
+        self.update_custom_date_limit_radio.setObjectName(
+            "update_custom_date_limit_radio"
+        )
         self.horizontalLayout_10.addWidget(self.update_custom_date_limit_radio)
-        self.do_not_update_custom_date_limit_radio = QtWidgets.QRadioButton(ObjectSettingsWidget)
-        self.do_not_update_custom_date_limit_radio.setObjectName("do_not_update_custom_date_limit_radio")
+        self.do_not_update_custom_date_limit_radio = QtWidgets.QRadioButton(
+            ObjectSettingsWidget
+        )
+        self.do_not_update_custom_date_limit_radio.setObjectName(
+            "do_not_update_custom_date_limit_radio"
+        )
         self.horizontalLayout_10.addWidget(self.do_not_update_custom_date_limit_radio)
-        self.post_download_form.setLayout(10, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_10)
+        self.post_download_form.setLayout(
+            10, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_10
+        )
         self.label_30 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_30.setObjectName("label_30")
-        self.post_download_form.setWidget(14, QtWidgets.QFormLayout.LabelRole, self.label_30)
-        self.extract_self_post_content_checkbox = QtWidgets.QCheckBox(ObjectSettingsWidget)
+        self.post_download_form.setWidget(
+            14, QtWidgets.QFormLayout.LabelRole, self.label_30
+        )
+        self.extract_self_post_content_checkbox = QtWidgets.QCheckBox(
+            ObjectSettingsWidget
+        )
         self.extract_self_post_content_checkbox.setText("")
-        self.extract_self_post_content_checkbox.setObjectName("extract_self_post_content_checkbox")
-        self.post_download_form.setWidget(14, QtWidgets.QFormLayout.FieldRole, self.extract_self_post_content_checkbox)
+        self.extract_self_post_content_checkbox.setObjectName(
+            "extract_self_post_content_checkbox"
+        )
+        self.post_download_form.setWidget(
+            14, QtWidgets.QFormLayout.FieldRole, self.extract_self_post_content_checkbox
+        )
         self.label_15 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_15.setObjectName("label_15")
-        self.post_download_form.setWidget(15, QtWidgets.QFormLayout.LabelRole, self.label_15)
-        self.download_self_post_text_checkbox = QtWidgets.QCheckBox(ObjectSettingsWidget)
+        self.post_download_form.setWidget(
+            15, QtWidgets.QFormLayout.LabelRole, self.label_15
+        )
+        self.download_self_post_text_checkbox = QtWidgets.QCheckBox(
+            ObjectSettingsWidget
+        )
         self.download_self_post_text_checkbox.setText("")
-        self.download_self_post_text_checkbox.setObjectName("download_self_post_text_checkbox")
-        self.post_download_form.setWidget(15, QtWidgets.QFormLayout.FieldRole, self.download_self_post_text_checkbox)
+        self.download_self_post_text_checkbox.setObjectName(
+            "download_self_post_text_checkbox"
+        )
+        self.post_download_form.setWidget(
+            15, QtWidgets.QFormLayout.FieldRole, self.download_self_post_text_checkbox
+        )
         self.label_31 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_31.setObjectName("label_31")
-        self.post_download_form.setWidget(16, QtWidgets.QFormLayout.LabelRole, self.label_31)
+        self.post_download_form.setWidget(
+            16, QtWidgets.QFormLayout.LabelRole, self.label_31
+        )
         self.self_post_file_format_combo = QtWidgets.QComboBox(ObjectSettingsWidget)
         self.self_post_file_format_combo.setObjectName("self_post_file_format_combo")
-        self.post_download_form.setWidget(16, QtWidgets.QFormLayout.FieldRole, self.self_post_file_format_combo)
+        self.post_download_form.setWidget(
+            16, QtWidgets.QFormLayout.FieldRole, self.self_post_file_format_combo
+        )
         self.label_13 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_13.setObjectName("label_13")
-        self.post_download_form.setWidget(17, QtWidgets.QFormLayout.LabelRole, self.label_13)
+        self.post_download_form.setWidget(
+            17, QtWidgets.QFormLayout.LabelRole, self.label_13
+        )
         self.download_videos_checkbox = QtWidgets.QCheckBox(ObjectSettingsWidget)
         self.download_videos_checkbox.setText("")
         self.download_videos_checkbox.setObjectName("download_videos_checkbox")
-        self.post_download_form.setWidget(17, QtWidgets.QFormLayout.FieldRole, self.download_videos_checkbox)
+        self.post_download_form.setWidget(
+            17, QtWidgets.QFormLayout.FieldRole, self.download_videos_checkbox
+        )
         self.label_14 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_14.setObjectName("label_14")
-        self.post_download_form.setWidget(18, QtWidgets.QFormLayout.LabelRole, self.label_14)
+        self.post_download_form.setWidget(
+            18, QtWidgets.QFormLayout.LabelRole, self.label_14
+        )
         self.download_images_checkbox = QtWidgets.QCheckBox(ObjectSettingsWidget)
         self.download_images_checkbox.setText("")
         self.download_images_checkbox.setObjectName("download_images_checkbox")
-        self.post_download_form.setWidget(18, QtWidgets.QFormLayout.FieldRole, self.download_images_checkbox)
+        self.post_download_form.setWidget(
+            18, QtWidgets.QFormLayout.FieldRole, self.download_images_checkbox
+        )
         self.label_29 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_29.setObjectName("label_29")
-        self.post_download_form.setWidget(19, QtWidgets.QFormLayout.LabelRole, self.label_29)
+        self.post_download_form.setWidget(
+            19, QtWidgets.QFormLayout.LabelRole, self.label_29
+        )
         self.download_gifs_checkbox = QtWidgets.QCheckBox(ObjectSettingsWidget)
         self.download_gifs_checkbox.setText("")
         self.download_gifs_checkbox.setObjectName("download_gifs_checkbox")
-        self.post_download_form.setWidget(19, QtWidgets.QFormLayout.FieldRole, self.download_gifs_checkbox)
+        self.post_download_form.setWidget(
+            19, QtWidgets.QFormLayout.FieldRole, self.download_gifs_checkbox
+        )
         self.label_28 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_28.setObjectName("label_28")
-        self.post_download_form.setWidget(20, QtWidgets.QFormLayout.LabelRole, self.label_28)
+        self.post_download_form.setWidget(
+            20, QtWidgets.QFormLayout.LabelRole, self.label_28
+        )
         self.nsfw_filter_combo = QtWidgets.QComboBox(ObjectSettingsWidget)
         self.nsfw_filter_combo.setObjectName("nsfw_filter_combo")
-        self.post_download_form.setWidget(20, QtWidgets.QFormLayout.FieldRole, self.nsfw_filter_combo)
+        self.post_download_form.setWidget(
+            20, QtWidgets.QFormLayout.FieldRole, self.nsfw_filter_combo
+        )
         self.label_16 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_16.setObjectName("label_16")
-        self.post_download_form.setWidget(21, QtWidgets.QFormLayout.LabelRole, self.label_16)
+        self.post_download_form.setWidget(
+            21, QtWidgets.QFormLayout.LabelRole, self.label_16
+        )
         self.post_sort_combo = QtWidgets.QComboBox(ObjectSettingsWidget)
         self.post_sort_combo.setObjectName("post_sort_combo")
-        self.post_download_form.setWidget(21, QtWidgets.QFormLayout.FieldRole, self.post_sort_combo)
+        self.post_download_form.setWidget(
+            21, QtWidgets.QFormLayout.FieldRole, self.post_sort_combo
+        )
         self.duplicate_controls_groupbox = QtWidgets.QGroupBox(ObjectSettingsWidget)
         font = QtGui.QFont()
         font.setBold(True)
@@ -177,44 +262,74 @@ class Ui_ObjectSettingsWidget:
         self.verticalLayout_3.setObjectName("verticalLayout_3")
         self.duplicate_controls_layout = QtWidgets.QFormLayout()
         self.duplicate_controls_layout.setObjectName("duplicate_controls_layout")
-        self.avoid_duplicate_urls_label = QtWidgets.QLabel(self.duplicate_controls_groupbox)
+        self.avoid_duplicate_urls_label = QtWidgets.QLabel(
+            self.duplicate_controls_groupbox
+        )
         font = QtGui.QFont()
         font.setBold(False)
         font.setWeight(50)
         self.avoid_duplicate_urls_label.setFont(font)
         self.avoid_duplicate_urls_label.setObjectName("avoid_duplicate_urls_label")
-        self.duplicate_controls_layout.setWidget(0, QtWidgets.QFormLayout.LabelRole, self.avoid_duplicate_urls_label)
+        self.duplicate_controls_layout.setWidget(
+            0, QtWidgets.QFormLayout.LabelRole, self.avoid_duplicate_urls_label
+        )
         self.hash_content_label = QtWidgets.QLabel(self.duplicate_controls_groupbox)
         font = QtGui.QFont()
         font.setBold(False)
         font.setWeight(50)
         self.hash_content_label.setFont(font)
         self.hash_content_label.setObjectName("hash_content_label")
-        self.duplicate_controls_layout.setWidget(1, QtWidgets.QFormLayout.LabelRole, self.hash_content_label)
-        self.avoid_duplicates_checkbox = QtWidgets.QCheckBox(self.duplicate_controls_groupbox)
+        self.duplicate_controls_layout.setWidget(
+            1, QtWidgets.QFormLayout.LabelRole, self.hash_content_label
+        )
+        self.avoid_duplicates_checkbox = QtWidgets.QCheckBox(
+            self.duplicate_controls_groupbox
+        )
         self.avoid_duplicates_checkbox.setText("")
         self.avoid_duplicates_checkbox.setObjectName("avoid_duplicates_checkbox")
-        self.duplicate_controls_layout.setWidget(0, QtWidgets.QFormLayout.FieldRole, self.avoid_duplicates_checkbox)
-        self.hash_content_checkbox = QtWidgets.QCheckBox(self.duplicate_controls_groupbox)
+        self.duplicate_controls_layout.setWidget(
+            0, QtWidgets.QFormLayout.FieldRole, self.avoid_duplicates_checkbox
+        )
+        self.hash_content_checkbox = QtWidgets.QCheckBox(
+            self.duplicate_controls_groupbox
+        )
         self.hash_content_checkbox.setText("")
         self.hash_content_checkbox.setObjectName("hash_content_checkbox")
-        self.duplicate_controls_layout.setWidget(1, QtWidgets.QFormLayout.FieldRole, self.hash_content_checkbox)
-        self.duplicate_control_method_combo_label = QtWidgets.QLabel(self.duplicate_controls_groupbox)
+        self.duplicate_controls_layout.setWidget(
+            1, QtWidgets.QFormLayout.FieldRole, self.hash_content_checkbox
+        )
+        self.duplicate_control_method_combo_label = QtWidgets.QLabel(
+            self.duplicate_controls_groupbox
+        )
         font = QtGui.QFont()
         font.setBold(False)
         font.setWeight(50)
         self.duplicate_control_method_combo_label.setFont(font)
-        self.duplicate_control_method_combo_label.setObjectName("duplicate_control_method_combo_label")
-        self.duplicate_controls_layout.setWidget(2, QtWidgets.QFormLayout.LabelRole, self.duplicate_control_method_combo_label)
-        self.duplicate_control_method_combo = QtWidgets.QComboBox(self.duplicate_controls_groupbox)
+        self.duplicate_control_method_combo_label.setObjectName(
+            "duplicate_control_method_combo_label"
+        )
+        self.duplicate_controls_layout.setWidget(
+            2,
+            QtWidgets.QFormLayout.LabelRole,
+            self.duplicate_control_method_combo_label,
+        )
+        self.duplicate_control_method_combo = QtWidgets.QComboBox(
+            self.duplicate_controls_groupbox
+        )
         font = QtGui.QFont()
         font.setBold(False)
         font.setWeight(50)
         self.duplicate_control_method_combo.setFont(font)
-        self.duplicate_control_method_combo.setObjectName("duplicate_control_method_combo")
-        self.duplicate_controls_layout.setWidget(2, QtWidgets.QFormLayout.FieldRole, self.duplicate_control_method_combo)
+        self.duplicate_control_method_combo.setObjectName(
+            "duplicate_control_method_combo"
+        )
+        self.duplicate_controls_layout.setWidget(
+            2, QtWidgets.QFormLayout.FieldRole, self.duplicate_control_method_combo
+        )
         self.verticalLayout_3.addLayout(self.duplicate_controls_layout)
-        self.post_download_form.setWidget(11, QtWidgets.QFormLayout.SpanningRole, self.duplicate_controls_groupbox)
+        self.post_download_form.setWidget(
+            11, QtWidgets.QFormLayout.SpanningRole, self.duplicate_controls_groupbox
+        )
         self.verticalLayout.addLayout(self.post_download_form)
         self.line_3 = QtWidgets.QFrame(ObjectSettingsWidget)
         self.line_3.setFrameShape(QtWidgets.QFrame.HLine)
@@ -229,28 +344,46 @@ class Ui_ObjectSettingsWidget:
         font.setWeight(75)
         self.label_20.setFont(font)
         self.label_20.setObjectName("label_20")
-        self.comment_download_form.setWidget(0, QtWidgets.QFormLayout.SpanningRole, self.label_20)
+        self.comment_download_form.setWidget(
+            0, QtWidgets.QFormLayout.SpanningRole, self.label_20
+        )
         self.label_32 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_32.setObjectName("label_32")
-        self.comment_download_form.setWidget(2, QtWidgets.QFormLayout.LabelRole, self.label_32)
+        self.comment_download_form.setWidget(
+            2, QtWidgets.QFormLayout.LabelRole, self.label_32
+        )
         self.comment_extract_combo = QtWidgets.QComboBox(ObjectSettingsWidget)
         self.comment_extract_combo.setObjectName("comment_extract_combo")
-        self.comment_download_form.setWidget(2, QtWidgets.QFormLayout.FieldRole, self.comment_extract_combo)
+        self.comment_download_form.setWidget(
+            2, QtWidgets.QFormLayout.FieldRole, self.comment_extract_combo
+        )
         self.label_22 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_22.setObjectName("label_22")
-        self.comment_download_form.setWidget(3, QtWidgets.QFormLayout.LabelRole, self.label_22)
+        self.comment_download_form.setWidget(
+            3, QtWidgets.QFormLayout.LabelRole, self.label_22
+        )
         self.comment_download_combo = QtWidgets.QComboBox(ObjectSettingsWidget)
         self.comment_download_combo.setObjectName("comment_download_combo")
-        self.comment_download_form.setWidget(3, QtWidgets.QFormLayout.FieldRole, self.comment_download_combo)
+        self.comment_download_form.setWidget(
+            3, QtWidgets.QFormLayout.FieldRole, self.comment_download_combo
+        )
         self.label_21 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_21.setObjectName("label_21")
-        self.comment_download_form.setWidget(4, QtWidgets.QFormLayout.LabelRole, self.label_21)
+        self.comment_download_form.setWidget(
+            4, QtWidgets.QFormLayout.LabelRole, self.label_21
+        )
         self.comment_content_download_combo = QtWidgets.QComboBox(ObjectSettingsWidget)
-        self.comment_content_download_combo.setObjectName("comment_content_download_combo")
-        self.comment_download_form.setWidget(4, QtWidgets.QFormLayout.FieldRole, self.comment_content_download_combo)
+        self.comment_content_download_combo.setObjectName(
+            "comment_content_download_combo"
+        )
+        self.comment_download_form.setWidget(
+            4, QtWidgets.QFormLayout.FieldRole, self.comment_content_download_combo
+        )
         self.label_23 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_23.setObjectName("label_23")
-        self.comment_download_form.setWidget(5, QtWidgets.QFormLayout.LabelRole, self.label_23)
+        self.comment_download_form.setWidget(
+            5, QtWidgets.QFormLayout.LabelRole, self.label_23
+        )
         self.horizontalLayout_4 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_4.setObjectName("horizontalLayout_4")
         self.comment_limit_spinbox = QtWidgets.QSpinBox(ObjectSettingsWidget)
@@ -260,10 +393,14 @@ class Ui_ObjectSettingsWidget:
         self.comment_limit_max_button = QtWidgets.QToolButton(ObjectSettingsWidget)
         self.comment_limit_max_button.setObjectName("comment_limit_max_button")
         self.horizontalLayout_4.addWidget(self.comment_limit_max_button)
-        self.comment_download_form.setLayout(5, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_4)
+        self.comment_download_form.setLayout(
+            5, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_4
+        )
         self.label_3 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_3.setObjectName("label_3")
-        self.comment_download_form.setWidget(6, QtWidgets.QFormLayout.LabelRole, self.label_3)
+        self.comment_download_form.setWidget(
+            6, QtWidgets.QFormLayout.LabelRole, self.label_3
+        )
         self.horizontalLayout = QtWidgets.QHBoxLayout()
         self.horizontalLayout.setObjectName("horizontalLayout")
         self.comment_depth_spinbox = QtWidgets.QSpinBox(ObjectSettingsWidget)
@@ -273,10 +410,14 @@ class Ui_ObjectSettingsWidget:
         self.comment_depth_max_button = QtWidgets.QToolButton(ObjectSettingsWidget)
         self.comment_depth_max_button.setObjectName("comment_depth_max_button")
         self.horizontalLayout.addWidget(self.comment_depth_max_button)
-        self.comment_download_form.setLayout(6, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout)
+        self.comment_download_form.setLayout(
+            6, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout
+        )
         self.label_4 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_4.setObjectName("label_4")
-        self.comment_download_form.setWidget(7, QtWidgets.QFormLayout.LabelRole, self.label_4)
+        self.comment_download_form.setWidget(
+            7, QtWidgets.QFormLayout.LabelRole, self.label_4
+        )
         self.horizontalLayout_8 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_8.setObjectName("horizontalLayout_8")
         self.comment_reply_limit_spinbox = QtWidgets.QSpinBox(ObjectSettingsWidget)
@@ -286,32 +427,50 @@ class Ui_ObjectSettingsWidget:
         self.comment_reply_max_button = QtWidgets.QToolButton(ObjectSettingsWidget)
         self.comment_reply_max_button.setObjectName("comment_reply_max_button")
         self.horizontalLayout_8.addWidget(self.comment_reply_max_button)
-        self.comment_download_form.setLayout(7, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_8)
+        self.comment_download_form.setLayout(
+            7, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_8
+        )
         self.label_24 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_24.setObjectName("label_24")
-        self.comment_download_form.setWidget(8, QtWidgets.QFormLayout.LabelRole, self.label_24)
+        self.comment_download_form.setWidget(
+            8, QtWidgets.QFormLayout.LabelRole, self.label_24
+        )
         self.comment_score_limit_spinbox = QtWidgets.QSpinBox(ObjectSettingsWidget)
         self.comment_score_limit_spinbox.setMaximum(10000000)
         self.comment_score_limit_spinbox.setObjectName("comment_score_limit_spinbox")
-        self.comment_download_form.setWidget(8, QtWidgets.QFormLayout.FieldRole, self.comment_score_limit_spinbox)
+        self.comment_download_form.setWidget(
+            8, QtWidgets.QFormLayout.FieldRole, self.comment_score_limit_spinbox
+        )
         self.label_25 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_25.setObjectName("label_25")
-        self.comment_download_form.setWidget(9, QtWidgets.QFormLayout.LabelRole, self.label_25)
+        self.comment_download_form.setWidget(
+            9, QtWidgets.QFormLayout.LabelRole, self.label_25
+        )
         self.comment_score_operator_combo = QtWidgets.QComboBox(ObjectSettingsWidget)
         self.comment_score_operator_combo.setObjectName("comment_score_operator_combo")
-        self.comment_download_form.setWidget(9, QtWidgets.QFormLayout.FieldRole, self.comment_score_operator_combo)
+        self.comment_download_form.setWidget(
+            9, QtWidgets.QFormLayout.FieldRole, self.comment_score_operator_combo
+        )
         self.label_18 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_18.setObjectName("label_18")
-        self.comment_download_form.setWidget(10, QtWidgets.QFormLayout.LabelRole, self.label_18)
+        self.comment_download_form.setWidget(
+            10, QtWidgets.QFormLayout.LabelRole, self.label_18
+        )
         self.comment_sort_combo = QtWidgets.QComboBox(ObjectSettingsWidget)
         self.comment_sort_combo.setObjectName("comment_sort_combo")
-        self.comment_download_form.setWidget(10, QtWidgets.QFormLayout.FieldRole, self.comment_sort_combo)
+        self.comment_download_form.setWidget(
+            10, QtWidgets.QFormLayout.FieldRole, self.comment_sort_combo
+        )
         self.label_2 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_2.setObjectName("label_2")
-        self.comment_download_form.setWidget(13, QtWidgets.QFormLayout.LabelRole, self.label_2)
+        self.comment_download_form.setWidget(
+            13, QtWidgets.QFormLayout.LabelRole, self.label_2
+        )
         self.comment_file_format_combo = QtWidgets.QComboBox(ObjectSettingsWidget)
         self.comment_file_format_combo.setObjectName("comment_file_format_combo")
-        self.comment_download_form.setWidget(13, QtWidgets.QFormLayout.FieldRole, self.comment_file_format_combo)
+        self.comment_download_form.setWidget(
+            13, QtWidgets.QFormLayout.FieldRole, self.comment_file_format_combo
+        )
         self.verticalLayout.addLayout(self.comment_download_form)
         self.verticalLayout_2.addLayout(self.verticalLayout)
 
@@ -320,47 +479,128 @@ class Ui_ObjectSettingsWidget:
 
     def retranslateUi(self, ObjectSettingsWidget):
         _translate = QtCore.QCoreApplication.translate
-        ObjectSettingsWidget.setWindowTitle(_translate("ObjectSettingsWidget", "Settings"))
+        ObjectSettingsWidget.setWindowTitle(
+            _translate("ObjectSettingsWidget", "Settings")
+        )
         self.label.setText(_translate("ObjectSettingsWidget", "Core Settings:"))
-        self.lock_settings_checkbox.setToolTip(_translate("ObjectSettingsWidget", "When checked, the settings in this window will not be overwritten due to changes in the main settings window"))
-        self.lock_settings_checkbox.setText(_translate("ObjectSettingsWidget", "Lock Settings"))
-        self.enable_download_checkbox.setText(_translate("ObjectSettingsWidget", "Download Enabled"))
-        self.label_19.setText(_translate("ObjectSettingsWidget", "Post Download Settings:"))
+        self.lock_settings_checkbox.setToolTip(
+            _translate(
+                "ObjectSettingsWidget",
+                "When checked, the settings in this window will not be overwritten due to changes in the main settings window",
+            )
+        )
+        self.lock_settings_checkbox.setText(
+            _translate("ObjectSettingsWidget", "Lock Settings")
+        )
+        self.enable_download_checkbox.setText(
+            _translate("ObjectSettingsWidget", "Download Enabled")
+        )
+        self.label_19.setText(
+            _translate("ObjectSettingsWidget", "Post Download Settings:")
+        )
         self.label_7.setText(_translate("ObjectSettingsWidget", "Post Limit:"))
         self.post_limit_max_button.setText(_translate("ObjectSettingsWidget", "Max"))
         self.label_11.setText(_translate("ObjectSettingsWidget", "Score Limit Eval:"))
         self.label_9.setText(_translate("ObjectSettingsWidget", "Score Limit:"))
-        self.limit_date_checkbox.setText(_translate("ObjectSettingsWidget", "Limit by Date"))
-        self.absolute_date_limit_radio.setText(_translate("ObjectSettingsWidget", "Last Post Date:"))
-        self.absolute_date_limit_label.setText(_translate("ObjectSettingsWidget", "Absolute date limit"))
-        self.custom_date_limit_radio.setText(_translate("ObjectSettingsWidget", "Custom Date Limit:"))
-        self.update_custom_date_limit_radio.setToolTip(_translate("ObjectSettingsWidget", "<html><head/><body><p>The custom date limit will be overridden upon the first download to the date of the latest extracted post</p></body></html>"))
-        self.update_custom_date_limit_radio.setText(_translate("ObjectSettingsWidget", "Update custom limit "))
-        self.do_not_update_custom_date_limit_radio.setToolTip(_translate("ObjectSettingsWidget", "<html><head/><body><p><a name=\"inside\"/>The custom date limit will not be overridden. This will result in slightly longer download times for repeat downloads.</p></body></html>"))
-        self.do_not_update_custom_date_limit_radio.setText(_translate("ObjectSettingsWidget", "Keep custom limit"))
-        self.label_30.setText(_translate("ObjectSettingsWidget", "Extract Self Post Content:"))
-        self.label_15.setText(_translate("ObjectSettingsWidget", "Download Self Post Text:"))
-        self.label_31.setText(_translate("ObjectSettingsWidget", "Self Post File Format:"))
+        self.limit_date_checkbox.setText(
+            _translate("ObjectSettingsWidget", "Limit by Date")
+        )
+        self.absolute_date_limit_radio.setText(
+            _translate("ObjectSettingsWidget", "Last Post Date:")
+        )
+        self.absolute_date_limit_label.setText(
+            _translate("ObjectSettingsWidget", "Absolute date limit")
+        )
+        self.custom_date_limit_radio.setText(
+            _translate("ObjectSettingsWidget", "Custom Date Limit:")
+        )
+        self.update_custom_date_limit_radio.setToolTip(
+            _translate(
+                "ObjectSettingsWidget",
+                "<html><head/><body><p>The custom date limit will be overridden upon the first download to the date of the latest extracted post</p></body></html>",
+            )
+        )
+        self.update_custom_date_limit_radio.setText(
+            _translate("ObjectSettingsWidget", "Update custom limit ")
+        )
+        self.do_not_update_custom_date_limit_radio.setToolTip(
+            _translate(
+                "ObjectSettingsWidget",
+                '<html><head/><body><p><a name="inside"/>The custom date limit will not be overridden. This will result in slightly longer download times for repeat downloads.</p></body></html>',
+            )
+        )
+        self.do_not_update_custom_date_limit_radio.setText(
+            _translate("ObjectSettingsWidget", "Keep custom limit")
+        )
+        self.label_30.setText(
+            _translate("ObjectSettingsWidget", "Extract Self Post Content:")
+        )
+        self.label_15.setText(
+            _translate("ObjectSettingsWidget", "Download Self Post Text:")
+        )
+        self.label_31.setText(
+            _translate("ObjectSettingsWidget", "Self Post File Format:")
+        )
         self.label_13.setText(_translate("ObjectSettingsWidget", "Download Videos:"))
         self.label_14.setText(_translate("ObjectSettingsWidget", "Download Images:"))
         self.label_29.setText(_translate("ObjectSettingsWidget", "Download Gifs:"))
         self.label_28.setText(_translate("ObjectSettingsWidget", "NSFW Filter:"))
         self.label_16.setText(_translate("ObjectSettingsWidget", "Sort Posts By:"))
-        self.duplicate_controls_groupbox.setTitle(_translate("ObjectSettingsWidget", "Duplicate Controls"))
-        self.avoid_duplicate_urls_label.setToolTip(_translate("ObjectSettingsWidget", "<html><head/><body><p>The URL of each downloaded file is stored. If an extracted file has a matching URL in the database, it won’t be downloaded.</p></body></html>"))
-        self.avoid_duplicate_urls_label.setText(_translate("ObjectSettingsWidget", "Avoid Duplicates URLs:"))
-        self.hash_content_label.setToolTip(_translate("ObjectSettingsWidget", "<html><head/><body><p>When enabled, an MD5 hash is generated for each downloaded file and stored in the database. This helps detect duplicates, but may slightly slow down downloads. Some duplicate detection features will be unavailable if disabled.</p></body></html>"))
-        self.hash_content_label.setText(_translate("ObjectSettingsWidget", "Hash Content"))
-        self.avoid_duplicates_checkbox.setToolTip(_translate("ObjectSettingsWidget", "<html><head/><body><p>The URL of each downloaded file is stored. If an extracted file has a matching URL in the database, it won’t be downloaded.</p></body></html>"))
-        self.hash_content_checkbox.setToolTip(_translate("ObjectSettingsWidget", "<html><head/><body><p>When checked, an MD5 hash will be generated for each downloaded file and stored in the database.  Some duplicate controls will not be available if this is disabled.  This may result in slightly slower downloads.  </p></body></html>"))
-        self.duplicate_control_method_combo_label.setToolTip(_translate("ObjectSettingsWidget", "<html><head/><body><p>Dictates how duplicates are handled.</p></body></html>"))
-        self.duplicate_control_method_combo_label.setText(_translate("ObjectSettingsWidget", "Duplicate Control Method:"))
-        self.label_20.setText(_translate("ObjectSettingsWidget", "Comment Download Settings:"))
+        self.duplicate_controls_groupbox.setTitle(
+            _translate("ObjectSettingsWidget", "Duplicate Controls")
+        )
+        self.avoid_duplicate_urls_label.setToolTip(
+            _translate(
+                "ObjectSettingsWidget",
+                "<html><head/><body><p>The URL of each downloaded file is stored. If an extracted file has a matching URL in the database, it won’t be downloaded.</p></body></html>",
+            )
+        )
+        self.avoid_duplicate_urls_label.setText(
+            _translate("ObjectSettingsWidget", "Avoid Duplicates URLs:")
+        )
+        self.hash_content_label.setToolTip(
+            _translate(
+                "ObjectSettingsWidget",
+                "<html><head/><body><p>When enabled, an MD5 hash is generated for each downloaded file and stored in the database. This helps detect duplicates, but may slightly slow down downloads. Some duplicate detection features will be unavailable if disabled.</p></body></html>",
+            )
+        )
+        self.hash_content_label.setText(
+            _translate("ObjectSettingsWidget", "Hash Content")
+        )
+        self.avoid_duplicates_checkbox.setToolTip(
+            _translate(
+                "ObjectSettingsWidget",
+                "<html><head/><body><p>The URL of each downloaded file is stored. If an extracted file has a matching URL in the database, it won’t be downloaded.</p></body></html>",
+            )
+        )
+        self.hash_content_checkbox.setToolTip(
+            _translate(
+                "ObjectSettingsWidget",
+                "<html><head/><body><p>When checked, an MD5 hash will be generated for each downloaded file and stored in the database.  Some duplicate controls will not be available if this is disabled.  This may result in slightly slower downloads.  </p></body></html>",
+            )
+        )
+        self.duplicate_control_method_combo_label.setToolTip(
+            _translate(
+                "ObjectSettingsWidget",
+                "<html><head/><body><p>Dictates how duplicates are handled.</p></body></html>",
+            )
+        )
+        self.duplicate_control_method_combo_label.setText(
+            _translate("ObjectSettingsWidget", "Duplicate Control Method:")
+        )
+        self.label_20.setText(
+            _translate("ObjectSettingsWidget", "Comment Download Settings:")
+        )
         self.label_32.setText(_translate("ObjectSettingsWidget", "Extract:"))
         self.label_22.setText(_translate("ObjectSettingsWidget", "Download:"))
         self.label_21.setText(_translate("ObjectSettingsWidget", "Download Links"))
         self.label_23.setText(_translate("ObjectSettingsWidget", "Comment Limit:"))
-        self.comment_limit_spinbox.setToolTip(_translate("ObjectSettingsWidget", "Only limits top level comment.  May pull more comments depending on replies"))
+        self.comment_limit_spinbox.setToolTip(
+            _translate(
+                "ObjectSettingsWidget",
+                "Only limits top level comment.  May pull more comments depending on replies",
+            )
+        )
         self.comment_limit_max_button.setText(_translate("ObjectSettingsWidget", "Max"))
         self.label_3.setText(_translate("ObjectSettingsWidget", "Comment Depth:"))
         self.comment_depth_max_button.setText(_translate("ObjectSettingsWidget", "Max"))
@@ -374,6 +614,7 @@ class Ui_ObjectSettingsWidget:
 
 if __name__ == "__main__":
     import sys
+
     app = QtWidgets.QApplication(sys.argv)
     ObjectSettingsWidget = QtWidgets.QWidget()
     ui = Ui_ObjectSettingsWidget()

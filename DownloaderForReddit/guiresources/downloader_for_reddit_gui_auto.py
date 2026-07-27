@@ -1,4 +1,3 @@
-
 # Form implementation generated from reading ui file 'Resources\ui_files\downloader_for_reddit_gui.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.4
@@ -18,7 +17,11 @@ class Ui_MainWindow:
         font.setPointSize(10)
         MainWindow.setFont(font)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("Resources\\ui_files\\../images/RedditDownloaderIcon.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(
+            QtGui.QPixmap("Resources\\ui_files\\../images/RedditDownloaderIcon.png"),
+            QtGui.QIcon.Normal,
+            QtGui.QIcon.Off,
+        )
         MainWindow.setWindowIcon(icon)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
@@ -40,10 +43,14 @@ class Ui_MainWindow:
         self.label_2.setObjectName("label_2")
         self.horizontalLayout_4.addWidget(self.label_2)
         self.user_count_label = QtWidgets.QLabel(self.layoutWidget)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred
+        )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.user_count_label.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(
+            self.user_count_label.sizePolicy().hasHeightForWidth()
+        )
         self.user_count_label.setSizePolicy(sizePolicy)
         self.user_count_label.setObjectName("user_count_label")
         self.horizontalLayout_4.addWidget(self.user_count_label)
@@ -52,7 +59,9 @@ class Ui_MainWindow:
         self.user_list_search_edit.setObjectName("user_list_search_edit")
         self.verticalLayout.addWidget(self.user_list_search_edit)
         self.user_list_view = QtWidgets.QListView(self.layoutWidget)
-        self.user_list_view.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.user_list_view.setSelectionMode(
+            QtWidgets.QAbstractItemView.ExtendedSelection
+        )
         self.user_list_view.setObjectName("user_list_view")
         self.verticalLayout.addWidget(self.user_list_view)
         self.user_lists_combo = QtWidgets.QComboBox(self.layoutWidget)
@@ -79,10 +88,14 @@ class Ui_MainWindow:
         self.label_4.setObjectName("label_4")
         self.horizontalLayout_5.addWidget(self.label_4)
         self.subreddit_count_label = QtWidgets.QLabel(self.layoutWidget1)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred
+        )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.subreddit_count_label.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(
+            self.subreddit_count_label.sizePolicy().hasHeightForWidth()
+        )
         self.subreddit_count_label.setSizePolicy(sizePolicy)
         self.subreddit_count_label.setObjectName("subreddit_count_label")
         self.horizontalLayout_5.addWidget(self.subreddit_count_label)
@@ -94,7 +107,9 @@ class Ui_MainWindow:
         font = QtGui.QFont()
         font.setPointSize(10)
         self.subreddit_list_view.setFont(font)
-        self.subreddit_list_view.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.subreddit_list_view.setSelectionMode(
+            QtWidgets.QAbstractItemView.ExtendedSelection
+        )
         self.subreddit_list_view.setObjectName("subreddit_list_view")
         self.verticalLayout_2.addWidget(self.subreddit_list_view)
         self.subreddit_list_combo = QtWidgets.QComboBox(self.layoutWidget1)
@@ -153,10 +168,14 @@ class Ui_MainWindow:
         self.line.setObjectName("line")
         self.verticalLayout_3.addWidget(self.line)
         self.schedule_widget = QtWidgets.QWidget(self.layoutWidget2)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Minimum)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Minimum
+        )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.schedule_widget.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(
+            self.schedule_widget.sizePolicy().hasHeightForWidth()
+        )
         self.schedule_widget.setSizePolicy(sizePolicy)
         self.schedule_widget.setMaximumSize(QtCore.QSize(16777215, 18))
         self.schedule_widget.setObjectName("schedule_widget")
@@ -168,31 +187,39 @@ class Ui_MainWindow:
         self.label_3.setObjectName("label_3")
         self.horizontalLayout_8.addWidget(self.label_3)
         self.schedule_label = QtWidgets.QLabel(self.schedule_widget)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred
+        )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.schedule_label.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(
+            self.schedule_label.sizePolicy().hasHeightForWidth()
+        )
         self.schedule_label.setSizePolicy(sizePolicy)
         self.schedule_label.setObjectName("schedule_label")
         self.horizontalLayout_8.addWidget(self.schedule_label)
         self.verticalLayout_3.addWidget(self.schedule_widget)
         self.output_list_view = QtWidgets.QListView(self.layoutWidget2)
-        self.output_list_view.setStyleSheet("QListView {\n"
-"    outline: 0;\n"
-"}\n"
-"\n"
-"QListView::item:hover {\n"
-"    background: white;\n"
-"}\n"
-"\n"
-"QListView::item:selected {\n"
-"    background: white;\n"
-"}\n"
-"\n"
-"QListView::item:active {\n"
-"    background: white;\n"
-"}")
-        self.output_list_view.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        self.output_list_view.setStyleSheet(
+            "QListView {\n"
+            "    outline: 0;\n"
+            "}\n"
+            "\n"
+            "QListView::item:hover {\n"
+            "    background: white;\n"
+            "}\n"
+            "\n"
+            "QListView::item:selected {\n"
+            "    background: white;\n"
+            "}\n"
+            "\n"
+            "QListView::item:active {\n"
+            "    background: white;\n"
+            "}"
+        )
+        self.output_list_view.setEditTriggers(
+            QtWidgets.QAbstractItemView.NoEditTriggers
+        )
         self.output_list_view.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
         self.output_list_view.setObjectName("output_list_view")
         self.verticalLayout_3.addWidget(self.output_list_view)
@@ -230,21 +257,29 @@ class Ui_MainWindow:
         self.remove_user_list_menu_item = QtWidgets.QAction(MainWindow)
         self.remove_user_list_menu_item.setObjectName("remove_user_list_menu_item")
         self.remove_subreddit_list_menu_item = QtWidgets.QAction(MainWindow)
-        self.remove_subreddit_list_menu_item.setObjectName("remove_subreddit_list_menu_item")
+        self.remove_subreddit_list_menu_item.setObjectName(
+            "remove_subreddit_list_menu_item"
+        )
         self.open_settings_menu_item = QtWidgets.QAction(MainWindow)
         self.open_settings_menu_item.setObjectName("open_settings_menu_item")
         self.exit_menu_item = QtWidgets.QAction(MainWindow)
         self.exit_menu_item.setObjectName("exit_menu_item")
         self.failed_download_view_menu_item = QtWidgets.QAction(MainWindow)
-        self.failed_download_view_menu_item.setObjectName("failed_download_view_menu_item")
+        self.failed_download_view_menu_item.setObjectName(
+            "failed_download_view_menu_item"
+        )
         self.file_open_user_finder = QtWidgets.QAction(MainWindow)
         self.file_open_user_finder.setObjectName("file_open_user_finder")
         self.download_session_menu_item = QtWidgets.QAction(MainWindow)
         self.download_session_menu_item.setObjectName("download_session_menu_item")
         self.failed_extraction_view_menu_item = QtWidgets.QAction(MainWindow)
-        self.failed_extraction_view_menu_item.setObjectName("failed_extraction_view_menu_item")
+        self.failed_extraction_view_menu_item.setObjectName(
+            "failed_extraction_view_menu_item"
+        )
         self.imgur_credit_dialog_menu_item = QtWidgets.QAction(MainWindow)
-        self.imgur_credit_dialog_menu_item.setObjectName("imgur_credit_dialog_menu_item")
+        self.imgur_credit_dialog_menu_item.setObjectName(
+            "imgur_credit_dialog_menu_item"
+        )
         self.about_menu_item = QtWidgets.QAction(MainWindow)
         self.about_menu_item.setObjectName("about_menu_item")
         self.file_user_list_count = QtWidgets.QAction(MainWindow)
@@ -260,46 +295,78 @@ class Ui_MainWindow:
         self.sort_list_by_name_menu_item.setObjectName("sort_list_by_name_menu_item")
         self.sort_list_by_date_added_menu_item = QtWidgets.QAction(MainWindow)
         self.sort_list_by_date_added_menu_item.setCheckable(True)
-        self.sort_list_by_date_added_menu_item.setObjectName("sort_list_by_date_added_menu_item")
+        self.sort_list_by_date_added_menu_item.setObjectName(
+            "sort_list_by_date_added_menu_item"
+        )
         self.sort_list_by_post_count_menu_item = QtWidgets.QAction(MainWindow)
         self.sort_list_by_post_count_menu_item.setCheckable(True)
-        self.sort_list_by_post_count_menu_item.setObjectName("sort_list_by_post_count_menu_item")
+        self.sort_list_by_post_count_menu_item.setObjectName(
+            "sort_list_by_post_count_menu_item"
+        )
         self.sort_list_ascending_menu_item = QtWidgets.QAction(MainWindow)
         self.sort_list_ascending_menu_item.setCheckable(True)
-        self.sort_list_ascending_menu_item.setObjectName("sort_list_ascending_menu_item")
+        self.sort_list_ascending_menu_item.setObjectName(
+            "sort_list_ascending_menu_item"
+        )
         self.sort_list_descending_menu_item = QtWidgets.QAction(MainWindow)
         self.sort_list_descending_menu_item.setCheckable(True)
-        self.sort_list_descending_menu_item.setObjectName("sort_list_descending_menu_item")
+        self.sort_list_descending_menu_item.setObjectName(
+            "sort_list_descending_menu_item"
+        )
         self.open_data_directory_menu_item = QtWidgets.QAction(MainWindow)
-        self.open_data_directory_menu_item.setObjectName("open_data_directory_menu_item")
+        self.open_data_directory_menu_item.setObjectName(
+            "open_data_directory_menu_item"
+        )
         self.import_database_file_menu_item = QtWidgets.QAction(MainWindow)
-        self.import_database_file_menu_item.setObjectName("import_database_file_menu_item")
+        self.import_database_file_menu_item.setObjectName(
+            "import_database_file_menu_item"
+        )
         self.ffmpeg_requirement_dialog_menu_item = QtWidgets.QAction(MainWindow)
-        self.ffmpeg_requirement_dialog_menu_item.setObjectName("ffmpeg_requirement_dialog_menu_item")
+        self.ffmpeg_requirement_dialog_menu_item.setObjectName(
+            "ffmpeg_requirement_dialog_menu_item"
+        )
         self.download_user_list_menu_item = QtWidgets.QAction(MainWindow)
         self.download_user_list_menu_item.setObjectName("download_user_list_menu_item")
         self.download_subreddit_list_menu_item = QtWidgets.QAction(MainWindow)
-        self.download_subreddit_list_menu_item.setObjectName("download_subreddit_list_menu_item")
+        self.download_subreddit_list_menu_item.setObjectName(
+            "download_subreddit_list_menu_item"
+        )
         self.download_user_list_constrained_menu_item = QtWidgets.QAction(MainWindow)
-        self.download_user_list_constrained_menu_item.setObjectName("download_user_list_constrained_menu_item")
+        self.download_user_list_constrained_menu_item.setObjectName(
+            "download_user_list_constrained_menu_item"
+        )
         self.run_unfinished_extractions_menu_item = QtWidgets.QAction(MainWindow)
-        self.run_unfinished_extractions_menu_item.setObjectName("run_unfinished_extractions_menu_item")
+        self.run_unfinished_extractions_menu_item.setObjectName(
+            "run_unfinished_extractions_menu_item"
+        )
         self.run_unfinished_downloads_menu_item = QtWidgets.QAction(MainWindow)
-        self.run_unfinished_downloads_menu_item.setObjectName("run_unfinished_downloads_menu_item")
+        self.run_unfinished_downloads_menu_item.setObjectName(
+            "run_unfinished_downloads_menu_item"
+        )
         self.sort_list_by_content_count_menu_item = QtWidgets.QAction(MainWindow)
-        self.sort_list_by_content_count_menu_item.setObjectName("sort_list_by_content_count_menu_item")
+        self.sort_list_by_content_count_menu_item.setObjectName(
+            "sort_list_by_content_count_menu_item"
+        )
         self.sort_list_by_comment_count_menu_item = QtWidgets.QAction(MainWindow)
-        self.sort_list_by_comment_count_menu_item.setObjectName("sort_list_by_comment_count_menu_item")
+        self.sort_list_by_comment_count_menu_item.setObjectName(
+            "sort_list_by_comment_count_menu_item"
+        )
         self.sort_list_by_date_created_menu_item = QtWidgets.QAction(MainWindow)
-        self.sort_list_by_date_created_menu_item.setObjectName("sort_list_by_date_created_menu_item")
+        self.sort_list_by_date_created_menu_item.setObjectName(
+            "sort_list_by_date_created_menu_item"
+        )
         self.sort_list_by_score_menu_item = QtWidgets.QAction(MainWindow)
         self.sort_list_by_score_menu_item.setObjectName("sort_list_by_score_menu_item")
         self.database_view_menu_item = QtWidgets.QAction(MainWindow)
         self.database_view_menu_item.setObjectName("database_view_menu_item")
         self.download_sessions_view_menu_item = QtWidgets.QAction(MainWindow)
-        self.download_sessions_view_menu_item.setObjectName("download_sessions_view_menu_item")
+        self.download_sessions_view_menu_item.setObjectName(
+            "download_sessions_view_menu_item"
+        )
         self.reddit_objects_view_menu_item = QtWidgets.QAction(MainWindow)
-        self.reddit_objects_view_menu_item.setObjectName("reddit_objects_view_menu_item")
+        self.reddit_objects_view_menu_item.setObjectName(
+            "reddit_objects_view_menu_item"
+        )
         self.posts_view_menu_item = QtWidgets.QAction(MainWindow)
         self.posts_view_menu_item.setObjectName("posts_view_menu_item")
         self.content_view_menu_item = QtWidgets.QAction(MainWindow)
@@ -309,17 +376,25 @@ class Ui_MainWindow:
         self.statistics_view_menu_item = QtWidgets.QAction(MainWindow)
         self.statistics_view_menu_item.setObjectName("statistics_view_menu_item")
         self.run_all_unfiinished_menu_item = QtWidgets.QAction(MainWindow)
-        self.run_all_unfiinished_menu_item.setObjectName("run_all_unfiinished_menu_item")
+        self.run_all_unfiinished_menu_item.setObjectName(
+            "run_all_unfiinished_menu_item"
+        )
         self.export_user_list_menu_item = QtWidgets.QAction(MainWindow)
         self.export_user_list_menu_item.setObjectName("export_user_list_menu_item")
         self.export_subreddit_list_menu_item = QtWidgets.QAction(MainWindow)
-        self.export_subreddit_list_menu_item.setObjectName("export_subreddit_list_menu_item")
+        self.export_subreddit_list_menu_item.setObjectName(
+            "export_subreddit_list_menu_item"
+        )
         self.command_line_options_menu_item = QtWidgets.QAction(MainWindow)
-        self.command_line_options_menu_item.setObjectName("command_line_options_menu_item")
+        self.command_line_options_menu_item.setObjectName(
+            "command_line_options_menu_item"
+        )
         self.minimize_to_tray_menu_item = QtWidgets.QAction(MainWindow)
         self.minimize_to_tray_menu_item.setObjectName("minimize_to_tray_menu_item")
         self.connect_reddit_account_menu_item = QtWidgets.QAction(MainWindow)
-        self.connect_reddit_account_menu_item.setObjectName("connect_reddit_account_menu_item")
+        self.connect_reddit_account_menu_item.setObjectName(
+            "connect_reddit_account_menu_item"
+        )
         self.file_menu.addAction(self.open_settings_menu_item)
         self.file_menu.addSeparator()
         self.file_menu.addAction(self.connect_reddit_account_menu_item)
@@ -384,28 +459,63 @@ class Ui_MainWindow:
         MainWindow.setWindowTitle(_translate("MainWindow", "Downloader for Reddit"))
         self.label_2.setText(_translate("MainWindow", "Users:"))
         self.user_count_label.setText(_translate("MainWindow", "0"))
-        self.user_list_search_edit.setPlaceholderText(_translate("MainWindow", "Search users"))
+        self.user_list_search_edit.setPlaceholderText(
+            _translate("MainWindow", "Search users")
+        )
         self.user_lists_combo.setToolTip(_translate("MainWindow", "Current user list"))
         self.add_user_button.setText(_translate("MainWindow", "Add User"))
         self.remove_user_button.setText(_translate("MainWindow", "Remove User"))
         self.label_4.setText(_translate("MainWindow", "Subreddits:"))
         self.subreddit_count_label.setText(_translate("MainWindow", "0"))
-        self.subreddit_list_search_edit.setPlaceholderText(_translate("MainWindow", "Search subreddits"))
-        self.subreddit_list_combo.setToolTip(_translate("MainWindow", "Current subreddit list"))
+        self.subreddit_list_search_edit.setPlaceholderText(
+            _translate("MainWindow", "Search subreddits")
+        )
+        self.subreddit_list_combo.setToolTip(
+            _translate("MainWindow", "Current subreddit list")
+        )
         self.add_subreddit_button.setText(_translate("MainWindow", "Add Subreddit"))
-        self.remove_subreddit_button.setText(_translate("MainWindow", "Remove Subreddit"))
-        self.download_button.setToolTip(_translate("MainWindow", "Download selected user or subreddit list"))
+        self.remove_subreddit_button.setText(
+            _translate("MainWindow", "Remove Subreddit")
+        )
+        self.download_button.setToolTip(
+            _translate("MainWindow", "Download selected user or subreddit list")
+        )
         self.download_button.setText(_translate("MainWindow", "Download"))
-        self.soft_stop_download_button.setToolTip(_translate("MainWindow", "Stops the current download, but allows in progress downloads to finish"))
-        self.soft_stop_download_button.setText(_translate("MainWindow", "Schedule Stop Download"))
-        self.terminate_download_button.setToolTip(_translate("MainWindow", "Stops the download immediately and terminates in progress downloads (may result in corrupted files for downloads that were not complete)"))
-        self.terminate_download_button.setText(_translate("MainWindow", "Terminate Download"))
-        self.download_users_radio.setToolTip(_translate("MainWindow", "Download only user list"))
+        self.soft_stop_download_button.setToolTip(
+            _translate(
+                "MainWindow",
+                "Stops the current download, but allows in progress downloads to finish",
+            )
+        )
+        self.soft_stop_download_button.setText(
+            _translate("MainWindow", "Schedule Stop Download")
+        )
+        self.terminate_download_button.setToolTip(
+            _translate(
+                "MainWindow",
+                "Stops the download immediately and terminates in progress downloads (may result in corrupted files for downloads that were not complete)",
+            )
+        )
+        self.terminate_download_button.setText(
+            _translate("MainWindow", "Terminate Download")
+        )
+        self.download_users_radio.setToolTip(
+            _translate("MainWindow", "Download only user list")
+        )
         self.download_users_radio.setText(_translate("MainWindow", "Users"))
-        self.download_subreddits_radio.setToolTip(_translate("MainWindow", "Download only subreddit list"))
+        self.download_subreddits_radio.setToolTip(
+            _translate("MainWindow", "Download only subreddit list")
+        )
         self.download_subreddits_radio.setText(_translate("MainWindow", "Subreddits"))
-        self.constain_to_sub_list_radio.setToolTip(_translate("MainWindow", "<html><head/><body><p>Download user list, but only extract posts made to subreddits in the subreddit list</p></body></html>"))
-        self.constain_to_sub_list_radio.setText(_translate("MainWindow", "Constrain Users To Subreddit List"))
+        self.constain_to_sub_list_radio.setToolTip(
+            _translate(
+                "MainWindow",
+                "<html><head/><body><p>Download user list, but only extract posts made to subreddits in the subreddit list</p></body></html>",
+            )
+        )
+        self.constain_to_sub_list_radio.setText(
+            _translate("MainWindow", "Constrain Users To Subreddit List")
+        )
         self.label_3.setText(_translate("MainWindow", "Download Scheduled:"))
         self.schedule_label.setText(_translate("MainWindow", "00:00:00"))
         self.file_menu.setTitle(_translate("MainWindow", "File"))
@@ -417,52 +527,133 @@ class Ui_MainWindow:
         self.menuDownload.setTitle(_translate("MainWindow", "Download"))
         self.menuDatabase.setTitle(_translate("MainWindow", "Database"))
         self.add_user_list_menu_item.setText(_translate("MainWindow", "Add User List"))
-        self.add_subreddit_list_menu_item.setText(_translate("MainWindow", "Add Subreddit List"))
+        self.add_subreddit_list_menu_item.setText(
+            _translate("MainWindow", "Add Subreddit List")
+        )
         self.file_save.setText(_translate("MainWindow", "Save"))
-        self.remove_user_list_menu_item.setText(_translate("MainWindow", "Remove User List"))
-        self.remove_subreddit_list_menu_item.setText(_translate("MainWindow", "Remove Subreddit List"))
+        self.remove_user_list_menu_item.setText(
+            _translate("MainWindow", "Remove User List")
+        )
+        self.remove_subreddit_list_menu_item.setText(
+            _translate("MainWindow", "Remove Subreddit List")
+        )
         self.open_settings_menu_item.setText(_translate("MainWindow", "Settings"))
         self.exit_menu_item.setText(_translate("MainWindow", "Exit"))
-        self.failed_download_view_menu_item.setText(_translate("MainWindow", "Failed Download"))
-        self.failed_download_view_menu_item.setToolTip(_translate("MainWindow", "Display the failed download list for the last download session"))
+        self.failed_download_view_menu_item.setText(
+            _translate("MainWindow", "Failed Download")
+        )
+        self.failed_download_view_menu_item.setToolTip(
+            _translate(
+                "MainWindow",
+                "Display the failed download list for the last download session",
+            )
+        )
         self.file_open_user_finder.setText(_translate("MainWindow", "Open User Finder"))
-        self.download_session_menu_item.setText(_translate("MainWindow", "Download Sessions"))
-        self.failed_extraction_view_menu_item.setText(_translate("MainWindow", "Failed Extractions"))
-        self.imgur_credit_dialog_menu_item.setText(_translate("MainWindow", "Imgur Credits"))
+        self.download_session_menu_item.setText(
+            _translate("MainWindow", "Download Sessions")
+        )
+        self.failed_extraction_view_menu_item.setText(
+            _translate("MainWindow", "Failed Extractions")
+        )
+        self.imgur_credit_dialog_menu_item.setText(
+            _translate("MainWindow", "Imgur Credits")
+        )
         self.about_menu_item.setText(_translate("MainWindow", "About"))
         self.file_user_list_count.setText(_translate("MainWindow", "User List Count:"))
-        self.file_subreddit_list_count.setText(_translate("MainWindow", "Subreddit List Count:"))
+        self.file_subreddit_list_count.setText(
+            _translate("MainWindow", "Subreddit List Count:")
+        )
         self.user_manual_menu_item.setText(_translate("MainWindow", "User Manual"))
-        self.check_for_updates_menu_item.setText(_translate("MainWindow", "Check For Update"))
+        self.check_for_updates_menu_item.setText(
+            _translate("MainWindow", "Check For Update")
+        )
         self.sort_list_by_name_menu_item.setText(_translate("MainWindow", "Name"))
-        self.sort_list_by_date_added_menu_item.setText(_translate("MainWindow", "Date Added"))
-        self.sort_list_by_post_count_menu_item.setText(_translate("MainWindow", "Post Count"))
-        self.sort_list_ascending_menu_item.setText(_translate("MainWindow", "Ascending"))
-        self.sort_list_descending_menu_item.setText(_translate("MainWindow", "Descending"))
-        self.open_data_directory_menu_item.setText(_translate("MainWindow", "Open Data Directory"))
-        self.import_database_file_menu_item.setText(_translate("MainWindow", "Import Save File"))
-        self.ffmpeg_requirement_dialog_menu_item.setText(_translate("MainWindow", "FFmpeg Requirement"))
-        self.download_user_list_menu_item.setText(_translate("MainWindow", "Download User List"))
-        self.download_subreddit_list_menu_item.setText(_translate("MainWindow", "Download Subreddit List"))
-        self.download_user_list_constrained_menu_item.setText(_translate("MainWindow", "Download User List Constrained"))
-        self.download_user_list_constrained_menu_item.setToolTip(_translate("MainWindow", "<html><head/><body><p>Download user list, but only extract posts made to subreddits in the subreddit list</p></body></html>"))
-        self.run_unfinished_extractions_menu_item.setText(_translate("MainWindow", "Run Unfinished Extractions"))
-        self.run_unfinished_downloads_menu_item.setText(_translate("MainWindow", "Run Unfinished Downloads"))
-        self.sort_list_by_content_count_menu_item.setText(_translate("MainWindow", "Content Count"))
-        self.sort_list_by_comment_count_menu_item.setText(_translate("MainWindow", "Comment Count"))
-        self.sort_list_by_date_created_menu_item.setText(_translate("MainWindow", "Date Created"))
-        self.sort_list_by_date_created_menu_item.setToolTip(_translate("MainWindow", "Sort reddit objects by the date that the item was created on reddit"))
-        self.sort_list_by_score_menu_item.setText(_translate("MainWindow", "Total Score"))
+        self.sort_list_by_date_added_menu_item.setText(
+            _translate("MainWindow", "Date Added")
+        )
+        self.sort_list_by_post_count_menu_item.setText(
+            _translate("MainWindow", "Post Count")
+        )
+        self.sort_list_ascending_menu_item.setText(
+            _translate("MainWindow", "Ascending")
+        )
+        self.sort_list_descending_menu_item.setText(
+            _translate("MainWindow", "Descending")
+        )
+        self.open_data_directory_menu_item.setText(
+            _translate("MainWindow", "Open Data Directory")
+        )
+        self.import_database_file_menu_item.setText(
+            _translate("MainWindow", "Import Save File")
+        )
+        self.ffmpeg_requirement_dialog_menu_item.setText(
+            _translate("MainWindow", "FFmpeg Requirement")
+        )
+        self.download_user_list_menu_item.setText(
+            _translate("MainWindow", "Download User List")
+        )
+        self.download_subreddit_list_menu_item.setText(
+            _translate("MainWindow", "Download Subreddit List")
+        )
+        self.download_user_list_constrained_menu_item.setText(
+            _translate("MainWindow", "Download User List Constrained")
+        )
+        self.download_user_list_constrained_menu_item.setToolTip(
+            _translate(
+                "MainWindow",
+                "<html><head/><body><p>Download user list, but only extract posts made to subreddits in the subreddit list</p></body></html>",
+            )
+        )
+        self.run_unfinished_extractions_menu_item.setText(
+            _translate("MainWindow", "Run Unfinished Extractions")
+        )
+        self.run_unfinished_downloads_menu_item.setText(
+            _translate("MainWindow", "Run Unfinished Downloads")
+        )
+        self.sort_list_by_content_count_menu_item.setText(
+            _translate("MainWindow", "Content Count")
+        )
+        self.sort_list_by_comment_count_menu_item.setText(
+            _translate("MainWindow", "Comment Count")
+        )
+        self.sort_list_by_date_created_menu_item.setText(
+            _translate("MainWindow", "Date Created")
+        )
+        self.sort_list_by_date_created_menu_item.setToolTip(
+            _translate(
+                "MainWindow",
+                "Sort reddit objects by the date that the item was created on reddit",
+            )
+        )
+        self.sort_list_by_score_menu_item.setText(
+            _translate("MainWindow", "Total Score")
+        )
         self.database_view_menu_item.setText(_translate("MainWindow", "Database View"))
-        self.download_sessions_view_menu_item.setText(_translate("MainWindow", "Download Sessions"))
-        self.reddit_objects_view_menu_item.setText(_translate("MainWindow", "Reddit Objects"))
+        self.download_sessions_view_menu_item.setText(
+            _translate("MainWindow", "Download Sessions")
+        )
+        self.reddit_objects_view_menu_item.setText(
+            _translate("MainWindow", "Reddit Objects")
+        )
         self.posts_view_menu_item.setText(_translate("MainWindow", "Posts"))
         self.content_view_menu_item.setText(_translate("MainWindow", "Content"))
         self.comments_view_menu_item.setText(_translate("MainWindow", "Comments"))
         self.statistics_view_menu_item.setText(_translate("MainWindow", "Statistics"))
-        self.run_all_unfiinished_menu_item.setText(_translate("MainWindow", "Run All Unfinished"))
-        self.export_user_list_menu_item.setText(_translate("MainWindow", "Export User List"))
-        self.export_subreddit_list_menu_item.setText(_translate("MainWindow", "Export Subreddit List"))
-        self.command_line_options_menu_item.setText(_translate("MainWindow", "Command Line Options"))
-        self.minimize_to_tray_menu_item.setText(_translate("MainWindow", "Minimize To Tray"))
-        self.connect_reddit_account_menu_item.setText(_translate("MainWindow", "Connect Reddit Account"))
+        self.run_all_unfiinished_menu_item.setText(
+            _translate("MainWindow", "Run All Unfinished")
+        )
+        self.export_user_list_menu_item.setText(
+            _translate("MainWindow", "Export User List")
+        )
+        self.export_subreddit_list_menu_item.setText(
+            _translate("MainWindow", "Export Subreddit List")
+        )
+        self.command_line_options_menu_item.setText(
+            _translate("MainWindow", "Command Line Options")
+        )
+        self.minimize_to_tray_menu_item.setText(
+            _translate("MainWindow", "Minimize To Tray")
+        )
+        self.connect_reddit_account_menu_item.setText(
+            _translate("MainWindow", "Connect Reddit Account")
+        )

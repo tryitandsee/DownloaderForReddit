@@ -2,7 +2,6 @@ from PyQt5.QtCore import QObject, pyqtSignal
 
 
 class MessageReceiver(QObject):
-
     text_output = pyqtSignal(object)
     non_text_output = pyqtSignal(object)
 
@@ -30,7 +29,7 @@ class MessageReceiver(QObject):
                     else:
                         self.text_output.emit(message)
                 except AttributeError:
-                    print(f'\nFailed output:\n{message}\n')
+                    print(f"\nFailed output:\n{message}\n")
         self.finished.emit()
 
     def stop_run(self):

@@ -17,12 +17,13 @@ from .multipart_downloader import MultipartDownloader
 
 
 class Downloader(Runner):
-
     """
     The class that is responsible for the actual downloading of content.
     """
 
-    def __init__(self, download_queue, cancelled_sessions, hard_stopped_sessions, stop_run):
+    def __init__(
+        self, download_queue, cancelled_sessions, hard_stopped_sessions, stop_run
+    ):
         """
         Initializes the Downloader class.
         :param download_queue: A queue of (content_id, download_session_id) tuples to be downloaded.
@@ -54,7 +55,7 @@ class Downloader(Runner):
         """
         Removes content from the queue and sends it to the thread pool executor for download until it is told to stop.
         """
-        self.logger.debug('Downloader running')
+        self.logger.debug("Downloader running")
         self.make_executor()
         while self.continue_run:
             item = self.download_queue.get()
@@ -63,13 +64,16 @@ class Downloader(Runner):
             content_id, download_session_id = item
             if download_session_id in self.cancelled_sessions:
                 continue
-            future = self.executor.submit(self.download, content_id=content_id,
-                                          download_session_id=download_session_id)
+            future = self.executor.submit(
+                self.download,
+                content_id=content_id,
+                download_session_id=download_session_id,
+            )
             self.futures.append(future)
             future.add_done_callback(self.remove_future)
         self.executor.shutdown(wait=True)
         HEADERS.clear()
-        self.logger.debug('Downloader exiting')
+        self.logger.debug("Downloader exiting")
 
     def make_executor(self) -> None:
         """
@@ -94,29 +98,54 @@ class Downloader(Runner):
         try:
             with self.db.get_scoped_session() as session:
                 content = session.query(Content).get(content_id)
-                reddit_id = content.post.reddit_id if content.post is not None else content.comment.reddit_id
-                self._active_downloads[thread] = (content.user.name, reddit_id, content.title)
+                reddit_id = (
+                    content.post.reddit_id
+                    if content.post is not None
+                    else content.comment.reddit_id
+                )
+                self._active_downloads[thread] = (
+                    content.user.name,
+                    reddit_id,
+                    content.title,
+                )
                 if self.is_url_duplicate(content, session=session):
                     content.set_downloaded(download_session_id)
-                    Message.send_info(f'Duplicate URL skipped: {content.user.name}: {content.title} {content.url}')
+                    Message.send_info(
+                        f"Duplicate URL skipped: {content.user.name}: {content.title} {content.url}"
+                    )
                     return
-                content.download_title = general_utils.ensure_content_download_path(content)
-                response = requests.get(content.url, stream=True, timeout=10, headers=self.check_headers(content))
+                content.download_title = general_utils.ensure_content_download_path(
+                    content
+                )
+                response = requests.get(
+                    content.url,
+                    stream=True,
+                    timeout=10,
+                    headers=self.check_headers(content),
+                )
                 if response.status_code == 200:
-                    file_size = int(response.headers['Content-Length'])
+                    file_size = int(response.headers["Content-Length"])
                     if file_size <= system_util.KB:
                         # If the file size is less than one KB, it is a strong indicator that the content has been
                         # deleted and what we are about to download is only a placeholder image.  So we abort download
                         self.handle_deleted_content_error(content)
                         return
                     if self.should_use_multi_part(file_size):
-                        self.download_with_multipart(content, content.get_full_file_path(), file_size,
-                                                     download_session_id)
+                        self.download_with_multipart(
+                            content,
+                            content.get_full_file_path(),
+                            file_size,
+                            download_session_id,
+                        )
                     else:
                         if self.should_use_hash(content):
-                            self.download_with_hash(content, response, download_session_id)
+                            self.download_with_hash(
+                                content, response, download_session_id
+                            )
                         else:
-                            self.download_without_hash(content, response, download_session_id)
+                            self.download_without_hash(
+                                content, response, download_session_id
+                            )
                         self.finish_download(content, download_session_id)
                 else:
                     self.handle_unsuccessful_response(content, response.status_code)
@@ -137,28 +166,36 @@ class Downloader(Runner):
         :param content: The content object that is in the process of being downloaded.
         :return: A dict to be used as a request header where applicable, None if there is no applicable header.
         """
-        if 'erome' in content.url:
+        if "erome" in content.url:
             return {"Referer": "https://www.erome.com/"}
         return HEADERS.get(content.id, None)
 
     def should_use_multi_part(self, file_size: int) -> bool:
         settings = self.settings_manager
-        return settings.use_multi_part_downloader and file_size > settings.multi_part_threshold
+        return (
+            settings.use_multi_part_downloader
+            and file_size > settings.multi_part_threshold
+        )
 
-    def download_with_multipart(self, content: Content, file_path: str, file_size: int,
-                                download_session_id: int) -> None:
+    def download_with_multipart(
+        self, content: Content, file_path: str, file_size: int, download_session_id: int
+    ) -> None:
         multi_part_downloader = MultipartDownloader(self.stop_run)
         multi_part_downloader.run(content, file_path, file_size)
-        self.finish_multi_part_download(content, multi_part_downloader, download_session_id)
+        self.finish_multi_part_download(
+            content, multi_part_downloader, download_session_id
+        )
 
     def should_use_hash(self, content: Content) -> bool:
         sig_ro = content.post.significant_reddit_object
         return sig_ro.hash_duplicates
 
-    def download_with_hash(self, content: Content, response: requests.Response, download_session_id: int) -> None:
+    def download_with_hash(
+        self, content: Content, response: requests.Response, download_session_id: int
+    ) -> None:
         file_path = content.get_full_file_path()
         md5 = hashlib.md5()
-        with open(file_path, 'wb') as file:
+        with open(file_path, "wb") as file:
             for chunk in response.iter_content(1024 * 1024):
                 if download_session_id not in self.hard_stopped_sessions:
                     md5.update(chunk)
@@ -167,9 +204,11 @@ class Downloader(Runner):
                     break
         content.md5_hash = md5.hexdigest()
 
-    def download_without_hash(self, content: Content, response: requests.Response, download_session_id: int) -> None:
+    def download_without_hash(
+        self, content: Content, response: requests.Response, download_session_id: int
+    ) -> None:
         file_path = content.get_full_file_path()
-        with open(file_path, 'wb') as file:
+        with open(file_path, "wb") as file:
             for chunk in response.iter_content(1024 * 1024):
                 if download_session_id not in self.hard_stopped_sessions:
                     file.write(chunk)
@@ -189,7 +228,9 @@ class Downloader(Runner):
         if download_session_id not in self.hard_stopped_sessions:
             if content.md5_hash is not None and self.is_duplicate_content(content):
                 self.handle_duplicate_content(content)
-                content.set_downloaded(download_session_id)  # FIX: was considered an unfinished download and getting retried
+                content.set_downloaded(
+                    download_session_id
+                )  # FIX: was considered an unfinished download and getting retried
                 return
             self.handle_date_modified(content)
             content.set_downloaded(download_session_id)
@@ -208,13 +249,21 @@ class Downloader(Runner):
         """
         if not content.url:
             return False
-        dup = session.query(Content).filter(
-            Content.url == content.url,
-            Content.downloaded == True,
-            Content.id != content.id
-        ).first()
+        dup = (
+            session.query(Content)
+            .filter(
+                Content.url == content.url,
+                Content.downloaded == True,
+                Content.id != content.id,
+            )
+            .first()
+        )
         if dup is not None:
-            self.logger.info('URL duplicate found: %s (previously downloaded as content id %s)', content.url, dup.id)
+            self.logger.info(
+                "URL duplicate found: %s (previously downloaded as content id %s)",
+                content.url,
+                dup.id,
+            )
         return dup is not None
 
     def is_duplicate_content(self, content: Content) -> bool:
@@ -248,7 +297,9 @@ class Downloader(Runner):
         :param content: The content object for which the modified date is updated.
         """
         if self.settings_manager.match_file_modified_to_post_date:
-            system_util.set_file_modify_time(content.get_full_file_path(), content.post.date_posted.timestamp())
+            system_util.set_file_modify_time(
+                content.get_full_file_path(), content.post.date_posted.timestamp()
+            )
 
     def output_downloaded_message(self, content: Content) -> None:
         """
@@ -257,7 +308,7 @@ class Downloader(Runner):
         :param content: The downloaded content object for which the message is generated.
         """
         output_data = self.get_downloaded_output_data(content)
-        Message.send_debug(f'Saved: {output_data}')
+        Message.send_debug(f"Saved: {output_data}")
 
     def get_downloaded_output_data(self, content: Content) -> str:
         """
@@ -274,7 +325,7 @@ class Downloader(Runner):
         """
         if self.settings_manager.output_saved_content_full_path:
             return content.get_full_file_path()
-        return f'{content.user.name}: {content.title}'
+        return f"{content.user.name}: {content.title}"
 
     def handle_download_stopped(self, content: Content) -> None:
         """
@@ -282,18 +333,26 @@ class Downloader(Runner):
         content object about the download interruption, and sends an appropriate error message indicating that the file
         may be corrupted.
         """
-        message = 'Download was stopped before finished'
+        message = "Download was stopped before finished"
         content.set_download_error(Error.DOWNLOAD_STOPPED, message)
-        Message.send_download_error(f'{message}. File at path: "{content.get_full_file_path()}" may be corrupted')
+        Message.send_download_error(
+            f'{message}. File at path: "{content.get_full_file_path()}" may be corrupted'
+        )
 
-    def finish_multi_part_download(self, content: Content, multipart_downloader: MultipartDownloader,
-                                   download_session_id: int):
+    def finish_multi_part_download(
+        self,
+        content: Content,
+        multipart_downloader: MultipartDownloader,
+        download_session_id: int,
+    ):
         parts = multipart_downloader.part_count
         failed = multipart_downloader.failed_parts
         if failed > 0:
             failed_percent = round((failed / parts) * 100)
-            content.set_download_error(Error.MULTIPART_FAILURE,
-                                       f'{failed_percent}% of multi-part download parts failed to download')
+            content.set_download_error(
+                Error.MULTIPART_FAILURE,
+                f"{failed_percent}% of multi-part download parts failed to download",
+            )
         else:
             if self.should_use_hash(content):
                 self.hash_complete_multi_part_file(content)
@@ -307,14 +366,14 @@ class Downloader(Runner):
         :param content: The content object containing metadata and file information that needs to be processed.
         """
         md5 = hashlib.md5()
-        with open(content.get_full_file_path(), 'rb') as file:
-            for chunk in iter(lambda: file.read(1024 * 1024), b''):
+        with open(content.get_full_file_path(), "rb") as file:
+            for chunk in iter(lambda: file.read(1024 * 1024), b""):
                 md5.update(chunk)
         content.md5_hash = md5.hexdigest()
 
     def handle_unsuccessful_response(self, content: Content, status_code):
         # [mine] fix(downloader): map permanent HTTP errors to NON_DOWNLOADABLE codes so they aren't retried
-        message = 'Failed Download: Unsuccessful response from server'
+        message = "Failed Download: Unsuccessful response from server"
         self.log_errors(content, message, status_code=status_code)
         self.output_error(content, message)
         if status_code in (404, 410):
@@ -323,39 +382,41 @@ class Downloader(Runner):
             error = Error.FORBIDDEN
         else:
             error = Error.UNSUCCESSFUL_RESPONSE
-        content.set_download_error(error, f'{message}: status_code: {status_code}')
+        content.set_download_error(error, f"{message}: status_code: {status_code}")
 
     def handle_connection_error(self, content: Content):
-        message = 'Failed Download: Failed to establish download connection'
+        message = "Failed Download: Failed to establish download connection"
         self.log_errors(content, message)
         self.output_error(content, message)
         content.set_download_error(Error.CONNECTION_ERROR, message)
 
     def handle_unknown_error(self, content: Content):
-        message = 'An unknown error occurred during download'
+        message = "An unknown error occurred during download"
         self.log_errors(content, message)
         self.output_error(content, message)
         content.set_download_error(Error.UNKNOWN_ERROR, message)
 
     def handle_deleted_content_error(self, content: Content):
-        message = 'Content has been deleted'
+        message = "Content has been deleted"
         self.log_errors(content, message)
         self.output_error(content, message)
         content.set_download_error(Error.DOES_NOT_EXIST, message)
 
     def log_errors(self, content: Content, message, **kwargs):
         extra = {
-            'url': content.url,
-            'title': content.title,
-            'submission_id': content.post.reddit_id,
-            'user': content.user,
-            'subreddit': content.subreddit,
-            'save_path': content.get_full_file_path(),
-            **kwargs
+            "url": content.url,
+            "title": content.title,
+            "submission_id": content.post.reddit_id,
+            "user": content.user,
+            "subreddit": content.subreddit,
+            "save_path": content.get_full_file_path(),
+            **kwargs,
         }
         self.logger.error(message, extra=extra)
 
     def output_error(self, content, message):
-        output_append = f'\nPost: {content.post.title}\nUrl: {content.url}\nUser: {content.user}\n' \
-                        f'Subreddit: {content.subreddit}\n'
+        output_append = (
+            f"\nPost: {content.post.title}\nUrl: {content.url}\nUser: {content.user}\n"
+            f"Subreddit: {content.subreddit}\n"
+        )
         Message.send_download_error(message + output_append)

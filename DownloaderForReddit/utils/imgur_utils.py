@@ -31,15 +31,14 @@ from ..utils import injector
 
 logger = logging.getLogger(__name__)
 
-_FREE_ENDPOINT = 'https://api.imgur.com/3/'
-_RAPID_API_ENDPOINT = 'https://imgur-apiv3.p.rapidapi.com/3/'
+_FREE_ENDPOINT = "https://api.imgur.com/3/"
+_RAPID_API_ENDPOINT = "https://imgur-apiv3.p.rapidapi.com/3/"
 
 credit_reset_time = 0
 num_credits = 0
 
 
 class ImgurError(Exception):
-
     def __init__(self, status_code):
         self.status_code = status_code
 
@@ -49,7 +48,7 @@ def _send_request(url_extension, retries=1):
     if retries < 0:
         return None
     headers = {
-        'Authorization': f'Client-ID {injector.settings_manager.imgur_client_id}'
+        "Authorization": f"Client-ID {injector.settings_manager.imgur_client_id}"
     }
     if time() > credit_reset_time:
         check_credits()
@@ -58,7 +57,7 @@ def _send_request(url_extension, retries=1):
         num_credits -= 1
     elif injector.settings_manager.imgur_mashape_key is not None:
         url = _RAPID_API_ENDPOINT + url_extension
-        headers['X-Mashape-Key'] = injector.settings_manager.imgur_mashape_key
+        headers["X-Mashape-Key"] = injector.settings_manager.imgur_mashape_key
     else:
         raise ImgurError(429)
     response = requests.get(url, headers=headers, timeout=10)
@@ -75,33 +74,38 @@ def check_credits():
     global num_credits, credit_reset_time
     url = _FREE_ENDPOINT + "credits"
     headers = {
-        'Authorization': f'Client-ID {injector.settings_manager.imgur_client_id}'
+        "Authorization": f"Client-ID {injector.settings_manager.imgur_client_id}"
     }
     response = requests.get(url, headers=headers, timeout=10)
     if response.status_code != 200:
-        logger.error('Failed to check imgur credits, bad status code', extra={'status_code': response.status_code})
+        logger.error(
+            "Failed to check imgur credits, bad status code",
+            extra={"status_code": response.status_code},
+        )
     else:
         result = response.json()
-        credits_data = result['data']
-        num_credits = min(credits_data['UserRemaining'], credits_data['ClientRemaining'])
-        credit_reset_time = credits_data['UserReset']
+        credits_data = result["data"]
+        num_credits = min(
+            credits_data["UserRemaining"], credits_data["ClientRemaining"]
+        )
+        credit_reset_time = credits_data["UserReset"]
         return num_credits
     return None
 
 
 def get_link(json):
-    if json['animated']:
-        return json['mp4']
-    return json['link']
+    if json["animated"]:
+        return json["mp4"]
+    return json["link"]
 
 
 def get_album_images(album_id):
-    json = _send_request(f'album/{album_id}/images')
-    data = json['data']
+    json = _send_request(f"album/{album_id}/images")
+    data = json["data"]
     return [get_link(x) for x in data]
 
 
 def get_single_image(image_id):
-    json = _send_request(f'image/{image_id}')
-    data = json['data']
+    json = _send_request(f"image/{image_id}")
+    data = json["data"]
     return get_link(data)

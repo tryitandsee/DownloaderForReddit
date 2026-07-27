@@ -1,4 +1,3 @@
-
 # Form implementation generated from reading ui file 'Resources\ui_files\add_reddit_object_dialog.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.4
@@ -18,7 +17,11 @@ class Ui_AddRedditObjectDialog:
         font.setPointSize(10)
         AddRedditObjectDialog.setFont(font)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("Resources\\ui_files\\../images/add.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(
+            QtGui.QPixmap("Resources\\ui_files\\../images/add.png"),
+            QtGui.QIcon.Normal,
+            QtGui.QIcon.Off,
+        )
         AddRedditObjectDialog.setWindowIcon(icon)
         self.verticalLayout_3 = QtWidgets.QVBoxLayout(AddRedditObjectDialog)
         self.verticalLayout_3.setObjectName("verticalLayout_3")
@@ -39,7 +42,9 @@ class Ui_AddRedditObjectDialog:
         self.single_object_line_edit = QtWidgets.QLineEdit(self.single_add_tab)
         self.single_object_line_edit.setObjectName("single_object_line_edit")
         self.verticalLayout.addWidget(self.single_object_line_edit)
-        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        spacerItem = QtWidgets.QSpacerItem(
+            20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding
+        )
         self.verticalLayout.addItem(spacerItem)
         self.verticalLayout_2.addLayout(self.verticalLayout)
         self.tab_widget.addTab(self.single_add_tab, "")
@@ -50,7 +55,9 @@ class Ui_AddRedditObjectDialog:
         self.horizontalLayout_3 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_3.setObjectName("horizontalLayout_3")
         self.label_2 = QtWidgets.QLabel(self.multi_add_tab)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Preferred)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Preferred
+        )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.label_2.sizePolicy().hasHeightForWidth())
@@ -58,10 +65,14 @@ class Ui_AddRedditObjectDialog:
         self.label_2.setObjectName("label_2")
         self.horizontalLayout_3.addWidget(self.label_2)
         self.name_count_label = QtWidgets.QLabel(self.multi_add_tab)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred
+        )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.name_count_label.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(
+            self.name_count_label.sizePolicy().hasHeightForWidth()
+        )
         self.name_count_label.setSizePolicy(sizePolicy)
         self.name_count_label.setObjectName("name_count_label")
         self.horizontalLayout_3.addWidget(self.name_count_label)
@@ -95,7 +106,9 @@ class Ui_AddRedditObjectDialog:
         self.validate_names_checkbox.setObjectName("validate_names_checkbox")
         self.horizontalLayout.addWidget(self.validate_names_checkbox)
         self.dialog_button_box = QtWidgets.QDialogButtonBox(AddRedditObjectDialog)
-        self.dialog_button_box.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel|QtWidgets.QDialogButtonBox.Ok)
+        self.dialog_button_box.setStandardButtons(
+            QtWidgets.QDialogButtonBox.Cancel | QtWidgets.QDialogButtonBox.Ok
+        )
         self.dialog_button_box.setObjectName("dialog_button_box")
         self.horizontalLayout.addWidget(self.dialog_button_box)
         self.verticalLayout_3.addLayout(self.horizontalLayout)
@@ -107,13 +120,25 @@ class Ui_AddRedditObjectDialog:
     def retranslateUi(self, AddRedditObjectDialog):
         _translate = QtCore.QCoreApplication.translate
         AddRedditObjectDialog.setWindowTitle(_translate("AddRedditObjectDialog", "Add"))
-        self.single_add_label.setText(_translate("AddRedditObjectDialog", "Enter new user:"))
-        self.tab_widget.setTabText(self.tab_widget.indexOf(self.single_add_tab), _translate("AddRedditObjectDialog", "Single Add"))
+        self.single_add_label.setText(
+            _translate("AddRedditObjectDialog", "Enter new user:")
+        )
+        self.tab_widget.setTabText(
+            self.tab_widget.indexOf(self.single_add_tab),
+            _translate("AddRedditObjectDialog", "Single Add"),
+        )
         self.label_2.setText(_translate("AddRedditObjectDialog", "Names in list:"))
         self.name_count_label.setText(_translate("AddRedditObjectDialog", "0"))
         self.add_button.setText(_translate("AddRedditObjectDialog", "+"))
         self.remove_button.setText(_translate("AddRedditObjectDialog", "-"))
         self.import_button.setText(_translate("AddRedditObjectDialog", "Import"))
-        self.tab_widget.setTabText(self.tab_widget.indexOf(self.multi_add_tab), _translate("AddRedditObjectDialog", "Multi-Add"))
-        self.download_on_add_checkbox.setText(_translate("AddRedditObjectDialog", "Download on add"))
-        self.validate_names_checkbox.setText(_translate("AddRedditObjectDialog", "Validate names"))
+        self.tab_widget.setTabText(
+            self.tab_widget.indexOf(self.multi_add_tab),
+            _translate("AddRedditObjectDialog", "Multi-Add"),
+        )
+        self.download_on_add_checkbox.setText(
+            _translate("AddRedditObjectDialog", "Download on add")
+        )
+        self.validate_names_checkbox.setText(
+            _translate("AddRedditObjectDialog", "Validate names")
+        )

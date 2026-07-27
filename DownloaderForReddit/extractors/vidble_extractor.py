@@ -32,8 +32,7 @@ from .base_extractor import BaseExtractor
 
 
 class VidbleExtractor(BaseExtractor):
-
-    url_key: ClassVar[list[str]] = ['vidble']
+    url_key: ClassVar[list[str]] = ["vidble"]
 
     def __init__(self, post, **kwargs):
         """
@@ -45,45 +44,49 @@ class VidbleExtractor(BaseExtractor):
 
     def extract_content(self):
         try:
-            if '/album/' in self.url:
+            if "/album/" in self.url:
                 self.extract_album()
             else:
                 # We can convert show and explore links to single links by removing the show/explore from the url
-                self.url = self.url.replace('/show/', '/').replace('/explore/', '/')
+                self.url = self.url.replace("/show/", "/").replace("/explore/", "/")
                 if self.url.lower().endswith(const.ALL_EXT):
                     self.extract_direct_link()
                 else:
                     self.extract_single()
         except Exception:
-            message = 'Failed to locate content'
-            self.handle_failed_extract(error=Error.FAILED_TO_LOCATE, message=message, extractor_error_message=message)
+            message = "Failed to locate content"
+            self.handle_failed_extract(
+                error=Error.FAILED_TO_LOCATE,
+                message=message,
+                extractor_error_message=message,
+            )
 
     def get_imgs(self):
-        soup = BeautifulSoup(self.get_text(self.url), 'html.parser')
-        return soup.find_all('img')
+        soup = BeautifulSoup(self.get_text(self.url), "html.parser")
+        return soup.find_all("img")
 
     def extract_single(self):
-        _domain, vidble_id = self.url.rsplit('/', 1)
+        _domain, vidble_id = self.url.rsplit("/", 1)
         # There should only be one image
         img = self.get_imgs()[0]
         # We only need to get the filename from the image
-        link = img.get('src')
+        link = img.get("src")
         if link is not None:
-            _base, extension = link.rsplit('.', 1)
+            _base, extension = link.rsplit(".", 1)
             file_name = f"{vidble_id}.{extension}"
-            url = self.vidble_base + '/' + file_name
+            url = self.vidble_base + "/" + file_name
             self.make_content(url, extension, media_id=vidble_id)
 
     def extract_album(self):
         # We will use the undocumented API specified here:
         # https://www.reddit.com/r/Enhancement/comments/29nik6/feature_request_inline_image_expandos_for_vidible/cinha50/
         json = self.get_json(self.url + "?json=1")
-        pics = json['pics']
+        pics = json["pics"]
         count = 1
         for raw_pic in pics:
-            domain, file_name = raw_pic.rsplit('/', 1)
-            file_name = file_name.replace('_med', '')
-            base, extension = file_name.rsplit('.', 1)
+            domain, file_name = raw_pic.rsplit("/", 1)
+            file_name = file_name.replace("_med", "")
+            base, extension = file_name.rsplit(".", 1)
             url = f"https:{domain}/{file_name}"
             self.make_content(url, extension, count=count, media_id=base)
             count += 1

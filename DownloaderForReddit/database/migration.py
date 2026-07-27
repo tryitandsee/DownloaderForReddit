@@ -22,14 +22,18 @@ class Migrator:
     """
 
     def __init__(self):
-        self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
+        self.logger = logging.getLogger(f"DownloaderForReddit.{__name__}")
         self.db = injector.get_database_handler()
         self.session = self.db.get_session()
-        self.migration_dir = os.path.join(system_util.get_data_directory(), 'migrations')
+        self.migration_dir = os.path.join(
+            system_util.get_data_directory(), "migrations"
+        )
 
     def check_migration(self):
         try:
-            cache_version = self.session.query(Version).order_by(desc(Version.id)).limit(1).first()
+            cache_version = (
+                self.session.query(Version).order_by(desc(Version.id)).limit(1).first()
+            )
             self.write_current_version(cache_version)
             if cache_version is not None:
                 if version.is_updated(version.__version__, cache_version.version):
@@ -37,34 +41,37 @@ class Migrator:
                     self.session.add(Version(version=version.__version__))
                     self.session.commit()
                     self.logger.info(
-                        'New version detected.  Migration has been performed',
+                        "New version detected.  Migration has been performed",
                         extra={
-                            'cached_version': cache_version.version,
-                            'cache_date': cache_version.date_added,
-                            'new_version': version.__version__
-                        }
+                            "cached_version": cache_version.version,
+                            "cache_date": cache_version.date_added,
+                            "new_version": version.__version__,
+                        },
                     )
                     self.set_default_duplicate_handling()
             else:
                 self.session.add(Version(version=version.__version__))
                 self.session.commit()
-                self.logger.info('Migration not performed: no version information found in database.  Database entry'
-                                 'for version %s has been created.', version.__version__)
+                self.logger.info(
+                    "Migration not performed: no version information found in database.  Database entry"
+                    "for version %s has been created.",
+                    version.__version__,
+                )
         finally:
             self.session.close()
 
     def get_config(self):
         config = Config()
-        alembic_path = os.path.abspath('alembic')
-        config.set_main_option('script_location', alembic_path)
-        config.set_main_option('sqlalchemy.url', self.db.database_url)
+        alembic_path = os.path.abspath("alembic")
+        config.set_main_option("script_location", alembic_path)
+        config.set_main_option("sqlalchemy.url", self.db.database_url)
         return config
 
     def migrate(self):
         config = self.get_config()
         with self.db.engine.begin() as connection:
-            config.attributes['connection'] = connection
-            command.upgrade(config, 'head')
+            config.attributes["connection"] = connection
+            command.upgrade(config, "head")
 
     def write_current_version(self, cache_version):
         """
@@ -74,8 +81,9 @@ class Migrator:
         databases.  If this version is not stored when created, the application will not be able to migrate future
         versions of the database in the event that it is updated again.
         """
-        if (cache_version is None or version.is_updated(cache_version.version, 'v3.2.1')) \
-                and not self.check_version_three_three_zero():
+        if (
+            cache_version is None or version.is_updated(cache_version.version, "v3.2.1")
+        ) and not self.check_version_three_three_zero():
             cached_revision = self.get_cached_revision()
             if cached_revision is None:
                 current_version = self.get_current_version()
@@ -87,10 +95,10 @@ class Migrator:
         """
         try:
             with self.db.engine.connect() as con:
-                result_set = con.execute('SELECT version_num FROM alembic_version')
+                result_set = con.execute("SELECT version_num FROM alembic_version")
                 for row in result_set:
                     stored_version = row[0]
-                    if stored_version != '':
+                    if stored_version != "":
                         return stored_version
         except OperationalError:
             self.create_alembic_table()
@@ -122,7 +130,9 @@ class Migrator:
         """
         try:
             with self.db.engine.connect() as con:
-                statement = f'INSERT INTO alembic_version(version_num) VALUES("{version_num}")'
+                statement = (
+                    f'INSERT INTO alembic_version(version_num) VALUES("{version_num}")'
+                )
                 con.execute(statement)
         except IntegrityError:
             pass
@@ -134,10 +144,12 @@ class Migrator:
         had used.
         :return: True if the version was v3.3.0-beta and the issue was handled, False if this was a different version.
         """
-        cache_version = self.session.query(Version).order_by(desc(Version.id)).limit(1).first()
+        cache_version = (
+            self.session.query(Version).order_by(desc(Version.id)).limit(1).first()
+        )
         self.get_cached_revision()
-        if cache_version is not None and cache_version.version == 'v3.3.0-beta':
-            self.write_version_to_db('70d9de393850')
+        if cache_version is not None and cache_version.version == "v3.3.0-beta":
+            self.write_version_to_db("70d9de393850")
             return True
         return False
 
@@ -150,7 +162,6 @@ class Migrator:
 
 
 class DefaultDuplicateControls:
-
     """
     A class that exists for the sole purpose of setting the default values of duplicate controls after the update to
     3.17.0.
@@ -161,7 +172,7 @@ class DefaultDuplicateControls:
     """
 
     def __init__(self, db: DatabaseHandler):
-        self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
+        self.logger = logging.getLogger(f"DownloaderForReddit.{__name__}")
         self.db = db
         self.ro_count = 0
         self.list_count = 0
@@ -170,8 +181,13 @@ class DefaultDuplicateControls:
         with self.db.get_scoped_session() as session:
             self.run_reddit_objects(session)
             self.run_lists(session)
-        self.logger.info('Default duplicate controls updated.',
-                         extra={'updated_reddit_objects': self.ro_count, 'update_ro_lists': self.list_count})
+        self.logger.info(
+            "Default duplicate controls updated.",
+            extra={
+                "updated_reddit_objects": self.ro_count,
+                "update_ro_lists": self.list_count,
+            },
+        )
 
     def run_reddit_objects(self, session):
         for ro in session.query(RedditObject).all():
@@ -186,15 +202,15 @@ class DefaultDuplicateControls:
         session.commit()
 
     def set_values(self, obj):
-        hash_dup = getattr(obj, 'hash_duplicates', None)
-        duplicate_control = getattr(obj, 'duplicate_control_method', None)
-        naming_method = getattr(obj, 'duplicate_naming_method', None)
-        save_struct = getattr(obj, 'duplicate_save_structure', None)
+        hash_dup = getattr(obj, "hash_duplicates", None)
+        duplicate_control = getattr(obj, "duplicate_control_method", None)
+        naming_method = getattr(obj, "duplicate_naming_method", None)
+        save_struct = getattr(obj, "duplicate_save_structure", None)
         if hash_dup is None:
             obj.hash_duplicates = False
         if duplicate_control is None:
             obj.duplicate_control_method = DuplicateControlMethod.DELETE
         if naming_method is None:
-            obj.duplicate_naming_method = '%[title]'
+            obj.duplicate_naming_method = "%[title]"
         if save_struct is None:
-            obj.duplicate_save_structure = '%[author_name]/Duplicates'
+            obj.duplicate_save_structure = "%[author_name]/Duplicates"

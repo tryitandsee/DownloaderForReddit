@@ -5,7 +5,6 @@ from ..utils import html_formatting, injector
 
 
 class OutputViewModel(QAbstractListModel):
-
     added = pyqtSignal()
 
     """
@@ -62,6 +61,9 @@ class OutputViewModel(QAbstractListModel):
                 text = self.display_messages[row].message
             return html_formatting.format_html(text)
         if role == Qt.ForegroundRole and self.settings_manager.use_color_output:
-            r, g, b = getattr(self.settings_manager, f'{self.display_messages[row].priority.name.lower()}_color')
+            r, g, b = getattr(
+                self.settings_manager,
+                f"{self.display_messages[row].priority.name.lower()}_color",
+            )
             return QColor(r, g, b)
         return QVariant()

@@ -11,17 +11,21 @@ from ..utils import system_util
 
 
 class DatabaseHandler:
-
     base = declarative_base()
 
     def __init__(self, *, in_memory=False):
-        self.database_path = os.path.join(system_util.get_data_directory(), const.DATABASE_NAME)
-        self.database_url = f'sqlite:///{self.database_path}'
+        self.database_path = os.path.join(
+            system_util.get_data_directory(), const.DATABASE_NAME
+        )
+        self.database_url = f"sqlite:///{self.database_path}"
         if not in_memory:
-            self.engine = sqlalchemy.create_engine(self.database_url, echo=False,
-                                                   connect_args={'check_same_thread': False, 'timeout': 600})
+            self.engine = sqlalchemy.create_engine(
+                self.database_url,
+                echo=False,
+                connect_args={"check_same_thread": False, "timeout": 600},
+            )
         else:
-            self.engine = sqlalchemy.create_engine('sqlite:///:memory:')
+            self.engine = sqlalchemy.create_engine("sqlite:///:memory:")
         self.base.metadata.create_all(self.engine)
 
         self.Session = sessionmaker(bind=self.engine)
@@ -90,7 +94,9 @@ class DatabaseHandler:
         """
         if session is None:
             with self.get_scoped_update_session() as db_session:
-                return self.get_or_create(model, session=db_session, defaults=defaults, **kwargs)
+                return self.get_or_create(
+                    model, session=db_session, defaults=defaults, **kwargs
+                )
         instance = session.query(model).filter_by(**kwargs).first()
         if instance:
             return instance, False
@@ -105,5 +111,5 @@ class DatabaseHandler:
 
     def vacuum(self):
         connection = sqlite3.connect(self.database_path)
-        connection.execute('VACUUM')
+        connection.execute("VACUUM")
         connection.close()

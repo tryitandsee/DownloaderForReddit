@@ -1,4 +1,3 @@
-
 # Form implementation generated from reading ui file 'Resources\ui_files\existing_names_dialog.ui'
 #
 # Created by: PyQt5 UI code generator 5.14.1
@@ -52,8 +51,15 @@ class Ui_ExistingNameDialog:
 
     def retranslateUi(self, ExistingNameDialog):
         _translate = QtCore.QCoreApplication.translate
-        ExistingNameDialog.setWindowTitle(_translate("ExistingNameDialog", "Add Existing"))
-        self.label.setText(_translate("ExistingNameDialog", "<html><head/><body><p>The following names already exist in the database.</p><p>How would you like to handle adding these users/subreddits?</p></body></html>"))
+        ExistingNameDialog.setWindowTitle(
+            _translate("ExistingNameDialog", "Add Existing")
+        )
+        self.label.setText(
+            _translate(
+                "ExistingNameDialog",
+                "<html><head/><body><p>The following names already exist in the database.</p><p>How would you like to handle adding these users/subreddits?</p></body></html>",
+            )
+        )
         self.select_all_checkbox.setText(_translate("ExistingNameDialog", "Select All"))
         self.name_table_widget.setSortingEnabled(True)
         item = self.name_table_widget.horizontalHeaderItem(0)

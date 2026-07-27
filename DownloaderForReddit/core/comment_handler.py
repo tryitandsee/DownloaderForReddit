@@ -7,7 +7,6 @@ from .runner import Runner, verify_run
 
 
 class CommentHandler(Runner):
-
     def __init__(self, submission, post, download_session_id, stop_run, session=None):
         super().__init__(stop_run)
         self.logger = logging.getLogger(__name__)
@@ -29,7 +28,7 @@ class CommentHandler(Runner):
     def get_sort_order(self):
         sort_method = self.significant_ro.comment_sort_method
         if sort_method.value == 6:
-            return 'q&a'
+            return "q&a"
         return sort_method.name.lower()
 
     def run(self):
@@ -60,7 +59,9 @@ class CommentHandler(Runner):
                 praw_comment.reply_sort = self.sort_order
                 # TODO: try adding replace more here
                 praw_comment.replies.replace_more(limit=0)
-                for reply in praw_comment.replies[: self.significant_ro.comment_reply_limit]:
+                for reply in praw_comment.replies[
+                    : self.significant_ro.comment_reply_limit
+                ]:
                     reply_id = self.handle_found_comment(reply, session, comment_id)
                     if reply_id is not None:
                         next_level_comments[reply] = reply_id
@@ -70,14 +71,24 @@ class CommentHandler(Runner):
 
     @verify_run
     def handle_found_comment(self, praw_comment, session, parent_id=None):
-        if self.comment_filter.filter_extraction(praw_comment, self.significant_ro) and \
-                self.comment_filter.filter_score_limit(praw_comment, self.significant_ro):
-            comment = SubmittableCreator.create_comment(praw_comment, self.post, session, self.download_session_id,
-                                                        parent_comment_id=parent_id)
+        if self.comment_filter.filter_extraction(
+            praw_comment, self.significant_ro
+        ) and self.comment_filter.filter_score_limit(praw_comment, self.significant_ro):
+            comment = SubmittableCreator.create_comment(
+                praw_comment,
+                self.post,
+                session,
+                self.download_session_id,
+                parent_comment_id=parent_id,
+            )
             if comment is not None:
-                if self.comment_filter.filter_download(praw_comment, self.significant_ro):
+                if self.comment_filter.filter_download(
+                    praw_comment, self.significant_ro
+                ):
                     self.comments_to_download.append(comment)
-                if self.comment_filter.filter_content_download(praw_comment, self.significant_ro):
+                if self.comment_filter.filter_content_download(
+                    praw_comment, self.significant_ro
+                ):
                     self.comments_to_extract_links.append(comment)
                 return comment.id
         return None

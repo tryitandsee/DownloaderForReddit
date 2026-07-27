@@ -16,6 +16,7 @@ class HyperlinkDelegate(QStyledItemDelegate):
     mouse events to support hyperlink navigation while preserving the item's intended
     color.
     """
+
     def paint(self, painter, option, index):
         """
         Overrides the paint method to render hyperlinks and colored text in the item view.
@@ -44,7 +45,9 @@ class HyperlinkDelegate(QStyledItemDelegate):
         doc = self.get_document(option, index)
         return doc.size().toSize()
 
-    def get_document(self, option: QStyleOptionViewItem, index: QModelIndex) -> QTextDocument:
+    def get_document(
+        self, option: QStyleOptionViewItem, index: QModelIndex
+    ) -> QTextDocument:
         """
         Generates a QTextDocument object with formatted HTML content and foreground
         color based on provided index data.
@@ -75,13 +78,20 @@ class HyperlinkDelegate(QStyledItemDelegate):
         """
         Overrides the editorEvent method to handle mouse events for hyperlink navigation.
         """
-        if event.type() == QEvent.MouseButtonRelease and event.button() == Qt.LeftButton:
+        if (
+            event.type() == QEvent.MouseButtonRelease
+            and event.button() == Qt.LeftButton
+        ):
             doc = QTextDocument()
             html = index.data(Qt.DisplayRole)
             doc.setHtml(html)
             pos = event.pos() - option.rect.topLeft()
             anchor = doc.documentLayout().anchorAt(pos)
             if anchor:
-                threading.Thread(target=injector.get_reddit_source().open_url, args=(anchor,), daemon=True).start()
+                threading.Thread(
+                    target=injector.get_reddit_source().open_url,
+                    args=(anchor,),
+                    daemon=True,
+                ).start()
                 return True
         return False

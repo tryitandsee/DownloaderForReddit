@@ -12,12 +12,13 @@ from . import HEADERS
 
 
 class MultipartDownloader(Runner):
-
     def __init__(self, stop_run):
         super().__init__(stop_run)
         self.logger = logging.getLogger(__name__)
         self.settings_manager = injector.get_settings_manager()
-        self.executor = ThreadPoolExecutor(self.settings_manager.multi_part_thread_count)
+        self.executor = ThreadPoolExecutor(
+            self.settings_manager.multi_part_thread_count
+        )
         self.chunk_size = self.settings_manager.multi_part_chunk_size
         self.part_count = 0
         self.failed_parts = 0
@@ -27,7 +28,9 @@ class MultipartDownloader(Runner):
         try:
             loop.run_until_complete(self.download(content, path, size))
         except:
-            self.logger.exception('Multi-part download failed', extra={'url': content.url, 'path': path})
+            self.logger.exception(
+                "Multi-part download failed", extra={"url": content.url, "path": path}
+            )
         finally:
             loop.close()
 
@@ -43,7 +46,7 @@ class MultipartDownloader(Runner):
                 content,
                 start,
                 start + self.chunk_size - 1,
-                f'{path}.part{x}'
+                f"{path}.part{x}",
             )
             for x, start in enumerate(chunks)
         ]
@@ -51,16 +54,18 @@ class MultipartDownloader(Runner):
 
         # This event loop is a dedicated per-download throwaway (see `run()`), not a shared reactor --
         # blocking here doesn't stall any other task.
-        with open(path, 'wb') as file:  # noqa: ASYNC230
+        with open(path, "wb") as file:  # noqa: ASYNC230
             for x in range(self.part_count):
                 try:
-                    chunk_path = f'{path}.part{x}'
-                    with open(chunk_path, 'rb') as part_file:  # noqa: ASYNC230
+                    chunk_path = f"{path}.part{x}"
+                    with open(chunk_path, "rb") as part_file:  # noqa: ASYNC230
                         file.write(part_file.read())
                     os.remove(chunk_path)
                 except FileNotFoundError:
-                    self.logger.exception('Failed to join multi-download part into complete file',
-                                          extra={'chunk_path': chunk_path})
+                    self.logger.exception(
+                        "Failed to join multi-download part into complete file",
+                        extra={"chunk_path": chunk_path},
+                    )
 
     @verify_run
     def download_part(self, content, start, end, path):
@@ -72,11 +77,14 @@ class MultipartDownloader(Runner):
             headers = self.get_headers(content, start, end)
             response = requests.get(url, headers=headers, stream=True, timeout=10)
             if response.status_code == 206:
-                with open(path, 'wb') as file:
+                with open(path, "wb") as file:
                     file.writelines(response.iter_content(self.chunk_size))
                 return True
-            self.log_part_error('Failed to download chunk of muli-part download - bad response',
-                                extra={'status_code': response.status_code}, exc_info=False)
+            self.log_part_error(
+                "Failed to download chunk of muli-part download - bad response",
+                extra={"status_code": response.status_code},
+                exc_info=False,
+            )
             return False
 
         while self.continue_run and retry and tries < 3:
@@ -86,20 +94,32 @@ class MultipartDownloader(Runner):
                 if success:
                     retry = False
             except requests.exceptions.ConnectTimeout:
-                self.log_part_error('Operation timed out before establishing a connection to the server',
-                                    extra={'url': url, 'range': f'{start} - {end}'}, log=tries >= 3)
+                self.log_part_error(
+                    "Operation timed out before establishing a connection to the server",
+                    extra={"url": url, "range": f"{start} - {end}"},
+                    log=tries >= 3,
+                )
             except requests.exceptions.ReadTimeout:
-                self.log_part_error('Connection timed out while reading data from server',
-                                    extra={'url': url, 'range': f'{start} - {end}'}, log=tries >= 3)
+                self.log_part_error(
+                    "Connection timed out while reading data from server",
+                    extra={"url": url, "range": f"{start} - {end}"},
+                    log=tries >= 3,
+                )
             except requests.exceptions.ChunkedEncodingError:
-                self.log_part_error('Connection experienced a chunk encoding error and closed before complete',
-                                    extra={'url': url, 'range': f'{start} - {end}'}, log=tries >= 3)
+                self.log_part_error(
+                    "Connection experienced a chunk encoding error and closed before complete",
+                    extra={"url": url, "range": f"{start} - {end}"},
+                    log=tries >= 3,
+                )
             except:
-                self.log_part_error('Unknown error occurred', extra={'url': url, 'range': f'{start} - {end}'},
-                                    log=tries >= 3)
+                self.log_part_error(
+                    "Unknown error occurred",
+                    extra={"url": url, "range": f"{start} - {end}"},
+                    log=tries >= 3,
+                )
 
     def get_headers(self, content, start, end):
-        headers = {'Range': f'bytes={start}-{end}'}
+        headers = {"Range": f"bytes={start}-{end}"}
         download_headers = HEADERS.get(content.id, None)
         if download_headers is not None:
             headers.update(download_headers)
@@ -111,6 +131,9 @@ class MultipartDownloader(Runner):
             if self.failed_parts <= 3:
                 self.logger.error(message, extra=extra, exc_info=exc_info)
             else:
-                self.logger.error('Failed to download multiple chunks of multi-part download.  '
-                                  'No further errors will be logged for this download',
-                                  extra=extra, exc_info=exc_info)
+                self.logger.error(
+                    "Failed to download multiple chunks of multi-part download.  "
+                    "No further errors will be logged for this download",
+                    extra=extra,
+                    exc_info=exc_info,
+                )

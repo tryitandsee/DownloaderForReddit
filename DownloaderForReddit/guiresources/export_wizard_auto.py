@@ -1,4 +1,3 @@
-
 # Form implementation generated from reading ui file 'Resources\ui_files\export_wizard.ui'
 #
 # Created by: PyQt5 UI code generator 5.14.1
@@ -67,8 +66,17 @@ class Ui_ExportWizard:
         self.csv_export_radio.setText(_translate("ExportWizard", "CSV"))
         self.json_export_radio.setText(_translate("ExportWizard", "JSON"))
         self.page_two.setTitle(_translate("ExportWizard", "Nested Object Export"))
-        self.label.setText(_translate("ExportWizard", "<html><head/><body><p>How would you like nested objects?  ie: When exporting a list of users would you like the users posts to be exported with full attributes such as score, date posted, title, etc. or would you like the post to be exported as the title of the post only?</p></body></html>"))
-        self.export_complete_nested_radio.setText(_translate("ExportWizard", "Export complete nested objects"))
-        self.export_nested_name_radio.setText(_translate("ExportWizard", "Export names of nested objects only"))
+        self.label.setText(
+            _translate(
+                "ExportWizard",
+                "<html><head/><body><p>How would you like nested objects?  ie: When exporting a list of users would you like the users posts to be exported with full attributes such as score, date posted, title, etc. or would you like the post to be exported as the title of the post only?</p></body></html>",
+            )
+        )
+        self.export_complete_nested_radio.setText(
+            _translate("ExportWizard", "Export complete nested objects")
+        )
+        self.export_nested_name_radio.setText(
+            _translate("ExportWizard", "Export names of nested objects only")
+        )
         self.page_three.setTitle(_translate("ExportWizard", "Export Path"))
         self.path_dialog_button.setText(_translate("ExportWizard", "Select Path"))

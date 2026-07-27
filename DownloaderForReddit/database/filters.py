@@ -27,19 +27,19 @@ class Filter:
     """
 
     op_map: ClassVar[dict[str, Callable[[Any, Any], Any]]] = {
-        'eq': lambda attr, value: attr == value,
-        'not': lambda attr, value: attr != value,
-        'lt': lambda attr, value: or_(attr == None, attr < value),
-        'lte': lambda attr, value: or_(attr == None, attr <= value),
-        'gt': lambda attr, value: attr > value,
-        'gte': lambda attr, value: attr >= value,
-        'in': lambda attr, value: attr.in_(value),
-        'like': lambda attr, value: attr.like(f'%{value}%'),
-        'contains': lambda attr, value: attr.contains(value)
+        "eq": lambda attr, value: attr == value,
+        "not": lambda attr, value: attr != value,
+        "lt": lambda attr, value: or_(attr == None, attr < value),
+        "lte": lambda attr, value: or_(attr == None, attr <= value),
+        "gt": lambda attr, value: attr > value,
+        "gte": lambda attr, value: attr >= value,
+        "in": lambda attr, value: attr.in_(value),
+        "like": lambda attr, value: attr.like(f"%{value}%"),
+        "contains": lambda attr, value: attr.contains(value),
     }
 
     model = None
-    default_order = 'id'
+    default_order = "id"
     filter_include: ClassVar[list[str]] = []
     filter_exclude: ClassVar[list[str]] = []
     order_by_include: ClassVar[list[str]] = []
@@ -52,8 +52,8 @@ class Filter:
     def get_filter_fields(cls):
         if len(cls.filter_include) == 0:
             cls.filter_include = cls.model.__table__.columns.keys()
-        elif 'all' in cls.filter_include:
-            cls.filter_include.remove('all')
+        elif "all" in cls.filter_include:
+            cls.filter_include.remove("all")
             cls.filter_include.extend(cls.model.__table__.columns.keys())
         for x in cls.filter_exclude:
             cls.remove_item(cls.filter_include, x)
@@ -62,11 +62,11 @@ class Filter:
 
     @classmethod
     def get_order_fields(cls):
-        if len(cls.order_by_include) == 0 or 'all' in cls.order_by_include:
+        if len(cls.order_by_include) == 0 or "all" in cls.order_by_include:
             cls.order_by_include.extend(cls.model.__table__.columns.keys())
             for x in cls.order_by_exclude:
                 cls.remove_item(cls.order_by_include, x)
-            cls.remove_item(cls.order_by_include, 'all')
+            cls.remove_item(cls.order_by_include, "all")
         cls.order_by_include.sort()
         return cls.order_by_include
 
@@ -90,8 +90,8 @@ class Filter:
             if not attr:
                 query = self.custom_filter(query, key, operator, value)
                 continue
-            if operator == 'in' and not isinstance(value, list):
-                value = value.split(',')
+            if operator == "in" and not isinstance(value, list):
+                value = value.split(",")
             try:
                 f = self.op_map[operator](attr, value)
                 query = query.filter(f)
@@ -107,7 +107,7 @@ class Filter:
             try:
                 query, order_by = self.custom_filter_map[order].order_method(query)
             except KeyError:
-                print('key error')
+                print("key error")
                 order_by = self.default_order
         if desc:
             order_by = descending(order_by)
@@ -154,39 +154,77 @@ class Filter:
 
 class RedditObjectListFilter(Filter):
     model = RedditObjectList
-    default_order = 'name'
-    filter_include: ClassVar[list[str]] = ['all', 'reddit_object_count', 'total_score']
-    filter_exclude: ClassVar[list[str]] = ['post_score_limit_operator', 'comment_score_limit_operator']
-    order_by_include: ClassVar[list[str]] = [
-        'name', 'date_created', 'list_type', 'reddit_object_count', 'total_score', 'date_limit',
+    default_order = "name"
+    filter_include: ClassVar[list[str]] = ["all", "reddit_object_count", "total_score"]
+    filter_exclude: ClassVar[list[str]] = [
+        "post_score_limit_operator",
+        "comment_score_limit_operator",
     ]
-    choices: ClassVar[dict[str, list[str]]] = {'list_type': ['USER', 'SUBREDDIT']}
+    order_by_include: ClassVar[list[str]] = [
+        "name",
+        "date_created",
+        "list_type",
+        "reddit_object_count",
+        "total_score",
+        "date_limit",
+    ]
+    choices: ClassVar[dict[str, list[str]]] = {"list_type": ["USER", "SUBREDDIT"]}
 
     def __init__(self):
         super().__init__()
         self.custom_filter_map = {
-            'reddit_object_count': CustomItem(self.filter_reddit_object_count, self.order_by_reddit_object_count,
-                                              Integer),
-            'post_count': CustomItem(self.filter_post_count, self.order_by_post_count, Integer),
-            'total_score': CustomItem(self.filter_total_score, self.order_by_total_score, Integer),
+            "reddit_object_count": CustomItem(
+                self.filter_reddit_object_count,
+                self.order_by_reddit_object_count,
+                Integer,
+            ),
+            "post_count": CustomItem(
+                self.filter_post_count, self.order_by_post_count, Integer
+            ),
+            "total_score": CustomItem(
+                self.filter_total_score, self.order_by_total_score, Integer
+            ),
         }
 
     def get_reddit_object_count_sub(self):
-        return self.session.query(ListAssociation.reddit_object_list_id,
-                                  func.count(ListAssociation.reddit_object_id).label('ro_count')) \
-            .group_by(ListAssociation.reddit_object_list_id).subquery()
+        return (
+            self.session.query(
+                ListAssociation.reddit_object_list_id,
+                func.count(ListAssociation.reddit_object_id).label("ro_count"),
+            )
+            .group_by(ListAssociation.reddit_object_list_id)
+            .subquery()
+        )
 
     def get_post_count_sub(self):
-        return self.session.query(ListAssociation.reddit_object_list_id, Post.significant_reddit_object_id,
-                                  func.count(Post.id).label('post_count')) \
-            .join(Post, Post.significant_reddit_object_id == ListAssociation.reddit_object_id) \
-            .group_by(ListAssociation.reddit_object_list_id).subquery()
+        return (
+            self.session.query(
+                ListAssociation.reddit_object_list_id,
+                Post.significant_reddit_object_id,
+                func.count(Post.id).label("post_count"),
+            )
+            .join(
+                Post,
+                Post.significant_reddit_object_id == ListAssociation.reddit_object_id,
+            )
+            .group_by(ListAssociation.reddit_object_list_id)
+            .subquery()
+        )
 
     def get_total_score_sub(self):
-        return self.session.query(ListAssociation.reddit_object_list_id, Post.significant_reddit_object_id,
-                                  func.sum(Post.score).label('total_score')) \
-            .join(Post, Post.significant_reddit_object_id == ListAssociation.reddit_object_id) \
-            .group_by(ListAssociation.reddit_object_list_id).subquery()
+        return (
+            self.session.query(
+                ListAssociation.reddit_object_list_id,
+                Post.significant_reddit_object_id,
+                func.sum(Post.score).label("total_score"),
+            )
+            .join(
+                Post,
+                Post.significant_reddit_object_id == ListAssociation.reddit_object_id,
+            )
+            .group_by(ListAssociation.reddit_object_list_id)
+            .subquery()
+        )
 
     def join_query(self, query, sub):
         return query.outerjoin(sub, RedditObjectList.id == sub.c.reddit_object_list_id)
@@ -224,69 +262,157 @@ class RedditObjectListFilter(Filter):
 
 class RedditObjectFilter(Filter):
     model = RedditObject
-    default_order = 'name'
+    default_order = "name"
     filter_include: ClassVar[list[str]] = [
-        'all', 'post_score', 'post_count', 'comment_score', 'comment_count', 'download_count',
-        'last_post_date', 'list_count',
+        "all",
+        "post_score",
+        "post_count",
+        "comment_score",
+        "comment_count",
+        "download_count",
+        "last_post_date",
+        "list_count",
     ]
-    filter_exclude: ClassVar[list[str]] = ['post_score_limit_operator', 'comment_score_limit_operator', 'lists']
+    filter_exclude: ClassVar[list[str]] = [
+        "post_score_limit_operator",
+        "comment_score_limit_operator",
+        "lists",
+    ]
     order_by_include: ClassVar[list[str]] = [
-        'id', 'name', 'last_download', 'date_added', 'absolute_date_limit', 'date_created',
-        'post_score', 'post_count', 'content_count', 'comment_count', 'download_count',
-        'last_post_date', 'list_count',
+        "id",
+        "name",
+        "last_download",
+        "date_added",
+        "absolute_date_limit",
+        "date_created",
+        "post_score",
+        "post_count",
+        "content_count",
+        "comment_count",
+        "download_count",
+        "last_post_date",
+        "list_count",
     ]
-    choices: ClassVar[dict[str, list[str]]] = {'object_type': ['USER', 'SUBREDDIT']}
+    choices: ClassVar[dict[str, list[str]]] = {"object_type": ["USER", "SUBREDDIT"]}
 
     def __init__(self):
         super().__init__()
         self.custom_filter_map = {
-            'post_score': CustomItem(self.filter_post_score, self.order_by_score, Integer),
-            'post_count': CustomItem(self.filter_post_count, self.order_by_post_count, Integer),
-            'comment_score': CustomItem(self.filter_comment_score, self.order_by_comment_score, Integer),
-            'comment_count': CustomItem(self.filter_comment_count, self.order_by_comment_count, Integer),
-            'content_count': CustomItem(self.filter_content_count, self.order_by_content_count, Integer),
-            'download_count': CustomItem(self.filter_download_count, self.order_by_download_count, Integer),
-            'last_post_date': CustomItem(self.filter_last_post_date, self.order_by_last_post_date, DateTime),
-            'list_count': CustomItem(self.filter_list_count, self.order_by_list_count, Integer),
+            "post_score": CustomItem(
+                self.filter_post_score, self.order_by_score, Integer
+            ),
+            "post_count": CustomItem(
+                self.filter_post_count, self.order_by_post_count, Integer
+            ),
+            "comment_score": CustomItem(
+                self.filter_comment_score, self.order_by_comment_score, Integer
+            ),
+            "comment_count": CustomItem(
+                self.filter_comment_count, self.order_by_comment_count, Integer
+            ),
+            "content_count": CustomItem(
+                self.filter_content_count, self.order_by_content_count, Integer
+            ),
+            "download_count": CustomItem(
+                self.filter_download_count, self.order_by_download_count, Integer
+            ),
+            "last_post_date": CustomItem(
+                self.filter_last_post_date, self.order_by_last_post_date, DateTime
+            ),
+            "list_count": CustomItem(
+                self.filter_list_count, self.order_by_list_count, Integer
+            ),
         }
 
     def get_score_sum_sub(self):
-        return self.session.query(Post.significant_reddit_object_id, func.sum(Post.score).label('total_score')) \
-            .group_by(Post.significant_reddit_object_id).subquery()
+        return (
+            self.session.query(
+                Post.significant_reddit_object_id,
+                func.sum(Post.score).label("total_score"),
+            )
+            .group_by(Post.significant_reddit_object_id)
+            .subquery()
+        )
 
     def get_post_count_sub(self):
-        return self.session.query(Post.significant_reddit_object_id, func.count(Post.id).label('post_count')) \
-            .group_by(Post.significant_reddit_object_id).subquery()
+        return (
+            self.session.query(
+                Post.significant_reddit_object_id,
+                func.count(Post.id).label("post_count"),
+            )
+            .group_by(Post.significant_reddit_object_id)
+            .subquery()
+        )
 
     def get_comment_score_sub(self):
-        return self.session.query(Post.significant_reddit_object_id, func.sum(Comment.score).label('total_score')) \
-            .join(Post).group_by(Post.significant_reddit_object_id).subquery()
+        return (
+            self.session.query(
+                Post.significant_reddit_object_id,
+                func.sum(Comment.score).label("total_score"),
+            )
+            .join(Post)
+            .group_by(Post.significant_reddit_object_id)
+            .subquery()
+        )
 
     def get_comment_count_sub(self):
-        return self.session.query(Post.significant_reddit_object_id, func.count(Comment.id).label('comment_count')) \
-            .join(Post).group_by(Post.significant_reddit_object_id).subquery()
+        return (
+            self.session.query(
+                Post.significant_reddit_object_id,
+                func.count(Comment.id).label("comment_count"),
+            )
+            .join(Post)
+            .group_by(Post.significant_reddit_object_id)
+            .subquery()
+        )
 
     def get_content_count_sub(self):
-        return self.session.query(Post.significant_reddit_object_id, func.count(Content.id).label('content_count')) \
-            .join(Post).group_by(Post.significant_reddit_object_id).subquery()
+        return (
+            self.session.query(
+                Post.significant_reddit_object_id,
+                func.count(Content.id).label("content_count"),
+            )
+            .join(Post)
+            .group_by(Post.significant_reddit_object_id)
+            .subquery()
+        )
 
     def get_download_count_sub(self):
-        return self.session.query(Post.significant_reddit_object_id,
-                                  func.count(Post.download_session_id.distinct()).label('dl_count')) \
-            .group_by(Post.significant_reddit_object_id).subquery()
+        return (
+            self.session.query(
+                Post.significant_reddit_object_id,
+                func.count(Post.download_session_id.distinct()).label("dl_count"),
+            )
+            .group_by(Post.significant_reddit_object_id)
+            .subquery()
+        )
 
     def get_last_post_date_sub(self):
-        return self.session.query(Post.significant_reddit_object_id,
-                                  func.max(Post.date_posted).label('last_post_date')) \
-            .group_by(Post.significant_reddit_object_id).subquery()
+        return (
+            self.session.query(
+                Post.significant_reddit_object_id,
+                func.max(Post.date_posted).label("last_post_date"),
+            )
+            .group_by(Post.significant_reddit_object_id)
+            .subquery()
+        )
 
     def get_list_count_sub(self):
-        return self.session.query(ListAssociation.reddit_object_id,
-                                  func.count(ListAssociation.reddit_object_list_id.distinct()).label('list_count'))\
-               .group_by(ListAssociation.reddit_object_id).subquery()
+        return (
+            self.session.query(
+                ListAssociation.reddit_object_id,
+                func.count(ListAssociation.reddit_object_list_id.distinct()).label(
+                    "list_count"
+                ),
+            )
+            .group_by(ListAssociation.reddit_object_id)
+            .subquery()
+        )
 
     def join_queries(self, query, sub):
-        return query.outerjoin(sub, RedditObject.id == sub.c.significant_reddit_object_id)
+        return query.outerjoin(
+            sub, RedditObject.id == sub.c.significant_reddit_object_id
+        )
 
     def filter_post_score(self, query, operator, value):
         sub = self.get_score_sum_sub()
@@ -371,11 +497,16 @@ class RedditObjectFilter(Filter):
 
 class DownloadSessionFilter(Filter):
     model = DownloadSession
-    default_order = 'id'
+    default_order = "id"
     included: ClassVar[list[str]] = [
-        'all', 'reddit_object_count', 'post_count', 'comment_count', 'content_count', 'total_activity_count',
+        "all",
+        "reddit_object_count",
+        "post_count",
+        "comment_count",
+        "content_count",
+        "total_activity_count",
     ]
-    excluded: ClassVar[list[str]] = ['extraction_thread_count', 'download_thread_count']
+    excluded: ClassVar[list[str]] = ["extraction_thread_count", "download_thread_count"]
     filter_include: ClassVar[list[str]] = included
     filter_exclude: ClassVar[list[str]] = excluded
     order_by_include: ClassVar[list[str]] = included
@@ -384,34 +515,74 @@ class DownloadSessionFilter(Filter):
     def __init__(self):
         super().__init__()
         self.custom_filter_map = {
-            'reddit_object_count': CustomItem(self.filter_reddit_object_count, self.order_by_reddit_object_count,
-                                              Integer),
-            'post_count': CustomItem(self.filter_post_count, self.order_by_post_count, Integer),
-            'comment_count': CustomItem(self.filter_comment_count, self.order_by_comment_count, Integer),
-            'content_count': CustomItem(self.filter_content_count, self.order_by_content_count, Integer),
-            'total_activity_count': CustomItem(self.filter_total_activity_count, self.order_by_total_activity_count,
-                                               Integer)
+            "reddit_object_count": CustomItem(
+                self.filter_reddit_object_count,
+                self.order_by_reddit_object_count,
+                Integer,
+            ),
+            "post_count": CustomItem(
+                self.filter_post_count, self.order_by_post_count, Integer
+            ),
+            "comment_count": CustomItem(
+                self.filter_comment_count, self.order_by_comment_count, Integer
+            ),
+            "content_count": CustomItem(
+                self.filter_content_count, self.order_by_content_count, Integer
+            ),
+            "total_activity_count": CustomItem(
+                self.filter_total_activity_count,
+                self.order_by_total_activity_count,
+                Integer,
+            ),
         }
 
     def get_reddit_object_count_sub(self):
-        return self.session.query(Post.download_session_id,
-                                  func.count(Post.significant_reddit_object_id.distinct()).label('ro_count')) \
-            .group_by(Post.download_session_id).subquery()
+        return (
+            self.session.query(
+                Post.download_session_id,
+                func.count(Post.significant_reddit_object_id.distinct()).label(
+                    "ro_count"
+                ),
+            )
+            .group_by(Post.download_session_id)
+            .subquery()
+        )
 
     def get_post_count_sub(self):
-        return self.session.query(Post.download_session_id, func.count(Post.id).label('post_count')) \
-            .group_by(Post.download_session_id).subquery()
+        return (
+            self.session.query(
+                Post.download_session_id, func.count(Post.id).label("post_count")
+            )
+            .group_by(Post.download_session_id)
+            .subquery()
+        )
 
     def get_comment_count_sub(self):
-        return self.session.query(Comment.download_session_id, func.count(Comment.id).label('comment_count')) \
-            .group_by(Comment.download_session_id).subquery()
+        return (
+            self.session.query(
+                Comment.download_session_id,
+                func.count(Comment.id).label("comment_count"),
+            )
+            .group_by(Comment.download_session_id)
+            .subquery()
+        )
 
     def get_content_count_sub(self):
-        return self.session.query(Content.download_session_id, func.count(Content.id).label('content_count')) \
-            .group_by(Content.download_session_id).subquery()
+        return (
+            self.session.query(
+                Content.download_session_id,
+                func.count(Content.id).label("content_count"),
+            )
+            .group_by(Content.download_session_id)
+            .subquery()
+        )
 
     def get_total_activity_sub(self):
-        return self.get_post_count_sub(), self.get_comment_count_sub(), self.get_content_count_sub()
+        return (
+            self.get_post_count_sub(),
+            self.get_comment_count_sub(),
+            self.get_content_count_sub(),
+        )
 
     def join_queries(self, query, sub):
         return query.outerjoin(sub, DownloadSession.id == sub.c.download_session_id)
@@ -439,16 +610,25 @@ class DownloadSessionFilter(Filter):
     def filter_total_activity_count(self, query, operator, value):
         post_sub, comment_sub, content_sub = self.get_total_activity_sub()
         f = self.op_map[operator](
-            (func.coalesce(post_sub.c.post_count, 0) +
-             func.coalesce(content_sub.c.content_count, 0) +
-             func.coalesce(comment_sub.c.comment_count, 0)),
-            value
+            (
+                func.coalesce(post_sub.c.post_count, 0)
+                + func.coalesce(content_sub.c.content_count, 0)
+                + func.coalesce(comment_sub.c.comment_count, 0)
+            ),
+            value,
         )
-        return query \
-            .outerjoin(post_sub, post_sub.c.download_session_id == DownloadSession.id) \
-            .outerjoin(content_sub, content_sub.c.download_session_id == DownloadSession.id) \
-            .outerjoin(comment_sub, comment_sub.c.download_session_id == DownloadSession.id) \
+        return (
+            query.outerjoin(
+                post_sub, post_sub.c.download_session_id == DownloadSession.id
+            )
+            .outerjoin(
+                content_sub, content_sub.c.download_session_id == DownloadSession.id
+            )
+            .outerjoin(
+                comment_sub, comment_sub.c.download_session_id == DownloadSession.id
+            )
             .filter(f)
+        )
 
     def order_by_reddit_object_count(self, query):
         sub = self.get_reddit_object_count_sub()
@@ -472,22 +652,39 @@ class DownloadSessionFilter(Filter):
 
     def order_by_total_activity_count(self, query):
         post_sub, comment_sub, content_sub = self.get_total_activity_sub()
-        query = query \
-            .outerjoin(post_sub, post_sub.c.download_session_id == DownloadSession.id) \
-            .outerjoin(content_sub, content_sub.c.download_session_id == DownloadSession.id) \
-            .outerjoin(comment_sub, comment_sub.c.download_session_id == DownloadSession.id)
-        return query, \
-               (func.coalesce(post_sub.c.post_count, 0) +
-                func.coalesce(content_sub.c.content_count, 0) +
-                func.coalesce(comment_sub.c.comment_count, 0)).label('total_activity')
+        query = (
+            query.outerjoin(
+                post_sub, post_sub.c.download_session_id == DownloadSession.id
+            )
+            .outerjoin(
+                content_sub, content_sub.c.download_session_id == DownloadSession.id
+            )
+            .outerjoin(
+                comment_sub, comment_sub.c.download_session_id == DownloadSession.id
+            )
+        )
+        return query, (
+            func.coalesce(post_sub.c.post_count, 0)
+            + func.coalesce(content_sub.c.content_count, 0)
+            + func.coalesce(comment_sub.c.comment_count, 0)
+        ).label("total_activity")
 
 
 class PostFilter(Filter):
     model = Post
-    default_order = 'title'
-    include: ClassVar[list[str]] = ['all', 'author_name', 'subreddit_name', 'comment_count', 'content_count']
+    default_order = "title"
+    include: ClassVar[list[str]] = [
+        "all",
+        "author_name",
+        "subreddit_name",
+        "comment_count",
+        "content_count",
+    ]
     exclude: ClassVar[list[str]] = [
-        'author_id', 'subreddit_id', 'significant_reddit_object_id', 'download_session_id',
+        "author_id",
+        "subreddit_id",
+        "significant_reddit_object_id",
+        "download_session_id",
     ]
     filter_include: ClassVar[list[str]] = include
     filter_exclude: ClassVar[list[str]] = exclude
@@ -497,19 +694,37 @@ class PostFilter(Filter):
     def __init__(self):
         super().__init__()
         self.custom_filter_map = {
-            'comment_count': CustomItem(self.filter_comment_count, self.order_by_comment_count, Integer),
-            'content_count': CustomItem(self.filter_content_count, self.order_by_content_count, Integer),
-            'author_name': CustomItem(self.filter_author_name, self.order_by_author_name, String),
-            'subreddit_name': CustomItem(self.filter_subreddit_name, self.order_by_subreddit_name, String),
+            "comment_count": CustomItem(
+                self.filter_comment_count, self.order_by_comment_count, Integer
+            ),
+            "content_count": CustomItem(
+                self.filter_content_count, self.order_by_content_count, Integer
+            ),
+            "author_name": CustomItem(
+                self.filter_author_name, self.order_by_author_name, String
+            ),
+            "subreddit_name": CustomItem(
+                self.filter_subreddit_name, self.order_by_subreddit_name, String
+            ),
         }
 
     def get_comment_count_sub(self):
-        return self.session.query(Comment.post_id, func.count(Comment.id).label('comment_count')) \
-            .group_by(Comment.post_id).subquery()
+        return (
+            self.session.query(
+                Comment.post_id, func.count(Comment.id).label("comment_count")
+            )
+            .group_by(Comment.post_id)
+            .subquery()
+        )
 
     def get_content_count_sub(self):
-        return self.session.query(Content.post_id, func.count(Content.id).label('content_count')) \
-            .group_by(Content.post_id).subquery()
+        return (
+            self.session.query(
+                Content.post_id, func.count(Content.id).label("content_count")
+            )
+            .group_by(Content.post_id)
+            .subquery()
+        )
 
     def join_queries(self, query, sub):
         return query.outerjoin(sub, Post.id == sub.c.post_id)
@@ -553,9 +768,21 @@ class PostFilter(Filter):
 
 class CommentFilter(Filter):
     model = Comment
-    default_order = 'id'
-    include: ClassVar[list[str]] = ['all', 'post_score', 'post_date', 'nsfw', 'author_name', 'subreddit_name']
-    exclude: ClassVar[list[str]] = ['author_id', 'subreddit_id', 'post_id', 'download_session_id']
+    default_order = "id"
+    include: ClassVar[list[str]] = [
+        "all",
+        "post_score",
+        "post_date",
+        "nsfw",
+        "author_name",
+        "subreddit_name",
+    ]
+    exclude: ClassVar[list[str]] = [
+        "author_id",
+        "subreddit_id",
+        "post_id",
+        "download_session_id",
+    ]
     filter_include: ClassVar[list[str]] = include
     filter_exclude: ClassVar[list[str]] = exclude
     order_by_include: ClassVar[list[str]] = include
@@ -564,19 +791,39 @@ class CommentFilter(Filter):
     def __init__(self):
         super().__init__()
         self.custom_filter_map = {
-            'post_title': CustomItem(self.filter_post_title, self.order_by_post_title, String),
-            'post_score': CustomItem(self.filter_post_score, self.order_by_post_score, Integer),
-            'post_date': CustomItem(self.filter_post_date, self.order_by_post_date, DateTime),
-            'nsfw': CustomItem(self.filter_nsfw, field_type=Enum,
-                               choices=[(x.display_name.title(), x) for x in NsfwFilter]),
-            'author_name': CustomItem(self.filter_author_name, self.order_by_author_name, String),
-            'subreddit_name': CustomItem(self.filter_subreddit_name, self.order_by_subreddit_name, String),
-            'content_count': CustomItem(self.filter_content_count, self.order_by_content_count, Integer)
+            "post_title": CustomItem(
+                self.filter_post_title, self.order_by_post_title, String
+            ),
+            "post_score": CustomItem(
+                self.filter_post_score, self.order_by_post_score, Integer
+            ),
+            "post_date": CustomItem(
+                self.filter_post_date, self.order_by_post_date, DateTime
+            ),
+            "nsfw": CustomItem(
+                self.filter_nsfw,
+                field_type=Enum,
+                choices=[(x.display_name.title(), x) for x in NsfwFilter],
+            ),
+            "author_name": CustomItem(
+                self.filter_author_name, self.order_by_author_name, String
+            ),
+            "subreddit_name": CustomItem(
+                self.filter_subreddit_name, self.order_by_subreddit_name, String
+            ),
+            "content_count": CustomItem(
+                self.filter_content_count, self.order_by_content_count, Integer
+            ),
         }
 
     def get_content_count_sub(self):
-        return self.session.query(Content.comment_id, func.count(Content.id).label('content_count')) \
-            .group_by(Content.comment_id).subquery()
+        return (
+            self.session.query(
+                Content.comment_id, func.count(Content.id).label("content_count")
+            )
+            .group_by(Content.comment_id)
+            .subquery()
+        )
 
     def filter_post_title(self, query, operator, value):
         f = self.op_map[operator](Post.title, value)
@@ -620,7 +867,9 @@ class CommentFilter(Filter):
         return query.join(User, User.id == Comment.author_id), User.name
 
     def order_by_subreddit_name(self, query):
-        return query.join(Subreddit, Subreddit.id == Comment.subreddit_id), Subreddit.name
+        return query.join(
+            Subreddit, Subreddit.id == Comment.subreddit_id
+        ), Subreddit.name
 
     def order_by_content_count(self, query):
         sub = self.get_content_count_sub()
@@ -630,11 +879,23 @@ class CommentFilter(Filter):
 
 class ContentFilter(Filter):
     model = Content
-    default_order = 'title'
+    default_order = "title"
     include: ClassVar[list[str]] = [
-        'all', 'post_score', 'post_date', 'nsfw', 'domain', 'author_name', 'subreddit_name',
+        "all",
+        "post_score",
+        "post_date",
+        "nsfw",
+        "domain",
+        "author_name",
+        "subreddit_name",
     ]
-    exclude: ClassVar[list[str]] = ['user_id', 'subreddit_id', 'post_id', 'comment_id', 'download_session_id']
+    exclude: ClassVar[list[str]] = [
+        "user_id",
+        "subreddit_id",
+        "post_id",
+        "comment_id",
+        "download_session_id",
+    ]
     filter_include: ClassVar[list[str]] = include
     filter_exclude: ClassVar[list[str]] = exclude
     order_by_include: ClassVar[list[str]] = include
@@ -643,13 +904,24 @@ class ContentFilter(Filter):
     def __init__(self):
         super().__init__()
         self.custom_filter_map = {
-            'post_score': CustomItem(self.filter_post_score, self.order_by_post_score, Integer),
-            'post_date': CustomItem(self.filter_date_posted, self.order_by_date_posted, DateTime),
-            'nsfw': CustomItem(self.filter_nsfw, field_type=Enum,
-                               choices=[(x.display_name.title(), x) for x in NsfwFilter]),
-            'domain': CustomItem(self.filter_domain, self.order_by_domain, String),
-            'author_name': CustomItem(self.filter_author_name, self.order_by_author_name, String),
-            'subreddit_name': CustomItem(self.filter_subreddit_name, self.order_by_subreddit_name, String),
+            "post_score": CustomItem(
+                self.filter_post_score, self.order_by_post_score, Integer
+            ),
+            "post_date": CustomItem(
+                self.filter_date_posted, self.order_by_date_posted, DateTime
+            ),
+            "nsfw": CustomItem(
+                self.filter_nsfw,
+                field_type=Enum,
+                choices=[(x.display_name.title(), x) for x in NsfwFilter],
+            ),
+            "domain": CustomItem(self.filter_domain, self.order_by_domain, String),
+            "author_name": CustomItem(
+                self.filter_author_name, self.order_by_author_name, String
+            ),
+            "subreddit_name": CustomItem(
+                self.filter_subreddit_name, self.order_by_subreddit_name, String
+            ),
         }
 
     def filter_post_score(self, query, operator, value):
@@ -689,12 +961,15 @@ class ContentFilter(Filter):
         return query.join(User, User.id == Content.user_id), User.name
 
     def order_by_subreddit_name(self, query):
-        return query.join(Subreddit, Subreddit.id == Content.subreddit_id), Subreddit.name
+        return query.join(
+            Subreddit, Subreddit.id == Content.subreddit_id
+        ), Subreddit.name
 
 
 class CustomItem:
-
-    def __init__(self, filter_method=None, order_method=None, field_type=String, choices=None):
+    def __init__(
+        self, filter_method=None, order_method=None, field_type=String, choices=None
+    ):
         self.filter_method = filter_method
         self.order_method = order_method
         self.field_type = field_type

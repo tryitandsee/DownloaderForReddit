@@ -38,4 +38,4 @@ def tryint(s):
 
 
 def alphanum_key(s):
-    return [tryint(c) for c in re.split('([0-9]+)', s)]
+    return [tryint(c) for c in re.split("([0-9]+)", s)]

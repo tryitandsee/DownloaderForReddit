@@ -10,7 +10,6 @@ from ...utils import injector
 
 
 class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
-
     def __init__(self, parent=None):
         QWidget.__init__(self, parent=parent)
         self.setupUi(self)
@@ -42,9 +41,9 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
 
     def sync_sort_methods(self, object_type):
         pos = self.post_sort_combo.findData(PostSortMethod.RISING, Qt.UserRole)
-        if object_type == 'SUBREDDIT':
+        if object_type == "SUBREDDIT":
             if pos < 0:
-                self.post_sort_combo.insertItem(2, 'RISING', PostSortMethod.RISING)
+                self.post_sort_combo.insertItem(2, "RISING", PostSortMethod.RISING)
         else:
             if pos >= 0:
                 self.post_sort_combo.removeItem(pos)
@@ -53,9 +52,9 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
         for value in LimitOperator:
             self.score_limit_operator_combo.addItem(value.display_name, value)
             self.comment_score_operator_combo.addItem(value.display_name, value)
-        for ext in ['txt', 'html']:
-            self.self_post_file_format_combo.addItem(f'.{ext}', ext)
-            self.comment_file_format_combo.addItem(f'.{ext}', ext)
+        for ext in ["txt", "html"]:
+            self.self_post_file_format_combo.addItem(f".{ext}", ext)
+            self.comment_file_format_combo.addItem(f".{ext}", ext)
         for value in NsfwFilter:
             self.nsfw_filter_combo.addItem(value.display_name, value)
         for value in PostSortMethod:
@@ -67,80 +66,141 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
         for value in CommentSortMethod:
             self.comment_sort_combo.addItem(value.display_name, value)
 
-        self.hash_content_checkbox.stateChanged.connect(self.sync_duplicate_controls_enabled)
-        self.duplicate_control_method_combo.currentIndexChanged.connect(self.sync_duplicate_controls_enabled)
+        self.hash_content_checkbox.stateChanged.connect(
+            self.sync_duplicate_controls_enabled
+        )
+        self.duplicate_control_method_combo.currentIndexChanged.connect(
+            self.sync_duplicate_controls_enabled
+        )
 
         self.post_limit_max_button.clicked.connect(
-            lambda: self.post_limit_spinbox.setValue(self.post_limit_spinbox.maximum()))
+            lambda: self.post_limit_spinbox.setValue(self.post_limit_spinbox.maximum())
+        )
         self.comment_limit_max_button.clicked.connect(
-            lambda: self.comment_limit_spinbox.setValue(self.comment_limit_spinbox.maximum()))
+            lambda: self.comment_limit_spinbox.setValue(
+                self.comment_limit_spinbox.maximum()
+            )
+        )
         self.comment_depth_max_button.clicked.connect(
-            lambda: self.comment_depth_spinbox.setValue(self.comment_depth_spinbox.maximum()))
+            lambda: self.comment_depth_spinbox.setValue(
+                self.comment_depth_spinbox.maximum()
+            )
+        )
         self.comment_reply_max_button.clicked.connect(
-            lambda: self.comment_reply_limit_spinbox.setValue(self.comment_reply_limit_spinbox.maximum()))
+            lambda: self.comment_reply_limit_spinbox.setValue(
+                self.comment_reply_limit_spinbox.maximum()
+            )
+        )
 
         for value in DuplicateControlMethod:
             self.duplicate_control_method_combo.addItem(value.display_name, value)
 
     def connect_edit_widgets(self):
-        self.setup_checkbox(self.lock_settings_checkbox, 'lock_settings')
-        self.setup_checkbox(self.enable_download_checkbox, 'download_enabled')
-        self.post_limit_spinbox.valueChanged.connect(lambda x: self.set_object_value('post_limit', x))
-        self.score_limit_spinbox.valueChanged.connect(lambda x: self.set_object_value('post_score_limit', x))
+        self.setup_checkbox(self.lock_settings_checkbox, "lock_settings")
+        self.setup_checkbox(self.enable_download_checkbox, "download_enabled")
+        self.post_limit_spinbox.valueChanged.connect(
+            lambda x: self.set_object_value("post_limit", x)
+        )
+        self.score_limit_spinbox.valueChanged.connect(
+            lambda x: self.set_object_value("post_score_limit", x)
+        )
         self.score_limit_operator_combo.currentIndexChanged.connect(
-            lambda x: self.set_object_value('post_score_limit_operator', self.score_limit_operator_combo.itemData(x))
+            lambda x: self.set_object_value(
+                "post_score_limit_operator", self.score_limit_operator_combo.itemData(x)
+            )
         )
         self.limit_date_checkbox.stateChanged.connect(self.limit_date_checkbox_toggled)
         self.custom_date_limit_radio.toggled.connect(self.custom_date_limit_toggled)
-        self.custom_date_limit_edit.dateTimeChanged.connect(self.set_date_limit_from_edit)
-        self.update_custom_date_limit_radio.toggled.connect(lambda x: self.set_object_value('update_date_limit', x))
+        self.custom_date_limit_edit.dateTimeChanged.connect(
+            self.set_date_limit_from_edit
+        )
+        self.update_custom_date_limit_radio.toggled.connect(
+            lambda x: self.set_object_value("update_date_limit", x)
+        )
 
-        self.setup_checkbox(self.avoid_duplicates_checkbox, 'avoid_duplicates')
-        self.setup_checkbox(self.hash_content_checkbox, 'hash_duplicates')
+        self.setup_checkbox(self.avoid_duplicates_checkbox, "avoid_duplicates")
+        self.setup_checkbox(self.hash_content_checkbox, "hash_duplicates")
         self.duplicate_control_method_combo.currentIndexChanged.connect(
-            lambda x: self.set_object_value('duplicate_control_method', self.duplicate_control_method_combo.itemData(x))
+            lambda x: self.set_object_value(
+                "duplicate_control_method",
+                self.duplicate_control_method_combo.itemData(x),
+            )
         )
-        self.setup_checkbox(self.extract_self_post_content_checkbox, 'extract_self_post_links')
-        self.setup_checkbox(self.download_self_post_text_checkbox, 'download_self_post_text')
+        self.setup_checkbox(
+            self.extract_self_post_content_checkbox, "extract_self_post_links"
+        )
+        self.setup_checkbox(
+            self.download_self_post_text_checkbox, "download_self_post_text"
+        )
         self.self_post_file_format_combo.currentIndexChanged.connect(
-            lambda: self.set_object_value('self_post_file_format',
-                                          self.self_post_file_format_combo.currentData(Qt.UserRole))
+            lambda: self.set_object_value(
+                "self_post_file_format",
+                self.self_post_file_format_combo.currentData(Qt.UserRole),
+            )
         )
-        self.setup_checkbox(self.download_videos_checkbox, 'download_videos')
-        self.setup_checkbox(self.download_images_checkbox, 'download_images')
-        self.setup_checkbox(self.download_gifs_checkbox, 'download_gifs')
+        self.setup_checkbox(self.download_videos_checkbox, "download_videos")
+        self.setup_checkbox(self.download_images_checkbox, "download_images")
+        self.setup_checkbox(self.download_gifs_checkbox, "download_gifs")
         self.nsfw_filter_combo.currentIndexChanged.connect(
-            lambda x: self.set_object_value('download_nsfw', self.nsfw_filter_combo.itemData(x))
+            lambda x: self.set_object_value(
+                "download_nsfw", self.nsfw_filter_combo.itemData(x)
+            )
         )
         self.post_sort_combo.currentIndexChanged.connect(
-            lambda x: self.set_object_value('post_sort_method', self.post_sort_combo.itemData(x))
+            lambda x: self.set_object_value(
+                "post_sort_method", self.post_sort_combo.itemData(x)
+            )
         )
         self.comment_extract_combo.currentIndexChanged.connect(
-            lambda x: self.set_object_value('extract_comments', self.comment_extract_combo.itemData(x))
+            lambda x: self.set_object_value(
+                "extract_comments", self.comment_extract_combo.itemData(x)
+            )
         )
         self.comment_download_combo.currentIndexChanged.connect(
-            lambda x: self.set_object_value('download_comments', self.comment_download_combo.itemData(x))
+            lambda x: self.set_object_value(
+                "download_comments", self.comment_download_combo.itemData(x)
+            )
         )
         self.comment_content_download_combo.currentIndexChanged.connect(
-            lambda x: self.set_object_value('download_comment_content', self.comment_content_download_combo.itemData(x))
+            lambda x: self.set_object_value(
+                "download_comment_content",
+                self.comment_content_download_combo.itemData(x),
+            )
         )
-        self.comment_limit_spinbox.valueChanged.connect(lambda x: self.set_object_value('comment_limit', x))
-        self.comment_depth_spinbox.valueChanged.connect(lambda x: self.set_object_value('comment_depth', x))
-        self.comment_reply_limit_spinbox.valueChanged.connect(lambda x: self.set_object_value('comment_reply_limit', x))
-        self.comment_score_limit_spinbox.valueChanged.connect(lambda x: self.set_object_value('comment_score_limit', x))
+        self.comment_limit_spinbox.valueChanged.connect(
+            lambda x: self.set_object_value("comment_limit", x)
+        )
+        self.comment_depth_spinbox.valueChanged.connect(
+            lambda x: self.set_object_value("comment_depth", x)
+        )
+        self.comment_reply_limit_spinbox.valueChanged.connect(
+            lambda x: self.set_object_value("comment_reply_limit", x)
+        )
+        self.comment_score_limit_spinbox.valueChanged.connect(
+            lambda x: self.set_object_value("comment_score_limit", x)
+        )
         self.comment_score_operator_combo.currentIndexChanged.connect(
-            lambda x: self.set_object_value('comment_score_limit_operator',
-                                            self.comment_score_operator_combo.itemData(x))
+            lambda x: self.set_object_value(
+                "comment_score_limit_operator",
+                self.comment_score_operator_combo.itemData(x),
+            )
         )
         self.comment_sort_combo.currentIndexChanged.connect(
-            lambda x: self.set_object_value('comment_sort_method', self.comment_sort_combo.itemData(x))
+            lambda x: self.set_object_value(
+                "comment_sort_method", self.comment_sort_combo.itemData(x)
+            )
         )
         self.comment_file_format_combo.currentIndexChanged.connect(
-            lambda: self.set_object_value('comment_file_format',
-                                          self.comment_file_format_combo.currentData(Qt.UserRole))
+            lambda: self.set_object_value(
+                "comment_file_format",
+                self.comment_file_format_combo.currentData(Qt.UserRole),
+            )
         )
+
     def setup_checkbox(self, checkbox, attribute):
-        checkbox.stateChanged.connect(lambda: self.set_object_value(attribute, checkbox.isChecked()))
+        checkbox.stateChanged.connect(
+            lambda: self.set_object_value(attribute, checkbox.isChecked())
+        )
 
     def limit_date_checkbox_toggled(self):
         checked = self.limit_date_checkbox.isChecked()
@@ -150,62 +210,75 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
         self.update_custom_date_limit_radio.setEnabled(checked)
         self.do_not_update_custom_date_limit_radio.setEnabled(checked)
         if not checked:
-            self.set_object_value('date_limit', datetime.fromtimestamp(const.FIRST_POST_EPOCH - 2000))
+            self.set_object_value(
+                "date_limit", datetime.fromtimestamp(const.FIRST_POST_EPOCH - 2000)
+            )
         else:
-            self.custom_date_limit_edit.setDateTime(datetime.fromtimestamp(const.FIRST_POST_EPOCH))
+            self.custom_date_limit_edit.setDateTime(
+                datetime.fromtimestamp(const.FIRST_POST_EPOCH)
+            )
 
     def custom_date_limit_toggled(self):
-        checked = self.custom_date_limit_radio.isChecked() and self.limit_date_checkbox.isChecked()
+        checked = (
+            self.custom_date_limit_radio.isChecked()
+            and self.limit_date_checkbox.isChecked()
+        )
         self.custom_date_limit_edit.setEnabled(checked)
         self.update_custom_date_limit_radio.setEnabled(checked)
         self.do_not_update_custom_date_limit_radio.setEnabled(checked)
         if checked:
             self.set_date_limit_from_edit()
         else:
-            self.set_object_value('date_limit', None)
+            self.set_object_value("date_limit", None)
 
     def set_date_limit_from_edit(self):
         epoch = self.custom_date_limit_edit.dateTime().toSecsSinceEpoch()
-        self.set_object_value('date_limit', datetime.fromtimestamp(epoch))
+        self.set_object_value("date_limit", datetime.fromtimestamp(epoch))
 
     def set_object_value(self, attr, value, set_null=False):
         for obj in self.selected_objects:
-            if set_null and value == '':
+            if set_null and value == "":
                 value = None
             setattr(obj, attr, value)
 
     def sync_widgets_to_object(self):
         self.sync_optional()
-        self.sync_spin_box(self.post_limit_spinbox, 'post_limit')
-        self.sync_spin_box(self.score_limit_spinbox, 'post_score_limit')
-        self.sync_combo(self.score_limit_operator_combo, 'post_score_limit_operator')
+        self.sync_spin_box(self.post_limit_spinbox, "post_limit")
+        self.sync_spin_box(self.score_limit_spinbox, "post_score_limit")
+        self.sync_combo(self.score_limit_operator_combo, "post_score_limit_operator")
         self.sync_date_limits()
-        self.sync_checkbox(self.avoid_duplicates_checkbox, 'avoid_duplicates')
-        self.sync_checkbox(self.hash_content_checkbox, 'hash_duplicates')
-        self.sync_combo(self.duplicate_control_method_combo, 'duplicate_control_method')
-        self.sync_checkbox(self.extract_self_post_content_checkbox, 'extract_self_post_links')
-        self.sync_checkbox(self.download_self_post_text_checkbox, 'download_self_post_text')
-        self.sync_combo(self.self_post_file_format_combo, 'self_post_file_format')
-        self.sync_checkbox(self.download_videos_checkbox, 'download_videos')
-        self.sync_checkbox(self.download_images_checkbox, 'download_images')
-        self.sync_checkbox(self.download_gifs_checkbox, 'download_gifs')
-        self.sync_combo(self.nsfw_filter_combo, 'download_nsfw')
-        self.sync_combo(self.post_sort_combo, 'post_sort_method')
-        self.sync_combo(self.comment_extract_combo, 'extract_comments')
-        self.sync_combo(self.comment_download_combo, 'download_comments')
-        self.sync_combo(self.comment_content_download_combo, 'download_comment_content')
-        self.sync_spin_box(self.comment_limit_spinbox, 'comment_limit')
-        self.sync_spin_box(self.comment_depth_spinbox, 'comment_depth')
-        self.sync_spin_box(self.comment_reply_limit_spinbox, 'comment_reply_limit')
-        self.sync_spin_box(self.comment_score_limit_spinbox, 'comment_score_limit')
-        self.sync_combo(self.comment_score_operator_combo, 'comment_score_limit_operator')
-        self.sync_combo(self.comment_sort_combo, 'comment_sort_method')
-        self.sync_combo(self.comment_file_format_combo, 'comment_file_format')
+        self.sync_checkbox(self.avoid_duplicates_checkbox, "avoid_duplicates")
+        self.sync_checkbox(self.hash_content_checkbox, "hash_duplicates")
+        self.sync_combo(self.duplicate_control_method_combo, "duplicate_control_method")
+        self.sync_checkbox(
+            self.extract_self_post_content_checkbox, "extract_self_post_links"
+        )
+        self.sync_checkbox(
+            self.download_self_post_text_checkbox, "download_self_post_text"
+        )
+        self.sync_combo(self.self_post_file_format_combo, "self_post_file_format")
+        self.sync_checkbox(self.download_videos_checkbox, "download_videos")
+        self.sync_checkbox(self.download_images_checkbox, "download_images")
+        self.sync_checkbox(self.download_gifs_checkbox, "download_gifs")
+        self.sync_combo(self.nsfw_filter_combo, "download_nsfw")
+        self.sync_combo(self.post_sort_combo, "post_sort_method")
+        self.sync_combo(self.comment_extract_combo, "extract_comments")
+        self.sync_combo(self.comment_download_combo, "download_comments")
+        self.sync_combo(self.comment_content_download_combo, "download_comment_content")
+        self.sync_spin_box(self.comment_limit_spinbox, "comment_limit")
+        self.sync_spin_box(self.comment_depth_spinbox, "comment_depth")
+        self.sync_spin_box(self.comment_reply_limit_spinbox, "comment_reply_limit")
+        self.sync_spin_box(self.comment_score_limit_spinbox, "comment_score_limit")
+        self.sync_combo(
+            self.comment_score_operator_combo, "comment_score_limit_operator"
+        )
+        self.sync_combo(self.comment_sort_combo, "comment_sort_method")
+        self.sync_combo(self.comment_file_format_combo, "comment_file_format")
 
     def sync_optional(self):
         try:
-            self.sync_checkbox(self.lock_settings_checkbox, 'lock_settings')
-            self.sync_checkbox(self.enable_download_checkbox, 'download_enabled')
+            self.sync_checkbox(self.lock_settings_checkbox, "lock_settings")
+            self.sync_checkbox(self.enable_download_checkbox, "download_enabled")
             visibility = True
         except (AttributeError, TypeError):
             visibility = False
@@ -234,24 +307,26 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
         if value is not None:
             spin_box.setValue(value)
         else:
-            spin_box.lineEdit().setText('-')
+            spin_box.lineEdit().setText("-")
 
     def sync_date_edit(self, date_edit, attr):
         value = self.get_value(attr)
         if value is not None:
             date_edit.setDateTime(value)
         else:
-            date_edit.lineEdit().setText('-')
+            date_edit.lineEdit().setText("-")
 
     def sync_line_edit(self, line_edit, attr):
         value = self.get_value(attr)
         if value is None:
-            value = ''
+            value = ""
         line_edit.setText(value)
 
     def get_value(self, attr):
         value = getattr(self.selected_objects[0], attr)
-        if len(self.selected_objects) == 1 or all(getattr(x, attr) == value for x in self.selected_objects):
+        if len(self.selected_objects) == 1 or all(
+            getattr(x, attr) == value for x in self.selected_objects
+        ):
             return value
         return None
 
@@ -274,9 +349,11 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
 
         abs_date_limit = self.selected_objects[0].absolute_date_limit
         if all(x.absolute_date_limit == abs_date_limit for x in self.selected_objects):
-            self.absolute_date_limit_label.setText(self.selected_objects[0].absolute_date_limit_display)
+            self.absolute_date_limit_label.setText(
+                self.selected_objects[0].absolute_date_limit_display
+            )
         else:
-            self.absolute_date_limit_label.setText('---')
+            self.absolute_date_limit_label.setText("---")
 
         update_limit = self.selected_objects[0].update_date_limit
         if all(x.update_date_limit == update_limit for x in self.selected_objects):

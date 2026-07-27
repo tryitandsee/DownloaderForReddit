@@ -28,7 +28,7 @@ Built with PyQt5. UI layouts are auto-generated Python in `guiresources/*_auto.p
 
 New menu items should be added programmatically in the main GUI class rather than via the auto-generated file, e.g.:
 ```python
-action = QAction('My Item', self)
+action = QAction("My Item", self)
 action.triggered.connect(self.my_handler)
 self.help_menu.addAction(action)
 ```

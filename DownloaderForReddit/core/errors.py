@@ -2,7 +2,6 @@ from enum import Enum
 
 
 class Error(Enum):
-
     UNSUCCESSFUL_RESPONSE = 1
     UNSUPPORTED_DOMAIN = 2
     DOES_NOT_EXIST = 3

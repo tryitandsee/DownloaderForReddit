@@ -19,7 +19,6 @@ from .supported_video_settings_widget import SupportedVideoSettingsWidget
 
 
 class SettingsDialog(QDialog, Ui_SettingsDialog):
-
     def __init__(self, parent=None, **kwargs):
         QDialog.__init__(self, parent=parent)
         self.setupUi(self)
@@ -27,34 +26,40 @@ class SettingsDialog(QDialog, Ui_SettingsDialog):
         self.settings_manager = injector.get_settings_manager()
 
         geom = self.settings_manager.settings_dialog_geom
-        self.resize(geom['width'], geom['height'])
-        if geom['x'] != 0 or geom['y'] != 0:
-            self.move(geom['x'], geom['y'])
+        self.resize(geom["width"], geom["height"])
+        if geom["x"] != 0 or geom["y"] != 0:
+            self.move(geom["x"], geom["y"])
 
         self.settings_map = {
-            'Core': CoreSettingsWidget(),
-            'Download Defaults': DownloadSettingsWidget(main_window=self.parent, **kwargs),
-            'Display': DisplaySettingsWidget(main_window=self.parent),
-            'Output': OutputSettingsWidget(main_window=self.parent),
-            'Imgur': ImgurSettingsWidget(),
-            'Scheduled Downloads': ScheduleSettingsWidget(),
-            'Video Sites': SupportedVideoSettingsWidget(),
-            'Database View': DatabaseSettingsWidget(),
-            'Quick Filters': QuickFilterSettingsWidget(),
-            'Default Filters': DefaultFilterSettingsWidget(),
-            'Notifications': NotificationSettingsWidget(),
+            "Core": CoreSettingsWidget(),
+            "Download Defaults": DownloadSettingsWidget(
+                main_window=self.parent, **kwargs
+            ),
+            "Display": DisplaySettingsWidget(main_window=self.parent),
+            "Output": OutputSettingsWidget(main_window=self.parent),
+            "Imgur": ImgurSettingsWidget(),
+            "Scheduled Downloads": ScheduleSettingsWidget(),
+            "Video Sites": SupportedVideoSettingsWidget(),
+            "Database View": DatabaseSettingsWidget(),
+            "Quick Filters": QuickFilterSettingsWidget(),
+            "Default Filters": DefaultFilterSettingsWidget(),
+            "Notifications": NotificationSettingsWidget(),
         }
 
         for item in self.settings_map:
             self.settings_list_widget.addItem(item)
 
         self.current_display = None
-        self.settings_list_widget.currentItemChanged.connect(lambda x: self.set_current_display(x.text()))
-        open_display = kwargs.pop('open_display', None)
+        self.settings_list_widget.currentItemChanged.connect(
+            lambda x: self.set_current_display(x.text())
+        )
+        open_display = kwargs.pop("open_display", None)
         if open_display is None:
             self.settings_list_widget.setCurrentRow(0)
         else:
-            self.settings_list_widget.setCurrentRow(list(self.settings_map.keys()).index(open_display))
+            self.settings_list_widget.setCurrentRow(
+                list(self.settings_map.keys()).index(open_display)
+            )
 
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.close)
@@ -92,9 +97,9 @@ class SettingsDialog(QDialog, Ui_SettingsDialog):
 
     def closeEvent(self, event):
         self.settings_manager.settings_dialog_geom = {
-            'width': self.width(),
-            'height': self.height(),
-            'x': self.x(),
-            'y': self.y()
+            "width": self.width(),
+            "height": self.height(),
+            "x": self.x(),
+            "y": self.y(),
         }
         super().closeEvent(event)

@@ -14,27 +14,31 @@ from .existing_names_dialog import ExistingNamesDialog
 
 
 class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
-
     validation_finished = pyqtSignal()
 
     def __init__(self, list_model, parent=None):
         QDialog.__init__(self, parent=parent)
         self.setupUi(self)
-        self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
+        self.logger = logging.getLogger(f"DownloaderForReddit.{__name__}")
         self.settings_manager = injector.get_settings_manager()
         self.db = injector.get_database_handler()
         self.list_model = list_model
-        self.setWindowTitle(f'Add {self.list_model.list_type.capitalize()}')
-        self.single_add_label.setText(f'Enter new {self.list_model.list_type.lower()}')
+        self.setWindowTitle(f"Add {self.list_model.list_type.capitalize()}")
+        self.single_add_label.setText(f"Enter new {self.list_model.list_type.lower()}")
         self.tab_widget.setCurrentIndex(0)
 
         self.download_on_add_checkbox.setChecked(self.settings_manager.download_on_add)
         self.download_on_add_checkbox.stateChanged.connect(
-            lambda checked: setattr(self.settings_manager, 'download_on_add', checked))
+            lambda checked: setattr(self.settings_manager, "download_on_add", checked)
+        )
 
-        self.validate_names_checkbox.setChecked(self.settings_manager.validate_names_before_add)
+        self.validate_names_checkbox.setChecked(
+            self.settings_manager.validate_names_before_add
+        )
         self.validate_names_checkbox.stateChanged.connect(
-            lambda checked: setattr(self.settings_manager, 'validate_names_before_add', checked)
+            lambda checked: setattr(
+                self.settings_manager, "validate_names_before_add", checked
+            )
         )
 
         self.add_button.clicked.connect(self.add_object_to_list)
@@ -61,10 +65,10 @@ class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
 
     def add_object_to_list(self):
         text = self.multi_object_line_edit.text().strip()
-        names = text.replace('\n', ',').split(',')
+        names = text.replace("\n", ",").split(",")
         for name in names:
             name = name.strip()
-            if name != '' and name not in self.added:
+            if name != "" and name not in self.added:
                 self.added.append(name)
                 self.multi_object_list_widget.addItem(name)
                 self.multi_object_line_edit.clear()
@@ -78,31 +82,50 @@ class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
     def import_list(self):
         file_path = self.get_import_file_path()
         if file_path is not None and os.stat(file_path).st_size > 0:
-            if file_path.endswith('txt'):
+            if file_path.endswith("txt"):
                 import_list = text_importer.import_list_from_text_file(file_path)
                 self.added.extend(import_list)
                 self.multi_object_list_widget.addItems(import_list)
                 self.refresh_name_count()
-            elif file_path.endswith('json'):
+            elif file_path.endswith("json"):
                 imported_objects = json_importer.import_json(file_path)
                 self.validate_imported_objects(imported_objects)
                 self.refresh_name_count()
 
     def get_import_file_path(self):
-        file_path = QFileDialog.getOpenFileName(self, 'Select Import File', system_util.get_data_directory(),
-                                                'Text Files (*.txt *.json)')[0]
-        if file_path is not None and file_path != '':
+        file_path = QFileDialog.getOpenFileName(
+            self,
+            "Select Import File",
+            system_util.get_data_directory(),
+            "Text Files (*.txt *.json)",
+        )[0]
+        if file_path is not None and file_path != "":
             if os.path.isfile(file_path):
                 return file_path
-            self.logger.error('Failed to import file.  File does not exist.', extra={'file_path': file_path})
+            self.logger.error(
+                "Failed to import file.  File does not exist.",
+                extra={"file_path": file_path},
+            )
             return None
         return None
 
     def validate_imported_objects(self, imported_objects):
-        self.spinner = WaitingSpinner(parent=None, roundness=80.0, opacity=10.0, fade=72.0, radius=10.0,
-                                 lines=12, line_length=12.0, line_width=4.0, speed=1.4, color=(0, 0, 0))
+        self.spinner = WaitingSpinner(
+            parent=None,
+            roundness=80.0,
+            opacity=10.0,
+            fade=72.0,
+            radius=10.0,
+            lines=12,
+            line_length=12.0,
+            line_width=4.0,
+            speed=1.4,
+            color=(0, 0, 0),
+        )
         self.spinner.setParent(self.multi_object_list_widget)
-        self.validation_finished.connect(self.spinner.stop)  # signal used to stop timer in correct thread
+        self.validation_finished.connect(
+            self.spinner.stop
+        )  # signal used to stop timer in correct thread
         self.spinner.start()
         self.thread = Thread(target=self.validate_objects, args=imported_objects)
         self.thread.start()
@@ -127,7 +150,7 @@ class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
             self.filter_existing()
         if self.tab_widget.currentIndex() == 0:
             name = self.single_object_line_edit.text().strip()
-            if name is not None and name != '' and name not in self.exclude:
+            if name is not None and name != "" and name not in self.exclude:
                 self.list_model.add_reddit_object(name)
         else:
             add = [x for x in self.added if x not in self.exclude]
@@ -157,7 +180,11 @@ class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
                         self.exclude.append(key)
 
     def check_existing(self, name, session):
-        ro_list = session.query(ListAssociation).join(RedditObject).filter(RedditObject.name == name)
+        ro_list = (
+            session.query(ListAssociation)
+            .join(RedditObject)
+            .filter(RedditObject.name == name)
+        )
         return [x.reddit_object_list.name for x in ro_list]
 
     def add_imported_reddit_objects(self):
@@ -172,7 +199,7 @@ class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
                 shift = QApplication.keyboardModifiers() == Qt.ShiftModifier
                 if shift:
                     name = self.single_object_line_edit.text().strip()
-                    if name != '' and name not in self.added:
+                    if name != "" and name not in self.added:
                         self.added.append(name)
                         self.multi_object_list_widget.addItem(name)
                         self.single_object_line_edit.clear()

@@ -11,8 +11,7 @@ from .reddit_source import SubmissionData
 
 
 class SubmittableCreator:
-
-    logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
+    logger = logging.getLogger(f"DownloaderForReddit.{__name__}")
     db = None
 
     @classmethod
@@ -22,8 +21,13 @@ class SubmittableCreator:
         return cls.db
 
     @classmethod
-    def create_post(cls, submission: SubmissionData, significant_id: int, session: Session,
-                    download_session_id: int) -> Post | None:
+    def create_post(
+        cls,
+        submission: SubmissionData,
+        significant_id: int,
+        session: Session,
+        download_session_id: int,
+    ) -> Post | None:
         post = None
         if cls.check_duplicate_post(submission.reddit_id, submission.url, session):
             author = cls.get_author(submission, session)
@@ -45,7 +49,7 @@ class SubmittableCreator:
                 author=author,
                 subreddit=subreddit,
                 download_session_id=download_session_id,
-                significant_reddit_object_id=significant_id
+                significant_reddit_object_id=significant_id,
             )
             session.add(post)
             session.commit()
@@ -56,11 +60,22 @@ class SubmittableCreator:
         # reddit_id is checked (not just url) because Post.reddit_id is DB-unique: the same post re-encountered
         # under a different url (e.g. a crosspost whose resolved url changed) must still be caught here, or the
         # later insert hits the unique constraint and raises uncaught inside create_post.
-        return session.query(Post.id).filter(or_(Post.reddit_id == reddit_id, Post.url == url)).first() is None
+        return (
+            session.query(Post.id)
+            .filter(or_(Post.reddit_id == reddit_id, Post.url == url))
+            .first()
+            is None
+        )
 
     @classmethod
-    def create_comment(cls, praw_comment: PrawComment, post: Post, session: Session, download_session_id: int,
-                       parent_comment_id: int | None = None):
+    def create_comment(
+        cls,
+        praw_comment: PrawComment,
+        post: Post,
+        session: Session,
+        download_session_id: int,
+        parent_comment_id: int | None = None,
+    ):
         if cls.check_duplicate_comment(praw_comment.id, session):
             author = cls.get_author(praw_comment, session)
             subreddit = cls.get_subreddit(praw_comment, session)
@@ -74,7 +89,7 @@ class SubmittableCreator:
                 score=praw_comment.score,
                 date_posted=datetime.fromtimestamp(praw_comment.created),
                 parent_id=parent_comment_id,
-                download_session_id=download_session_id
+                download_session_id=download_session_id,
             )
             session.add(comment)
             session.commit()
@@ -83,25 +98,43 @@ class SubmittableCreator:
 
     @classmethod
     def check_duplicate_comment(cls, praw_comment_id: str, session: Session):
-        return session.query(Comment).filter(Comment.reddit_id == praw_comment_id).scalar() is None
+        return (
+            session.query(Comment).filter(Comment.reddit_id == praw_comment_id).scalar()
+            is None
+        )
 
     @classmethod
     def get_author(cls, praw_object: SubmissionData | PrawComment, session: Session):
         try:
-            name = praw_object.author if isinstance(praw_object, SubmissionData) else praw_object.author.name
-            author = cls.get_db().get_or_create(User, name=name, defaults={}, session=session)[0]
+            name = (
+                praw_object.author
+                if isinstance(praw_object, SubmissionData)
+                else praw_object.author.name
+            )
+            author = cls.get_db().get_or_create(
+                User, name=name, defaults={}, session=session
+            )[0]
         except AttributeError:
-            cls.logger.exception('Failed to get author')
-            author = cls.get_db().get_or_create(User, name='deleted', session=session)[0]
+            cls.logger.exception("Failed to get author")
+            author = cls.get_db().get_or_create(User, name="deleted", session=session)[
+                0
+            ]
         return author
 
     @classmethod
     def get_subreddit(cls, praw_object: SubmissionData | PrawComment, session: Session):
         try:
-            name = praw_object.subreddit if isinstance(praw_object, SubmissionData) \
+            name = (
+                praw_object.subreddit
+                if isinstance(praw_object, SubmissionData)
                 else praw_object.subreddit.display_name
-            subreddit = cls.get_db().get_or_create(Subreddit, name=name, defaults={}, session=session)[0]
+            )
+            subreddit = cls.get_db().get_or_create(
+                Subreddit, name=name, defaults={}, session=session
+            )[0]
         except AttributeError:
-            cls.logger.exception('Failed to get subreddit')
-            subreddit = cls.get_db().get_or_create(Subreddit, name='deleted', session=session)[0]
+            cls.logger.exception("Failed to get subreddit")
+            subreddit = cls.get_db().get_or_create(
+                Subreddit, name="deleted", session=session
+            )[0]
         return subreddit

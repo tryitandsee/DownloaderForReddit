@@ -19,7 +19,6 @@ from ..utils import injector
 
 
 class CustomItemModel:
-
     update_count = pyqtSignal(tuple)
 
     def __init__(self):
@@ -114,7 +113,6 @@ class CustomItemModel:
 
 
 class DownloadSessionModel(QAbstractListModel, CustomItemModel):
-
     def __init__(self):
         super().__init__()
         self.limit = self.settings_manager.download_session_query_limit
@@ -124,17 +122,18 @@ class DownloadSessionModel(QAbstractListModel, CustomItemModel):
             return self.items[index.row()].name
         if role == Qt.ToolTipRole:
             session = self.items[index.row()]
-            return f'Start time: {session.start_time_display}\n' \
-                   f'End time: {session.end_time_display}\n' \
-                   f'Duration: {session.duration}\n' \
-                   f'Reddit Objects: {session.get_downloaded_reddit_object_count()}\n' \
-                   f'Posts: {len(session.posts)}\n' \
-                   f'Content: {len(session.content)}'
+            return (
+                f"Start time: {session.start_time_display}\n"
+                f"End time: {session.end_time_display}\n"
+                f"Duration: {session.duration}\n"
+                f"Reddit Objects: {session.get_downloaded_reddit_object_count()}\n"
+                f"Posts: {len(session.posts)}\n"
+                f"Content: {len(session.content)}"
+            )
         return None
 
 
 class RedditObjectModel(QAbstractListModel, CustomItemModel):
-
     def __init__(self):
         super().__init__()
         self.limit = self.settings_manager.reddit_object_query_limit
@@ -144,8 +143,10 @@ class RedditObjectModel(QAbstractListModel, CustomItemModel):
             return self.items[index.row()].name
         if role == Qt.ForegroundRole:
             ro = self.items[index.row()]
-            if not ro.download_enabled and \
-                    self.settings_manager.colorize_disabled_reddit_objects:
+            if (
+                not ro.download_enabled
+                and self.settings_manager.colorize_disabled_reddit_objects
+            ):
                 r, g, b = self.settings_manager.disabled_reddit_object_display_color
                 return QColor(r, g, b, 255)
             if not ro.active and self.settings_manager.colorize_inactive_reddit_objects:
@@ -159,33 +160,46 @@ class RedditObjectModel(QAbstractListModel, CustomItemModel):
 
 
 class PostTableModel(QAbstractTableModel, CustomItemModel):
-
     header_map: ClassVar[dict[str, Callable[[Any], Any]]] = {
-        'title': lambda x: x.title,
-        'date_posted': lambda x: x.date_posted_display,
-        'score': lambda x: x.score_display,
-        'self_post': lambda x: x.is_self,
-        'text': lambda x: x.text,
-        'url': lambda x: x.url,
-        'domain': lambda x: x.domain,
-        'author': lambda x: x.author.name,
-        'subreddit': lambda x: x.subreddit.name,
-        'nsfw': lambda x: x.nsfw,
-        'extracted': lambda x: x.extracted,
-        'extraction_date': lambda x: x.extraction_date,
-        'extraction_error': lambda x: x.extraction_error,
-        'error_message': lambda x: x.error_message,
+        "title": lambda x: x.title,
+        "date_posted": lambda x: x.date_posted_display,
+        "score": lambda x: x.score_display,
+        "self_post": lambda x: x.is_self,
+        "text": lambda x: x.text,
+        "url": lambda x: x.url,
+        "domain": lambda x: x.domain,
+        "author": lambda x: x.author.name,
+        "subreddit": lambda x: x.subreddit.name,
+        "nsfw": lambda x: x.nsfw,
+        "extracted": lambda x: x.extracted,
+        "extraction_date": lambda x: x.extraction_date,
+        "extraction_error": lambda x: x.extraction_error,
+        "error_message": lambda x: x.error_message,
     }
 
     def __init__(self):
         super().__init__()
         self.limit = self.settings_manager.post_query_limit
-        self.headers = ['title', 'date_posted', 'score', 'self_post', 'text', 'url', 'domain', 'author',
-                        'subreddit', 'nsfw', 'extracted', 'extraction_date', 'extraction_error', 'error_message']
+        self.headers = [
+            "title",
+            "date_posted",
+            "score",
+            "self_post",
+            "text",
+            "url",
+            "domain",
+            "author",
+            "subreddit",
+            "nsfw",
+            "extracted",
+            "extraction_date",
+            "extraction_error",
+            "error_message",
+        ]
 
     def headerData(self, row, orientation, role=None):
         if role == Qt.DisplayRole and orientation == Qt.Horizontal:
-            return self.headers[row].replace('_', ' ').title()
+            return self.headers[row].replace("_", " ").title()
         return None
 
     def data(self, index, role=None):
@@ -195,7 +209,7 @@ class PostTableModel(QAbstractTableModel, CustomItemModel):
                 return self.header_map[self.headers[col]](self.items[index.row()])
             except AttributeError:
                 pass
-        if role == Qt.ToolTipRole and col != self.headers.index('text'):
+        if role == Qt.ToolTipRole and col != self.headers.index("text"):
             try:
                 return self.header_map[self.headers[col]](self.items[index.row()])
             except AttributeError:
@@ -205,13 +219,12 @@ class PostTableModel(QAbstractTableModel, CustomItemModel):
     def get_post_attribute(self, column, post):
         attr = self.headers[column]
         value = getattr(post, attr)
-        if attr == 'subreddit' or attr == 'author':
+        if attr == "subreddit" or attr == "author":
             return value.name
         return value
 
 
 class ContentListModel(QAbstractListModel, CustomItemModel):
-
     def __init__(self):
         super().__init__()
         self.limit = self.settings_manager.content_query_limit
@@ -229,12 +242,14 @@ class ContentListModel(QAbstractListModel, CustomItemModel):
             if role == Qt.DecorationRole:
                 return self.get_icon(content)
             if role == Qt.ToolTipRole:
-                tip = f'Title: {content.title}\n' \
-                       f'Extension: {content.extension}\n' \
-                       f'Author: {content.user.name}\n' \
-                       f'Subreddit: {content.subreddit.name}'
+                tip = (
+                    f"Title: {content.title}\n"
+                    f"Extension: {content.extension}\n"
+                    f"Author: {content.user.name}\n"
+                    f"Subreddit: {content.subreddit.name}"
+                )
                 if content.error_message is not None:
-                    tip += f'Error: {content.error_message}'
+                    tip += f"Error: {content.error_message}"
                 return tip
         return None
 
@@ -250,22 +265,22 @@ class ContentListModel(QAbstractListModel, CustomItemModel):
             if content.is_image:
                 icon = self.icon_map[content.id]
             elif content.is_animated:
-                icon = self.icon_map['video_placeholder']
+                icon = self.icon_map["video_placeholder"]
             elif content.is_text:
-                icon = self.icon_map['text_placeholder']
+                icon = self.icon_map["text_placeholder"]
             else:
-                icon = self.icon_map['missing_placeholder']
+                icon = self.icon_map["missing_placeholder"]
         except KeyError:
             if content.is_image:
                 path = content.get_full_file_path()
             elif content.is_animated:
-                path = os.path.join(const.RESOURCES, 'Images', 'video_placeholder.png')
+                path = os.path.join(const.RESOURCES, "Images", "video_placeholder.png")
             elif content.is_text:
-                path = os.path.join(const.RESOURCES, 'Images', 'text_placeholder.png')
+                path = os.path.join(const.RESOURCES, "Images", "text_placeholder.png")
             else:
-                path = os.path.join(const.RESOURCES, 'Images', 'missing_file_icon.png')
+                path = os.path.join(const.RESOURCES, "Images", "missing_file_icon.png")
             if not os.path.exists(path):
-                path = os.path.join(const.RESOURCES, 'Images', 'missing_file_icon.png')
+                path = os.path.join(const.RESOURCES, "Images", "missing_file_icon.png")
             pixmap = QPixmap(path).scaled(QSize(500, 500), Qt.KeepAspectRatio)
             icon = QIcon()
             icon.addPixmap(pixmap, QIcon.Normal)
@@ -275,11 +290,19 @@ class ContentListModel(QAbstractListModel, CustomItemModel):
 
 
 class CommentTreeModel(QAbstractItemModel, CustomItemModel):
-
     def __init__(self):
         super().__init__()
         self.limit = self.settings_manager.comment_query_limit
-        self.headers = ['author', 'id', 'subreddit', 'body', 'body_html', 'score', 'date_posted', 'reddit_id']
+        self.headers = [
+            "author",
+            "id",
+            "subreddit",
+            "body",
+            "body_html",
+            "score",
+            "date_posted",
+            "reddit_id",
+        ]
         self.root = TreeItem(None, None)
 
     def contains(self, item):
@@ -415,23 +438,31 @@ class CommentTreeModel(QAbstractItemModel, CustomItemModel):
 
 
 class TreeItem:
-
     header_map: ClassVar[dict[str, Callable[[Any], Any]]] = {
-        'author': lambda x: x.author.name,
-        'id': lambda x: x.id,
-        'subreddit': lambda x: x.subreddit.name,
-        'body': lambda x: x.body,
-        'body_html': lambda x: x.body_html,
-        'score': lambda x: x.score,
-        'date_posted': lambda x: x.date_posted_display,
-        'reddit_id': lambda x: x.reddit_id,
+        "author": lambda x: x.author.name,
+        "id": lambda x: x.id,
+        "subreddit": lambda x: x.subreddit.name,
+        "body": lambda x: x.body,
+        "body_html": lambda x: x.body_html,
+        "score": lambda x: x.score,
+        "date_posted": lambda x: x.date_posted_display,
+        "reddit_id": lambda x: x.reddit_id,
     }
 
     def __init__(self, comment, parent):
         self.comment = comment
         self.parent = parent
         self.children = []
-        self.headers = ['author', 'id', 'subreddit', 'body', 'body_html', 'score', 'date_posted', 'reddit_id']
+        self.headers = [
+            "author",
+            "id",
+            "subreddit",
+            "body",
+            "body_html",
+            "score",
+            "date_posted",
+            "reddit_id",
+        ]
 
     def clear(self):
         for child in self.children:

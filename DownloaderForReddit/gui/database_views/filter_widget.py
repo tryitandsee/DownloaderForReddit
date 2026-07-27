@@ -20,7 +20,6 @@ from .filter_item import FilterItem
 
 
 class FilterWidget(QWidget, Ui_FilterWidget):
-
     filter_changed = pyqtSignal(list)
 
     def __init__(self, parent=None):
@@ -43,7 +42,10 @@ class FilterWidget(QWidget, Ui_FilterWidget):
         return self.filter_download_filters(model_name)
 
     def filter_download_filters(self, filter_name):
-        return [x.filter_tuple for x in filter(lambda x: x.model == filter_name, self.filters.values())]
+        return [
+            x.filter_tuple
+            for x in filter(lambda x: x.model == filter_name, self.filters.values())
+        ]
 
     def add_filters(self, filters):
         models = []
@@ -62,7 +64,7 @@ class FilterWidget(QWidget, Ui_FilterWidget):
         size.setHeight(size.height() + 10)
 
         item.setSizeHint(size)
-        item.setBackground(QColor('#C8C8C8'))
+        item.setBackground(QColor("#C8C8C8"))
         self.filter_box_list_widget.addItem(item)
         self.filter_box_list_widget.setItemWidget(item, widget)
         self.list_item_map[widget] = item
@@ -70,14 +72,14 @@ class FilterWidget(QWidget, Ui_FilterWidget):
     def create_widget(self, **kwargs):
         filter_item_widget = QWidget()
 
-        model_label = QLabel(kwargs.get('model', None))
-        field_label = QLabel(kwargs.get('field', None))
-        operator_label = QLabel(kwargs.get('operator', None))
+        model_label = QLabel(kwargs.get("model", None))
+        field_label = QLabel(kwargs.get("field", None))
+        operator_label = QLabel(kwargs.get("operator", None))
         # space added to this label text because it's the only way I could get it to stop cutting off the end of text
-        value_label = QLabel(str(kwargs.get('value', None)) + '   ')
+        value_label = QLabel(str(kwargs.get("value", None)) + "   ")
 
         close_button = QToolButton()
-        close_button.setText('X')
+        close_button.setText("X")
         close_button.clicked.connect(lambda: self.remove_filter(filter_item_widget))
 
         v_layout = QVBoxLayout()

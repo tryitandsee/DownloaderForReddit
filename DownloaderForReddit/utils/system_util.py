@@ -32,9 +32,9 @@ import sys
 
 from ..local_logging import log_utils
 
-logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
+logger = logging.getLogger(f"DownloaderForReddit.{__name__}")
 
-FORBIDDEN_CHARS = '"*\\/\'.|?:<>'
+FORBIDDEN_CHARS = "\"*\\/'.|?:<>"
 
 KB = 1024
 MB = KB * KB
@@ -52,13 +52,13 @@ def open_in_system(item):
     :type item: str
     """
     try:
-        if sys.platform == 'win32':
+        if sys.platform == "win32":
             os.startfile(item)
         else:
-            opener = 'open' if sys.platform == 'darwin' else 'xdg-open'
+            opener = "open" if sys.platform == "darwin" else "xdg-open"
             subprocess.call([opener, item])
     except:
-        logger.exception('Failed to open in system', extra={'item_url': item})
+        logger.exception("Failed to open in system", extra={"item_url": item})
 
 
 def clean_path(path, ends_with_dir=False):
@@ -71,9 +71,9 @@ def clean_path(path, ends_with_dir=False):
                           not have the ellipsis appended to the end.
     :return:  A clean file path that can be used by the system.
     """
-    parts = re.split('[\\\\/]+', path)
+    parts = re.split("[\\\\/]+", path)
     is_dir = ends_with_dir or parts[len(parts) - 1]
-    return '/'.join(clean(part, part != is_dir) for part in parts)
+    return "/".join(clean(part, part != is_dir) for part in parts)
 
 
 def clean(part, directory=False):
@@ -81,39 +81,62 @@ def clean(part, directory=False):
     # characters.  I'm not sure why this is, as the file name limit should be around 240. But either way, this
     # method has been adapted to work with the results that I am consistently getting.
     # Replace forbidden characters
-    clean_part = ''.join([x if x not in FORBIDDEN_CHARS else '#' for x in part])
+    clean_part = "".join([x if x not in FORBIDDEN_CHARS else "#" for x in part])
 
     # Replace control characters (0x00-0x1F) which can cause OSError on Windows
-    clean_part = ''.join([x if ord(x) >= 32 else '#' for x in clean_part])
+    clean_part = "".join([x if ord(x) >= 32 else "#" for x in clean_part])
 
     # Remove trailing periods, spaces, and safety chars (invalid on Windows or look bad)
     # [mine] fix: strip leading/trailing '#' used as safety replacement character
-    clean_part = clean_part.strip('#').rstrip('. ')
+    clean_part = clean_part.strip("#").rstrip(". ")
 
     # Handle reserved Windows names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
-    reserved_names = {'CON', 'PRN', 'AUX', 'NUL',
-                      'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
-                      'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'}
+    reserved_names = {
+        "CON",
+        "PRN",
+        "AUX",
+        "NUL",
+        "COM1",
+        "COM2",
+        "COM3",
+        "COM4",
+        "COM5",
+        "COM6",
+        "COM7",
+        "COM8",
+        "COM9",
+        "LPT1",
+        "LPT2",
+        "LPT3",
+        "LPT4",
+        "LPT5",
+        "LPT6",
+        "LPT7",
+        "LPT8",
+        "LPT9",
+    }
     # Check the name without extension
-    name_without_ext = clean_part.split('.')[0].upper() if '.' in clean_part else clean_part.upper()
+    name_without_ext = (
+        clean_part.split(".")[0].upper() if "." in clean_part else clean_part.upper()
+    )
     if name_without_ext in reserved_names:
-        clean_part = f'_{clean_part}'
+        clean_part = f"_{clean_part}"
 
     if len(clean_part) >= 176:
-        ending = '...'
-        if clean_part.endswith('(video)'):
-            ending += '(video)'
-        elif clean_part.endswith('(audio)'):
-            ending += '(audio)'
-        clean_part = clean_part[:173 - len(ending)].strip()
+        ending = "..."
+        if clean_part.endswith("(video)"):
+            ending += "(video)"
+        elif clean_part.endswith("(audio)"):
+            ending += "(audio)"
+        clean_part = clean_part[: 173 - len(ending)].strip()
         if not directory:
             clean_part += ending
         # Re-strip trailing periods/spaces after truncation
-        clean_part = clean_part.rstrip('. ')
+        clean_part = clean_part.rstrip(". ")
 
     # Ensure we didn't end up with an empty string
     if not clean_part:
-        clean_part = 'unnamed'
+        clean_part = "unnamed"
 
     return clean_part
 
@@ -150,8 +173,10 @@ def set_file_modify_time(file_path, epoch):
     except:
         if log_utils.modified_date_log_count < 3:
             log_utils.modified_date_log_count += 1
-            logger.exception('Failed to set date modified for file',
-                             extra={'file': file_path, 'date_modified': epoch})
+            logger.exception(
+                "Failed to set date modified for file",
+                extra={"file": file_path, "date_modified": epoch},
+            )
         return False
 
 
@@ -161,14 +186,13 @@ def get_platform_str():
     :return: A string representing the platform: `'windows'`, `'linux'`, `'macos'`, or `'unknown'`.
     :rtype: str
     """
-    if sys.platform == 'win32':
-        return 'windows'
-    if sys.platform.startswith('linux'):
-        return 'linux'
-    if sys.platform == 'darwin':
-        return 'macos'
-    return 'unknown'
-
+    if sys.platform == "win32":
+        return "windows"
+    if sys.platform.startswith("linux"):
+        return "linux"
+    if sys.platform == "darwin":
+        return "macos"
+    return "unknown"
 
 
 def get_data_directory():
@@ -180,15 +204,17 @@ def get_data_directory():
     :rtype: str
     """
     if DATA_DIR is None:
-        data_dir = os.path.join('SomeGuySoftware', 'DownloaderForReddit')
-        if sys.platform == 'win32':
-            path = os.path.join(os.getenv('APPDATA'), data_dir)
-        elif sys.platform.startswith('linux'):
-            path = os.path.join(os.path.expanduser('~'), f'.{data_dir}')
-        elif sys.platform == 'darwin':
-            path = os.path.join(os.path.expanduser('~'), 'Library', 'Application Support', data_dir)
+        data_dir = os.path.join("SomeGuySoftware", "DownloaderForReddit")
+        if sys.platform == "win32":
+            path = os.path.join(os.getenv("APPDATA"), data_dir)
+        elif sys.platform.startswith("linux"):
+            path = os.path.join(os.path.expanduser("~"), f".{data_dir}")
+        elif sys.platform == "darwin":
+            path = os.path.join(
+                os.path.expanduser("~"), "Library", "Application Support", data_dir
+            )
         else:
-            path = 'Data'
+            path = "Data"
         create_directory(path)
         return path
     return DATA_DIR
@@ -220,7 +246,7 @@ def epoch_to_datetime(epoch_time):
 
 def format_time_delta(td: datetime.timedelta):
     if td.days > 0:
-        return f'{td.days} days, {format_duration_full(td.seconds)}'
+        return f"{td.days} days, {format_duration_full(td.seconds)}"
     return format_duration_full(td.seconds)
 
 
@@ -233,18 +259,18 @@ def format_duration_full(duration: int):
     min_, sec = divmod(duration, 60)
     hour, min_ = divmod(min_, 60)
 
-    time_string = ''
+    time_string = ""
     if hour > 0:
         if hour > 1:
-            time_string += f'{hour} hours, '
+            time_string += f"{hour} hours, "
         else:
-            time_string += f'{hour} hour, '
+            time_string += f"{hour} hour, "
     if min_ > 0:
         if min_ > 1:
-            time_string += f'{min_} mins, '
+            time_string += f"{min_} mins, "
         else:
-            time_string += f'{min_} min, '
-    time_string += f'{round(sec, 2)} secs'
+            time_string += f"{min_} min, "
+    time_string += f"{round(sec, 2)} secs"
     return time_string
 
 
@@ -256,18 +282,18 @@ def format_duration_short(duration: int):
     min_, sec = divmod(duration, 60)
     hour, min_ = divmod(min_, 60)
 
-    return f'{hour:02d}:{min_:02d}:{round(sec):02d}'
+    return f"{hour:02d}:{min_:02d}:{round(sec):02d}"
 
 
 def format_size(size):
     if size >= TB:
-        i = f'{round(size / TB, 2)} TB'
+        i = f"{round(size / TB, 2)} TB"
     elif size >= GB:
-        i = f'{round(size / GB, 2)} GB'
+        i = f"{round(size / GB, 2)} GB"
     elif size >= MB:
-        i = f'{round(size / MB, 2)} MB'
+        i = f"{round(size / MB, 2)} MB"
     else:
-        i = f'{round(size / KB, 2)} KB'
+        i = f"{round(size / KB, 2)} KB"
     return i
 
 
@@ -289,4 +315,4 @@ def join_path(*args):
     :param args:
     :return:
     """
-    return '/'.join(args)
+    return "/".join(args)

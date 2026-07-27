@@ -22,12 +22,10 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-
 from .base_extractor import BaseExtractor
 
 
 class DirectExtractor(BaseExtractor):
-
     url_key = None
 
     def __init__(self, post, **kwargs):

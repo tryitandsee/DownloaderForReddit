@@ -22,12 +22,10 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-
 from PyQt5 import QtCore, QtWidgets
 
 
 class ClickableLabel(QtWidgets.QLabel):
-
     clicked = QtCore.pyqtSignal()
 
     def __init__(self, parent=None):

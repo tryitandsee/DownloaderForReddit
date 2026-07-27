@@ -33,24 +33,25 @@ from ..utils import system_util
 
 
 def make_logger():
-    logger = logging.getLogger('DownloaderForReddit')
+    logger = logging.getLogger("DownloaderForReddit")
     logger.setLevel(logging.DEBUG)
 
-    stream_formatter = JsonStreamFormatter('%(asctime)s: %(levelname)s : %(message)s',
-                                           datefmt='%Y-%m-%dT%H:%M:%S')
+    stream_formatter = JsonStreamFormatter(
+        "%(asctime)s: %(levelname)s : %(message)s", datefmt="%Y-%m-%dT%H:%M:%S"
+    )
 
     json_formatter = jsonlogger.JsonFormatter(
-        fmt='%(levelname) %(asctime) %(filename) %(module) %(name) %(funcName) %(lineno) %(message)',
-        datefmt='%Y-%m-%dT%H:%M:%S',
-        json_ensure_ascii=True
+        fmt="%(levelname) %(asctime) %(filename) %(module) %(name) %(funcName) %(lineno) %(message)",
+        datefmt="%Y-%m-%dT%H:%M:%S",
+        json_ensure_ascii=True,
     )
 
     stream_handler = logging.StreamHandler()
     stream_handler.setLevel(logging.DEBUG)
     stream_handler.setFormatter(stream_formatter)
 
-    log_path = os.path.join(system_util.get_data_directory(), 'DownloaderForReddit.log')
-    file_handler = RotatingFileHandler(log_path, maxBytes=1024*1024, backupCount=2)
+    log_path = os.path.join(system_util.get_data_directory(), "DownloaderForReddit.log")
+    file_handler = RotatingFileHandler(log_path, maxBytes=1024 * 1024, backupCount=2)
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(json_formatter)
 

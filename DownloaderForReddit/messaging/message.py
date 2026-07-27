@@ -4,7 +4,6 @@ from ..utils import injector
 
 
 class MessageType(Enum):
-
     TEXT = 1
 
     POTENTIAL_PROGRESS = 2
@@ -14,7 +13,6 @@ class MessageType(Enum):
 
 
 class MessagePriority(Enum):
-
     DEBUG = 1
     INFO = 2
     WARNING = 3
@@ -24,22 +22,29 @@ class MessagePriority(Enum):
 
 
 class Message:
-
     message_queue = injector.get_message_queue()
 
-    def __init__(self, message_type: MessageType, message: str | None = None,
-                 priority: MessagePriority = MessagePriority.INFO):
+    def __init__(
+        self,
+        message_type: MessageType,
+        message: str | None = None,
+        priority: MessagePriority = MessagePriority.INFO,
+    ):
         self.message_type = message_type
         self.message = message
         self.priority = priority
 
     @property
     def output(self):
-        return f'{self.priority.name}:  {self.message}'
+        return f"{self.priority.name}:  {self.message}"
 
     @classmethod
-    def send(cls, message_type: MessageType, message: str | None = None,
-             priority: MessagePriority = MessagePriority.INFO) -> None:
+    def send(
+        cls,
+        message_type: MessageType,
+        message: str | None = None,
+        priority: MessagePriority = MessagePriority.INFO,
+    ) -> None:
         m = cls(message_type, message, priority)
         cls.message_queue.put(m)
 
@@ -76,4 +81,3 @@ class Message:
     def send_download_error(cls, message: str):
         cls.send(MessageType.POTENTIAL_PROGRESS, priority=MessagePriority.ERROR)
         cls.send(MessageType.TEXT, message, MessagePriority.ERROR)
-

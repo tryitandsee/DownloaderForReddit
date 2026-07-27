@@ -34,7 +34,6 @@ Base = DatabaseHandler.base
 
 
 class BaseModel(Base):
-
     __abstract__ = True
 
     def get_session(self):
@@ -69,89 +68,107 @@ class BaseModel(Base):
 
 
 class Version(BaseModel):
-
-    __tablename__ = 'version'
+    __tablename__ = "version"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    version = Column(String, default='0.0.0')
+    version = Column(String, default="0.0.0")
     date_added = Column(DateTime, default=datetime.now())
 
 
 class ListAssociation(BaseModel):
-
-    __tablename__ = 'reddit_object_list_association'
+    __tablename__ = "reddit_object_list_association"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    reddit_object_list_id = Column(ForeignKey('reddit_object_list.id'))
-    reddit_object_list = relationship('RedditObjectList', backref=backref('list_subscriptions',
-                                                                          cascade='all, delete-orphan'))
-    reddit_object_id = Column(ForeignKey('reddit_object.id'))
-    reddit_object = relationship('RedditObject', backref=backref('list_subscriptions', cascade='all, delete-orphan'))
+    reddit_object_list_id = Column(ForeignKey("reddit_object_list.id"))
+    reddit_object_list = relationship(
+        "RedditObjectList",
+        backref=backref("list_subscriptions", cascade="all, delete-orphan"),
+    )
+    reddit_object_id = Column(ForeignKey("reddit_object.id"))
+    reddit_object = relationship(
+        "RedditObject",
+        backref=backref("list_subscriptions", cascade="all, delete-orphan"),
+    )
     date_added = Column(DateTime, default=datetime.now())
 
 
 class RedditObjectList(BaseModel):
-
-    __tablename__ = 'reddit_object_list'
+    __tablename__ = "reddit_object_list"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(collation='NOCASE'))
+    name = Column(String(collation="NOCASE"))
     date_created = Column(DateTime, default=datetime.now())
     list_type = Column(String, nullable=False)
-    reddit_objects = relationship('RedditObject', secondary='reddit_object_list_association', lazy='dynamic')
+    reddit_objects = relationship(
+        "RedditObject", secondary="reddit_object_list_association", lazy="dynamic"
+    )
 
     # region List Download Defaults
     lock_settings = Column(Boolean, default=False)
     post_limit = Column(SmallInteger, default=25)
     post_score_limit = Column(Integer, default=1000)
-    post_score_limit_operator = Column(Enum(LimitOperator), default=LimitOperator.NO_LIMIT)
+    post_score_limit_operator = Column(
+        Enum(LimitOperator), default=LimitOperator.NO_LIMIT
+    )
     post_sort_method = Column(Enum(PostSortMethod), default=PostSortMethod.NEW)
     avoid_duplicates = Column(Boolean, default=True)  # Url duplicates
     hash_duplicates = Column(Boolean, default=False)  # MD5 hashed duplicates
-    duplicate_control_method = Column(Enum(DuplicateControlMethod), default=DuplicateControlMethod.DELETE)
-    duplicate_naming_method = Column(String, default='%[title]')
-    duplicate_save_structure = Column(String, default='%[author_name]/Duplicates')
+    duplicate_control_method = Column(
+        Enum(DuplicateControlMethod), default=DuplicateControlMethod.DELETE
+    )
+    duplicate_naming_method = Column(String, default="%[title]")
+    duplicate_save_structure = Column(String, default="%[author_name]/Duplicates")
 
     extract_self_post_links = Column(Boolean, default=False)
     download_self_post_text = Column(Boolean, default=False)
-    self_post_file_format = Column(String, default='txt')
+    self_post_file_format = Column(String, default="txt")
     download_videos = Column(Boolean, default=True)
     download_images = Column(Boolean, default=True)
     download_gifs = Column(Boolean, default=True)
     download_nsfw = Column(Enum(NsfwFilter), default=NsfwFilter.INCLUDE)
 
-    extract_comments = Column(Enum(CommentDownload), default=CommentDownload.DO_NOT_DOWNLOAD)
-    download_comments = Column(Enum(CommentDownload), default=CommentDownload.DO_NOT_DOWNLOAD)
-    download_comment_content = Column(Enum(CommentDownload), default=CommentDownload.DO_NOT_DOWNLOAD)
-    comment_file_format = Column(String, default='txt')
+    extract_comments = Column(
+        Enum(CommentDownload), default=CommentDownload.DO_NOT_DOWNLOAD
+    )
+    download_comments = Column(
+        Enum(CommentDownload), default=CommentDownload.DO_NOT_DOWNLOAD
+    )
+    download_comment_content = Column(
+        Enum(CommentDownload), default=CommentDownload.DO_NOT_DOWNLOAD
+    )
+    comment_file_format = Column(String, default="txt")
     comment_limit = Column(Integer, default=100)
     comment_depth = Column(Integer, default=100)
     comment_reply_limit = Column(Integer, default=100)
     comment_score_limit = Column(Integer, default=1000)
-    comment_score_limit_operator = Column(Enum(LimitOperator), default=LimitOperator.NO_LIMIT)
+    comment_score_limit_operator = Column(
+        Enum(LimitOperator), default=LimitOperator.NO_LIMIT
+    )
     comment_sort_method = Column(Enum(CommentSortMethod), default=CommentSortMethod.NEW)
 
     date_limit = Column(DateTime, nullable=True)
     update_date_limit = Column(Boolean, default=True)
-    post_download_naming_method = Column(String, default='%[title]')
-    post_save_structure = Column(String, default='%[author_name]')
+    post_download_naming_method = Column(String, default="%[title]")
+    post_save_structure = Column(String, default="%[author_name]")
     custom_post_save_path = Column(String, nullable=True)
-    comment_naming_method = Column(String, default='%[author_name]-comment')
-    comment_save_structure = Column(String, default='%[post_author_name]/Comments/%[post_title]')
+    comment_naming_method = Column(String, default="%[author_name]-comment")
+    comment_save_structure = Column(
+        String, default="%[post_author_name]/Comments/%[post_title]"
+    )
     custom_comment_save_path = Column(String, nullable=True)
     # endregion
 
-    object_type = 'REDDIT_OBJECT_LIST'
+    object_type = "REDDIT_OBJECT_LIST"
     download_enabled = True
     absolute_date_limit = None
     updated = False
 
     def __str__(self):
-        return f'{self.list_type} List: {self.name}'
+        return f"{self.list_type} List: {self.name}"
 
     @property
     def display_name(self):
-        return f'{self.name} [{self.list_type}]'
+        return f"{self.name} [{self.list_type}]"
 
     @property
     def date_created_display(self):
@@ -181,65 +198,79 @@ class RedditObjectList(BaseModel):
         return [x.id for x in self.reddit_objects]
 
     def get_reddit_object_sub(self, session):
-        return session.query(ListAssociation.reddit_object_id).filter(ListAssociation.reddit_object_list_id == self.id)
+        return session.query(ListAssociation.reddit_object_id).filter(
+            ListAssociation.reddit_object_list_id == self.id
+        )
 
     def get_post_count(self, session=None):
         if session is None:
             session = self.get_session()
         sub = self.get_reddit_object_sub(session)
-        return session.query(func.count(Post.id)).filter(Post.significant_reddit_object_id.in_(sub)).scalar()
+        return (
+            session.query(func.count(Post.id))
+            .filter(Post.significant_reddit_object_id.in_(sub))
+            .scalar()
+        )
 
     def get_content_count(self, session=None):
         if session is None:
             session = self.get_session()
         sub = self.get_reddit_object_sub(session)
-        return session.query(func.count(Content.id)).join(Post)\
-            .filter(Post.significant_reddit_object_id.in_(sub)).scalar()
+        return (
+            session.query(func.count(Content.id))
+            .join(Post)
+            .filter(Post.significant_reddit_object_id.in_(sub))
+            .scalar()
+        )
 
     def get_comment_count(self, session=None):
         if session is None:
             session = self.get_session()
         sub = self.get_reddit_object_sub(session)
-        return session.query(func.count(Comment.id)).join(Post)\
-            .filter(Post.significant_reddit_object_id.in_(sub)).scalar()
+        return (
+            session.query(func.count(Comment.id))
+            .join(Post)
+            .filter(Post.significant_reddit_object_id.in_(sub))
+            .scalar()
+        )
 
     def get_default_dict(self):
         return {
-            'lock_settings': self.lock_settings,
-            'post_limit': self.post_limit,
-            'post_score_limit': self.post_score_limit,
-            'post_score_limit_operator': self.post_score_limit_operator,
-            'post_sort_method': self.post_sort_method,
-            'avoid_duplicates': self.avoid_duplicates,
-            'hash_duplicates': self.hash_duplicates,
-            'duplicate_control_method': self.duplicate_control_method,
-            'duplicate_naming_method': self.duplicate_naming_method,
-            'duplicate_save_structure': self.duplicate_save_structure,
-            'extract_self_post_links': self.extract_self_post_links,
-            'download_self_post_text': self.download_self_post_text,
-            'self_post_file_format': self.self_post_file_format,
-            'download_videos': self.download_videos,
-            'download_images': self.download_images,
-            'download_gifs': self.download_gifs,
-            'download_nsfw': self.download_nsfw,
-            'extract_comments': self.extract_comments,
-            'download_comments': self.download_comments,
-            'download_comment_content': self.download_comment_content,
-            'comment_file_format': self.comment_file_format,
-            'comment_limit': self.comment_limit,
-            'comment_depth': self.comment_depth,
-            'comment_reply_limit': self.comment_reply_limit,
-            'comment_score_limit': self.comment_score_limit,
-            'comment_score_limit_operator': self.comment_score_limit_operator,
-            'comment_sort_method': self.comment_sort_method,
-            'date_limit': self.date_limit,
-            'update_date_limit': self.update_date_limit,
-            'post_download_naming_method': self.post_download_naming_method,
-            'post_save_structure': self.post_save_structure,
-            'custom_post_save_path': self.custom_post_save_path,
-            'comment_naming_method': self.comment_naming_method,
-            'comment_save_structure': self.comment_save_structure,
-            'custom_comment_save_path': self.custom_comment_save_path,
+            "lock_settings": self.lock_settings,
+            "post_limit": self.post_limit,
+            "post_score_limit": self.post_score_limit,
+            "post_score_limit_operator": self.post_score_limit_operator,
+            "post_sort_method": self.post_sort_method,
+            "avoid_duplicates": self.avoid_duplicates,
+            "hash_duplicates": self.hash_duplicates,
+            "duplicate_control_method": self.duplicate_control_method,
+            "duplicate_naming_method": self.duplicate_naming_method,
+            "duplicate_save_structure": self.duplicate_save_structure,
+            "extract_self_post_links": self.extract_self_post_links,
+            "download_self_post_text": self.download_self_post_text,
+            "self_post_file_format": self.self_post_file_format,
+            "download_videos": self.download_videos,
+            "download_images": self.download_images,
+            "download_gifs": self.download_gifs,
+            "download_nsfw": self.download_nsfw,
+            "extract_comments": self.extract_comments,
+            "download_comments": self.download_comments,
+            "download_comment_content": self.download_comment_content,
+            "comment_file_format": self.comment_file_format,
+            "comment_limit": self.comment_limit,
+            "comment_depth": self.comment_depth,
+            "comment_reply_limit": self.comment_reply_limit,
+            "comment_score_limit": self.comment_score_limit,
+            "comment_score_limit_operator": self.comment_score_limit_operator,
+            "comment_sort_method": self.comment_sort_method,
+            "date_limit": self.date_limit,
+            "update_date_limit": self.update_date_limit,
+            "post_download_naming_method": self.post_download_naming_method,
+            "post_save_structure": self.post_save_structure,
+            "custom_post_save_path": self.custom_post_save_path,
+            "comment_naming_method": self.comment_naming_method,
+            "comment_save_structure": self.comment_save_structure,
+            "custom_comment_save_path": self.custom_comment_save_path,
         }
 
     def sync_reddit_object_settings(self, reddit_object):
@@ -248,43 +279,56 @@ class RedditObjectList(BaseModel):
 
 
 class RedditObject(BaseModel):
-
-    __tablename__ = 'reddit_object'
+    __tablename__ = "reddit_object"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(collation='NOCASE'))
+    name = Column(String(collation="NOCASE"))
     date_created = Column(DateTime, nullable=True)
     post_limit = Column(SmallInteger, default=25)
     post_score_limit = Column(Integer, default=1000)
-    post_score_limit_operator = Column(Enum(LimitOperator), default=LimitOperator.NO_LIMIT)
+    post_score_limit_operator = Column(
+        Enum(LimitOperator), default=LimitOperator.NO_LIMIT
+    )
     post_sort_method = Column(Enum(PostSortMethod), default=PostSortMethod.NEW)
     avoid_duplicates = Column(Boolean, default=True)  # Url duplicates
     hash_duplicates = Column(Boolean, default=False)  # MD5 hashed duplicates
-    duplicate_control_method = Column(Enum(DuplicateControlMethod), default=DuplicateControlMethod.DELETE)
-    duplicate_naming_method = Column(String, default='%[title]')
-    duplicate_save_structure = Column(String, default='%[author_name]/Duplicates')
+    duplicate_control_method = Column(
+        Enum(DuplicateControlMethod), default=DuplicateControlMethod.DELETE
+    )
+    duplicate_naming_method = Column(String, default="%[title]")
+    duplicate_save_structure = Column(String, default="%[author_name]/Duplicates")
     extract_self_post_links = Column(Boolean, default=False)
     download_self_post_text = Column(Boolean, default=False)
-    self_post_file_format = Column(String, default='txt')
+    self_post_file_format = Column(String, default="txt")
     download_videos = Column(Boolean, default=True)
     download_images = Column(Boolean, default=True)
     download_gifs = Column(Boolean, default=True)
     download_nsfw = Column(Enum(NsfwFilter), default=NsfwFilter.INCLUDE)
 
-    extract_comments = Column(Enum(CommentDownload), default=CommentDownload.DO_NOT_DOWNLOAD)
-    download_comments = Column(Enum(CommentDownload), default=CommentDownload.DO_NOT_DOWNLOAD)
-    download_comment_content = Column(Enum(CommentDownload), default=CommentDownload.DO_NOT_DOWNLOAD)
-    comment_file_format = Column(String, default='txt')
+    extract_comments = Column(
+        Enum(CommentDownload), default=CommentDownload.DO_NOT_DOWNLOAD
+    )
+    download_comments = Column(
+        Enum(CommentDownload), default=CommentDownload.DO_NOT_DOWNLOAD
+    )
+    download_comment_content = Column(
+        Enum(CommentDownload), default=CommentDownload.DO_NOT_DOWNLOAD
+    )
+    comment_file_format = Column(String, default="txt")
     comment_limit = Column(Integer, default=100)
     comment_depth = Column(Integer, default=100)
     comment_reply_limit = Column(Integer, default=100)
     comment_score_limit = Column(Integer, default=1000)
-    comment_score_limit_operator = Column(Enum(LimitOperator), default=LimitOperator.NO_LIMIT)
+    comment_score_limit_operator = Column(
+        Enum(LimitOperator), default=LimitOperator.NO_LIMIT
+    )
     comment_sort_method = Column(Enum(CommentSortMethod), default=CommentSortMethod.NEW)
 
     date_added = Column(DateTime, default=datetime.now())
     lock_settings = Column(Boolean, default=False)
-    absolute_date_limit = Column(DateTime, default=datetime.fromtimestamp(const.FIRST_POST_EPOCH))
+    absolute_date_limit = Column(
+        DateTime, default=datetime.fromtimestamp(const.FIRST_POST_EPOCH)
+    )
     date_limit = Column(DateTime, nullable=True)
     update_date_limit = Column(Boolean, default=True)
     download_enabled = Column(Boolean, default=True)
@@ -298,27 +342,31 @@ class RedditObject(BaseModel):
     # see RedditObjectCreator.create_user / RedditObjectListModel.sync_existing_ro_to_list.
     active = Column(Boolean, default=True)
     inactive_date = Column(DateTime, nullable=True)
-    post_download_naming_method = Column(String, default='%[title]')
-    post_save_structure = Column(String, default='%[author_name]')
+    post_download_naming_method = Column(String, default="%[title]")
+    post_save_structure = Column(String, default="%[author_name]")
     custom_post_save_path = Column(String, nullable=True)
-    comment_naming_method = Column(String, default='%[author_name]-comment')
-    comment_save_structure = Column(String, default='%[post_author_name]/Comments/%[post_title]')
+    comment_naming_method = Column(String, default="%[author_name]-comment")
+    comment_save_structure = Column(
+        String, default="%[post_author_name]/Comments/%[post_title]"
+    )
     custom_comment_save_path = Column(String, nullable=True)
     new = Column(Boolean, default=True)
-    lists = relationship(RedditObjectList, secondary='reddit_object_list_association', lazy='dynamic')
+    lists = relationship(
+        RedditObjectList, secondary="reddit_object_list_association", lazy="dynamic"
+    )
 
     object_type = Column(String(15))
 
     __mapper_args__: ClassVar[dict[str, Any]] = {
-        'polymorphic_identity': 'REDDIT_OBJECT',
-        'polymorphic_on':  object_type,
+        "polymorphic_identity": "REDDIT_OBJECT",
+        "polymorphic_on": object_type,
     }
 
     def __str__(self):
         try:
-            return f'{self.object_type}: {self.name}'
+            return f"{self.object_type}: {self.name}"
         except AttributeError:
-            return f'{self.object_type}: {self.id}'
+            return f"{self.object_type}: {self.id}"
 
     @property
     def date_created_display(self):
@@ -354,8 +402,13 @@ class RedditObject(BaseModel):
 
     @property
     def last_download(self):
-        return self.get_session().query(func.max(Content.download_date)).join(Post)\
-            .filter(Post.significant_reddit_object_id == self.id).first()[0]
+        return (
+            self.get_session()
+            .query(func.max(Content.download_date))
+            .join(Post)
+            .filter(Post.significant_reddit_object_id == self.id)
+            .first()[0]
+        )
 
     @property
     def last_download_display(self):
@@ -375,21 +428,29 @@ class RedditObject(BaseModel):
 
     @property
     def run_comment_operations(self):
-        return any((self.extract_comments != CommentDownload.DO_NOT_DOWNLOAD,
-                    self.download_comments != CommentDownload.DO_NOT_DOWNLOAD,
-                    self.download_comment_content != CommentDownload.DO_NOT_DOWNLOAD))
+        return any(
+            (
+                self.extract_comments != CommentDownload.DO_NOT_DOWNLOAD,
+                self.download_comments != CommentDownload.DO_NOT_DOWNLOAD,
+                self.download_comment_content != CommentDownload.DO_NOT_DOWNLOAD,
+            )
+        )
 
     @property
     def total_score(self):
-        score = self.get_session().query(func.sum(Post.score))\
-            .filter(Post.significant_reddit_object_id == self.id).first()[0]
+        score = (
+            self.get_session()
+            .query(func.sum(Post.score))
+            .filter(Post.significant_reddit_object_id == self.id)
+            .first()[0]
+        )
         if score is None:
             score = 0
         return score
 
     @property
     def total_score_display(self):
-        return f'{self.total_score:,}'
+        return f"{self.total_score:,}"
 
     @property
     def post_count(self):
@@ -447,41 +508,40 @@ class RedditObject(BaseModel):
     def get_stats(self):
         session = self.get_session()
         return {
-            'lists': session.query(ListAssociation).filter(ListAssociation.reddit_object_id == self.id).count(),
-            'posts': self.post_count,
-            'content': self.content_count,
-            'comments': self.comment_count
+            "lists": session.query(ListAssociation)
+            .filter(ListAssociation.reddit_object_id == self.id)
+            .count(),
+            "posts": self.post_count,
+            "content": self.content_count,
+            "comments": self.comment_count,
         }
 
 
 class User(RedditObject):
+    __tablename__ = "user"
 
-    __tablename__ = 'user'
-
-    id = Column(ForeignKey('reddit_object.id'), primary_key=True, autoincrement=True)
+    id = Column(ForeignKey("reddit_object.id"), primary_key=True, autoincrement=True)
 
     __mapper_args__: ClassVar[dict[str, Any]] = {
-        'polymorphic_identity': 'USER',
+        "polymorphic_identity": "USER",
     }
 
 
 class Subreddit(RedditObject):
+    __tablename__ = "subreddit"
 
-    __tablename__ = 'subreddit'
-
-    id = Column(ForeignKey('reddit_object.id'), primary_key=True, autoincrement=True)
+    id = Column(ForeignKey("reddit_object.id"), primary_key=True, autoincrement=True)
 
     __mapper_args__: ClassVar[dict[str, Any]] = {
-        'polymorphic_identity': 'SUBREDDIT',
+        "polymorphic_identity": "SUBREDDIT",
     }
 
 
 class DownloadSession(BaseModel):
-
-    __tablename__ = 'download_session'
+    __tablename__ = "download_session"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(collation='NOCASE'), nullable=True)
+    name = Column(String(collation="NOCASE"), nullable=True)
     start_time = Column(DateTime, nullable=True)
     end_time = Column(DateTime, nullable=True)
     duration = Column(Integer, nullable=True)
@@ -489,7 +549,7 @@ class DownloadSession(BaseModel):
     download_thread_count = Column(Integer, nullable=True)
 
     def __str__(self):
-        return f'DownloadSession: {self.id}'
+        return f"DownloadSession: {self.id}"
 
     @property
     def start_time_display(self):
@@ -512,20 +572,25 @@ class DownloadSession(BaseModel):
         try:
             return system_util.format_duration_full(self.duration)
         except AttributeError:
-            return 'Never finished'
+            return "Never finished"
 
     def get_downloaded_reddit_object_count(self, session=None):
         if session is None:
             session = self.get_session()
-        return session.query(Post.significant_reddit_object_id)\
-            .filter(Post.download_session_id == self.id).distinct().count()
+        return (
+            session.query(Post.significant_reddit_object_id)
+            .filter(Post.download_session_id == self.id)
+            .distinct()
+            .count()
+        )
 
     def get_downloaded_user_count(self, significant=True, session=None):
         if session is None:
             session = self.get_session()
         if significant:
-            query = session.query(Post.significant_reddit_object_id) \
-                .filter(Post.author_id == Post.significant_reddit_object_id)
+            query = session.query(Post.significant_reddit_object_id).filter(
+                Post.author_id == Post.significant_reddit_object_id
+            )
         else:
             query = session.query(Post.subreddit_id)
         return query.filter(Post.download_session_id == self.id).distinct().count()
@@ -534,8 +599,9 @@ class DownloadSession(BaseModel):
         if session is None:
             session = self.get_session()
         if significant:
-            query = session.query(Post.significant_reddit_object_id)\
-                .filter(Post.subreddit_id == Post.significant_reddit_object_id)
+            query = session.query(Post.significant_reddit_object_id).filter(
+                Post.subreddit_id == Post.significant_reddit_object_id
+            )
         else:
             query = session.query(Post.author_id)
         return query.filter(Post.download_session_id == self.id).distinct().count()
@@ -543,51 +609,68 @@ class DownloadSession(BaseModel):
     def get_extracted_post_count(self, session=None):
         if session is None:
             session = self.get_session()
-        return session.query(Post.id).filter(Post.download_session_id == self.id).count()
+        return (
+            session.query(Post.id).filter(Post.download_session_id == self.id).count()
+        )
 
     def get_downloaded_content_count(self, session=None):
         if session is None:
             session = self.get_session()
-        return session.query(Content.id).filter(Content.download_session_id == self.id).count()
+        return (
+            session.query(Content.id)
+            .filter(Content.download_session_id == self.id)
+            .count()
+        )
 
     def get_comment_count(self, session=None):
         if session is None:
             session = self.get_session()
-        return session.query(Comment.id).filter(Comment.download_session_id == self.id).count()
+        return (
+            session.query(Comment.id)
+            .filter(Comment.download_session_id == self.id)
+            .count()
+        )
 
     def get_downloaded_reddit_objects(self, session=None):
         if session is None:
             session = self.get_session()
-        subquery = session.query(Post.significant_reddit_object_id).filter(Post.download_session_id == self.id)
+        subquery = session.query(Post.significant_reddit_object_id).filter(
+            Post.download_session_id == self.id
+        )
         return session.query(RedditObject).filter(RedditObject.id.in_(subquery))
 
 
-@event.listens_for(DownloadSession.end_time, 'set')
+@event.listens_for(DownloadSession.end_time, "set")
 def set_download_session_duration(target, value, old_value, initiator):
     target.duration = value.timestamp() - target.start_time.timestamp()
 
 
-@event.listens_for(DownloadSession, 'before_insert')
+@event.listens_for(DownloadSession, "before_insert")
 def set_download_session_name(mapper, connection, target):
     if target.name is None:
         try:
-            number = target.get_session().query(DownloadSession.id).order_by(DownloadSession.id.desc()).first()[0] + 1
+            number = (
+                target.get_session()
+                .query(DownloadSession.id)
+                .order_by(DownloadSession.id.desc())
+                .first()[0]
+                + 1
+            )
         except TypeError:
             number = 1
-        target.name = f'Download Session {number}'
+        target.name = f"Download Session {number}"
 
 
 class Post(BaseModel):
-
-    __tablename__ = 'post'
+    __tablename__ = "post"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    title = Column(String(collation='NOCASE'))
+    title = Column(String(collation="NOCASE"))
     date_posted = Column(DateTime)
-    domain = Column(String(collation='NOCASE'))
+    domain = Column(String(collation="NOCASE"))
     score = Column(Integer)
     nsfw = Column(Boolean, default=False)
-    reddit_id = Column(String(collation='NOCASE'), unique=True)
+    reddit_id = Column(String(collation="NOCASE"), unique=True)
     url = Column(String)
 
     is_self = Column(Boolean, default=False)
@@ -600,18 +683,23 @@ class Post(BaseModel):
     error_message = Column(String, nullable=True)
     retry_attempts = Column(Integer, default=0)
 
-    author_id = Column(ForeignKey('user.id'))
-    author = relationship('User', foreign_keys=author_id, backref='posts')
-    subreddit_id = Column(ForeignKey('subreddit.id'))
-    subreddit = relationship('Subreddit', foreign_keys=subreddit_id, backref='posts')
-    significant_reddit_object_id = Column(ForeignKey('reddit_object.id'))
-    significant_reddit_object = relationship('RedditObject', foreign_keys=significant_reddit_object_id,
-                                             backref='significant_posts')
-    download_session_id = Column(ForeignKey('download_session.id'))
-    download_session = relationship('DownloadSession', backref='posts')  # session where the post was extracted
+    author_id = Column(ForeignKey("user.id"))
+    author = relationship("User", foreign_keys=author_id, backref="posts")
+    subreddit_id = Column(ForeignKey("subreddit.id"))
+    subreddit = relationship("Subreddit", foreign_keys=subreddit_id, backref="posts")
+    significant_reddit_object_id = Column(ForeignKey("reddit_object.id"))
+    significant_reddit_object = relationship(
+        "RedditObject",
+        foreign_keys=significant_reddit_object_id,
+        backref="significant_posts",
+    )
+    download_session_id = Column(ForeignKey("download_session.id"))
+    download_session = relationship(
+        "DownloadSession", backref="posts"
+    )  # session where the post was extracted
 
     def __str__(self):
-        return f'Post: {self.title}'
+        return f"Post: {self.title}"
 
     @property
     def short_title(self):
@@ -646,7 +734,7 @@ class Post(BaseModel):
 
     @property
     def score_display(self):
-        return f'{self.score:,}'
+        return f"{self.score:,}"
 
     @property
     def extraction_date_display(self):
@@ -673,8 +761,7 @@ class Post(BaseModel):
 
 
 class Comment(BaseModel):
-
-    __tablename__ = 'comment'
+    __tablename__ = "comment"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     body = Column(String)
@@ -682,7 +769,7 @@ class Comment(BaseModel):
     score = Column(Integer)
     date_added = Column(DateTime, default=datetime.now())
     date_posted = Column(DateTime)
-    reddit_id = Column(String(collation='NOCASE'), unique=True)
+    reddit_id = Column(String(collation="NOCASE"), unique=True)
 
     extracted = Column(Boolean, default=False)
     has_content = Column(Boolean, default=False)
@@ -691,19 +778,21 @@ class Comment(BaseModel):
     error_message = Column(String, nullable=True)
     retry_attempts = Column(Integer, default=0)
 
-    author_id = Column(ForeignKey('user.id'))
-    author = relationship('User', foreign_keys=author_id, backref='comments')
-    subreddit_id = Column(ForeignKey('subreddit.id'))
-    subreddit = relationship('Subreddit', foreign_keys=subreddit_id, backref='comments')
-    post_id = Column(ForeignKey('post.id'))
-    post = relationship('Post', backref='comments')
-    parent_id = Column(ForeignKey('comment.id'), nullable=True)
-    parent = relationship('Comment', remote_side=[id], backref='children')  # noqa: A003 -- id is the primary key Column defined above
-    download_session_id = Column(ForeignKey('download_session.id'))
-    download_session = relationship('DownloadSession', backref='comments')  # session where the comment was extracted
+    author_id = Column(ForeignKey("user.id"))
+    author = relationship("User", foreign_keys=author_id, backref="comments")
+    subreddit_id = Column(ForeignKey("subreddit.id"))
+    subreddit = relationship("Subreddit", foreign_keys=subreddit_id, backref="comments")
+    post_id = Column(ForeignKey("post.id"))
+    post = relationship("Post", backref="comments")
+    parent_id = Column(ForeignKey("comment.id"), nullable=True)
+    parent = relationship("Comment", remote_side=[id], backref="children")  # noqa: A003 -- id is the primary key Column defined above
+    download_session_id = Column(ForeignKey("download_session.id"))
+    download_session = relationship(
+        "DownloadSession", backref="comments"
+    )  # session where the comment was extracted
 
     def __str__(self):
-        return f'Comment: {self.id}'
+        return f"Comment: {self.id}"
 
     @property
     def date_added_display(self):
@@ -723,7 +812,7 @@ class Comment(BaseModel):
 
     @property
     def score_display(self):
-        return f'{self.score:,}'
+        return f"{self.score:,}"
 
     @property
     def extraction_date_display(self):
@@ -748,7 +837,7 @@ class Comment(BaseModel):
         self.error_message = None
         self.get_session().commit()
 
-    def set_extraction_failed(self, error,  message):
+    def set_extraction_failed(self, error, message):
         self.extracted = False
         self.extraction_date = datetime.now()
         self.extraction_error = error
@@ -758,15 +847,14 @@ class Comment(BaseModel):
 
 
 class Content(BaseModel):
-
-    __tablename__ = 'content'
+    __tablename__ = "content"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    title = Column(String(collation='NOCASE'))
-    download_title = Column(String(collation='NOCASE'), nullable=True)
-    extension = Column(String(collation='NOCASE'))
-    url = Column(String(collation='NOCASE'))
-    directory_path = Column(String(collation='NOCASE'), nullable=True)
+    title = Column(String(collation="NOCASE"))
+    download_title = Column(String(collation="NOCASE"), nullable=True)
+    extension = Column(String(collation="NOCASE"))
+    url = Column(String(collation="NOCASE"))
+    directory_path = Column(String(collation="NOCASE"), nullable=True)
     md5_hash = Column(String(), nullable=True, index=True)
 
     downloaded = Column(Boolean, default=False)
@@ -775,22 +863,22 @@ class Content(BaseModel):
     error_message = Column(String, nullable=True)
     retry_attempts = Column(Integer, default=0)
 
-    user_id = Column(ForeignKey('user.id'))
-    user = relationship('User', backref='content')
-    subreddit_id = Column(ForeignKey('subreddit.id'))
-    subreddit = relationship('Subreddit', backref='content')
-    post_id = Column(ForeignKey('post.id'), nullable=True)
-    post = relationship('Post', backref='content')
-    comment_id = Column(ForeignKey('comment.id'), nullable=True)
-    comment = relationship('Comment', backref='content')
-    download_session_id = Column(ForeignKey('download_session.id'), nullable=True)
+    user_id = Column(ForeignKey("user.id"))
+    user = relationship("User", backref="content")
+    subreddit_id = Column(ForeignKey("subreddit.id"))
+    subreddit = relationship("Subreddit", backref="content")
+    post_id = Column(ForeignKey("post.id"), nullable=True)
+    post = relationship("Post", backref="content")
+    comment_id = Column(ForeignKey("comment.id"), nullable=True)
+    comment = relationship("Comment", backref="content")
+    download_session_id = Column(ForeignKey("download_session.id"), nullable=True)
     # The session in which this content was actually downloaded.  May differ from the parent post/comment
     # download_session if the content was unable to be downloaded during the same session, and was downloaded at a
     # later date.
-    download_session = relationship('DownloadSession', backref='content')
+    download_session = relationship("DownloadSession", backref="content")
 
     def __str__(self):
-        return f'Content: {self.title}'
+        return f"Content: {self.title}"
 
     @property
     def short_title(self):
@@ -830,7 +918,9 @@ class Content(BaseModel):
     def get_full_file_path(self, download_title=None):
         if not download_title:
             download_title = self.download_title
-        return system_util.join_path(self.directory_path, f'{download_title}.{self.extension}')
+        return system_util.join_path(
+            self.directory_path, f"{download_title}.{self.extension}"
+        )
 
     def set_downloaded(self, download_session_id):
         self.download_session_id = download_session_id

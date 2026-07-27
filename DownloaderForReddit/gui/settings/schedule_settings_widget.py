@@ -23,7 +23,6 @@ from .abstract_settings_widget import AbstractSettingsWidget
 
 
 class ScheduleSettingsWidget(AbstractSettingsWidget, Ui_ScheduleSettingsWidget):
-
     def __init__(self):
         super().__init__()
         self.scheduler = injector.get_scheduler()
@@ -35,7 +34,9 @@ class ScheduleSettingsWidget(AbstractSettingsWidget, Ui_ScheduleSettingsWidget):
         self.schedule_download_button.clicked.connect(self.add_task)
 
         self.scheduled_downloads_list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.scheduled_downloads_list_widget.customContextMenuRequested.connect(self.task_list_widget_context_menu)
+        self.scheduled_downloads_list_widget.customContextMenuRequested.connect(
+            self.task_list_widget_context_menu
+        )
 
     def load_ui(self):
         self.error_label.setVisible(False)
@@ -47,20 +48,24 @@ class ScheduleSettingsWidget(AbstractSettingsWidget, Ui_ScheduleSettingsWidget):
             # removed in future versions.  This allows us to keep the WEEK enum so that any existing erroneous tasks
             # with the WEEK interval can be loaded from the database, but new tasks with the WEEK interval cannot be
             # added.
-            if interval.name != 'WEEK':
+            if interval.name != "WEEK":
                 self.interval_combo.addItem(interval.name.title(), interval)
         self.interval_combo.setCurrentIndex(-1)
-        self.user_list_combo.addItem('None', None)
-        self.subreddit_list_combo.addItem('None', None)
+        self.user_list_combo.addItem("None", None)
+        self.subreddit_list_combo.addItem("None", None)
         with self.db.get_scoped_session() as session:
-            for user_list in session.query(RedditObjectList).filter(RedditObjectList.list_type == 'USER'):
+            for user_list in session.query(RedditObjectList).filter(
+                RedditObjectList.list_type == "USER"
+            ):
                 self.user_list_combo.addItem(user_list.name, user_list)
-            for sub_list in session.query(RedditObjectList).filter(RedditObjectList.list_type == 'SUBREDDIT'):
+            for sub_list in session.query(RedditObjectList).filter(
+                RedditObjectList.list_type == "SUBREDDIT"
+            ):
                 self.subreddit_list_combo.addItem(sub_list.name, sub_list)
 
     @property
     def description(self):
-        return 'Schedule downloads to run at a certain time and/or interval'
+        return "Schedule downloads to run at a certain time and/or interval"
 
     def load_settings(self):
         with self.db.get_scoped_session() as session:
@@ -79,7 +84,11 @@ class ScheduleSettingsWidget(AbstractSettingsWidget, Ui_ScheduleSettingsWidget):
     def check_modified(self):
         with self.db.get_scoped_session() as session:
             for task in self.task_map.values():
-                if task not in self.new_tasks and task not in self.deleted_tasks and session.is_modified(task):
+                if (
+                    task not in self.new_tasks
+                    and task not in self.deleted_tasks
+                    and session.is_modified(task)
+                ):
                     session.add(task)
                     if task.active:
                         self.scheduler.schedule_task(task)
@@ -95,27 +104,31 @@ class ScheduleSettingsWidget(AbstractSettingsWidget, Ui_ScheduleSettingsWidget):
                 value=self.interval_value_line_edit.text(),
                 user_list=self.user_list_combo.currentData(Qt.UserRole),
                 subreddit_list=self.subreddit_list_combo.currentData(Qt.UserRole),
-                active=True
+                active=True,
             )
             with self.db.get_scoped_session() as session:
-                existing = session.query(DownloadTask) \
-                    .filter(DownloadTask.interval == task.interval) \
-                    .filter(DownloadTask.value == task.value) \
-                    .filter(DownloadTask.user_list_id == task.user_list_id) \
-                    .filter(DownloadTask.subreddit_list_id == task.subreddit_list_id) \
+                existing = (
+                    session.query(DownloadTask)
+                    .filter(DownloadTask.interval == task.interval)
+                    .filter(DownloadTask.value == task.value)
+                    .filter(DownloadTask.user_list_id == task.user_list_id)
+                    .filter(DownloadTask.subreddit_list_id == task.subreddit_list_id)
                     .scalar()
+                )
                 if existing is None:
                     self.add_task_to_list(task)
                     self.new_tasks.append(task)
                     self.clear_input()
                 else:
-                    self.error_label.setText('Matching download schedule already exists')
+                    self.error_label.setText(
+                        "Matching download schedule already exists"
+                    )
                     self.error_label.setVisible(True)
 
     def check_value_entry(self):
         if self.check_value_format():
             return True
-        self.error_label.setText('Invalid value entered')
+        self.error_label.setText("Invalid value entered")
         self.error_label.setVisible(True)
         return False
 
@@ -124,23 +137,23 @@ class ScheduleSettingsWidget(AbstractSettingsWidget, Ui_ScheduleSettingsWidget):
         interval = self.interval_combo.currentData(Qt.UserRole)
         if interval == Interval.MINUTE:
             try:
-                time.strptime(text, ':%S')
+                time.strptime(text, ":%S")
                 return True
             except ValueError:
                 return False
         elif interval == Interval.HOUR:
             try:
-                time.strptime(text, '%M:%S')
+                time.strptime(text, "%M:%S")
                 return True
             except ValueError:
                 return False
         else:
             try:
-                if len(text.split(':')[0]) == 1:
-                    text = '0' + text
-                if text.count(':') == 1:
-                    text += ':00'
-                time.strptime(text, '%H:%M:%S')
+                if len(text.split(":")[0]) == 1:
+                    text = "0" + text
+                if text.count(":") == 1:
+                    text += ":00"
+                time.strptime(text, "%H:%M:%S")
                 self.interval_value_line_edit.setText(text)
                 return True
             except ValueError:
@@ -152,11 +165,11 @@ class ScheduleSettingsWidget(AbstractSettingsWidget, Ui_ScheduleSettingsWidget):
         widget = QWidget()
         layout = QVBoxLayout()
         layout.addWidget(QLabel(task.display))
-        layout.addWidget(QLabel(f'User List: {task.user_list_display}'))
-        layout.addWidget(QLabel(f'Sub List: {task.subreddit_list_display}'))
-        checkbox = QCheckBox('active')
+        layout.addWidget(QLabel(f"User List: {task.user_list_display}"))
+        layout.addWidget(QLabel(f"Sub List: {task.subreddit_list_display}"))
+        checkbox = QCheckBox("active")
         checkbox.setChecked(task.active)
-        checkbox.toggled.connect(lambda: setattr(task, 'active', checkbox.isChecked()))
+        checkbox.toggled.connect(lambda: setattr(task, "active", checkbox.isChecked()))
         layout.addWidget(checkbox)
 
         line = QFrame()
@@ -179,7 +192,10 @@ class ScheduleSettingsWidget(AbstractSettingsWidget, Ui_ScheduleSettingsWidget):
 
     def task_list_widget_context_menu(self):
         menu = QMenu()
-        menu.addAction('Remove Task', lambda: self.remove_task(self.scheduled_downloads_list_widget.currentRow()))
+        menu.addAction(
+            "Remove Task",
+            lambda: self.remove_task(self.scheduled_downloads_list_widget.currentRow()),
+        )
         menu.exec_(QCursor.pos())
 
     def remove_task(self, row):

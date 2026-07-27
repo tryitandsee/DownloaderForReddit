@@ -12,7 +12,6 @@ Base = DatabaseHandler.base
 
 
 class Interval(Enum):
-
     SECOND = 1
     MINUTE = 2
     HOUR = 3
@@ -37,23 +36,29 @@ def generate_uuid():
 
 
 class DownloadTask(Base):
-
-    __tablename__ = 'download_task'
+    __tablename__ = "download_task"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     interval = Column(EnumColumn(Interval))
     value = Column(String, nullable=True)
-    user_list_id = Column(ForeignKey('reddit_object_list.id'), nullable=True)
-    user_list = relationship(RedditObjectList, backref='scheduled_user_downloads', foreign_keys=[user_list_id])
-    subreddit_list_id = Column(ForeignKey('reddit_object_list.id'), nullable=True)
-    subreddit_list = relationship(RedditObjectList, backref='scheduled_subreddit_downloads',
-                                  foreign_keys=[subreddit_list_id])
+    user_list_id = Column(ForeignKey("reddit_object_list.id"), nullable=True)
+    user_list = relationship(
+        RedditObjectList,
+        backref="scheduled_user_downloads",
+        foreign_keys=[user_list_id],
+    )
+    subreddit_list_id = Column(ForeignKey("reddit_object_list.id"), nullable=True)
+    subreddit_list = relationship(
+        RedditObjectList,
+        backref="scheduled_subreddit_downloads",
+        foreign_keys=[subreddit_list_id],
+    )
     tag = Column(String, default=generate_uuid, unique=True)
     active = Column(Boolean, default=True)
 
     @property
     def display(self):
-        return f'Every {self.interval} at {self.value}'
+        return f"Every {self.interval} at {self.value}"
 
     @property
     def user_list_display(self):

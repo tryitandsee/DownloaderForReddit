@@ -47,9 +47,9 @@ WHERE name = 'SomeUser' COLLATE NOCASE;
 **Full settings row for a reddit_object** (date_limit/absolute_date_limit, nsfw filter,
 avoid_duplicates, post_limit, etc. -- get column names first since there are ~45 of them):
 ```python
-cur.execute('PRAGMA table_info(reddit_object)')
+cur.execute("PRAGMA table_info(reddit_object)")
 cols = [c[1] for c in cur.fetchall()]
-cur.execute('SELECT * FROM reddit_object WHERE id = <id>')
+cur.execute("SELECT * FROM reddit_object WHERE id = <id>")
 print(dict(zip(cols, cur.fetchone())))
 ```
 

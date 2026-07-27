@@ -22,7 +22,6 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-
 import logging
 import subprocess
 from distutils.spawn import find_executable
@@ -32,7 +31,7 @@ from ..utils import general_utils, injector, system_util
 
 logger = logging.getLogger(__name__)
 
-ffmpeg_valid = find_executable('ffmpeg') is not None
+ffmpeg_valid = find_executable("ffmpeg") is not None
 
 
 # A list of MergeSet's containing the path of the video and audio files that are to be merged.
@@ -40,7 +39,6 @@ videos_to_merge = []
 
 
 class MergeSet:
-
     def __init__(self, video_id, audio_id, date_modified=None):
         """
         Holds data about the parts of a reddit video that are to be merged.
@@ -70,7 +68,9 @@ def merge_videos():
                     video_content = session.query(Content).get(ms.video_id)
                     audio_content = session.query(Content).get(ms.audio_id)
                     merged_content = create_merged_content(video_content)
-                    merged_content.download_title = general_utils.ensure_content_download_path(merged_content)
+                    merged_content.download_title = (
+                        general_utils.ensure_content_download_path(merged_content)
+                    )
 
                     cmd = f'ffmpeg -i "{video_content.get_full_file_path()}" -i "{audio_content.get_full_file_path()}" -c:v copy -c:a aac -strict experimental "{merged_content.get_full_file_path()}" -y'
                     si = subprocess.STARTUPINFO()
@@ -78,21 +78,34 @@ def merge_videos():
                     create_no_window = 0x08000000
                     subprocess.call(cmd, startupinfo=si, creationflags=create_no_window)
                     if injector.get_settings_manager().match_file_modified_to_post_date:
-                        system_util.set_file_modify_time(merged_content.get_full_file_path(),
-                                                         ms.date_modified.timestamp())
+                        system_util.set_file_modify_time(
+                            merged_content.get_full_file_path(),
+                            ms.date_modified.timestamp(),
+                        )
                     clean_up(video_content, audio_content, merged_content, session)
                     merged_paths.append(merged_content.get_full_file_path())
                 except:
-                    failed_paths.append({'video_id': ms.video_id, 'audio_id': ms.audio_id})
-                    logger.exception('Failed to merge video',
-                                     extra={'video_id': ms.video_id, 'audio_id': ms.audio_id})
+                    failed_paths.append(
+                        {"video_id": ms.video_id, "audio_id": ms.audio_id}
+                    )
+                    logger.exception(
+                        "Failed to merge video",
+                        extra={"video_id": ms.video_id, "audio_id": ms.audio_id},
+                    )
             if merged_paths or failed_paths:
-                logger.info('Video merger complete',
-                            extra={'merged_video_paths': merged_paths, 'failed_video_merges': failed_paths})
+                logger.info(
+                    "Video merger complete",
+                    extra={
+                        "merged_video_paths": merged_paths,
+                        "failed_video_merges": failed_paths,
+                    },
+                )
             videos_to_merge.clear()
     else:
-        logger.warning('Ffmpeg is not installed: unable to merge video and audio files',
-                       extra={'videos_to_merge': len(videos_to_merge)})
+        logger.warning(
+            "Ffmpeg is not installed: unable to merge video and audio files",
+            extra={"videos_to_merge": len(videos_to_merge)},
+        )
 
 
 def clean_up(video_content, audio_content, merged_content, session):
@@ -106,9 +119,9 @@ def clean_up(video_content, audio_content, merged_content, session):
 
 def create_merged_content(video_content):
     return Content(
-        title=video_content.title.replace('(video)', ''),
-        download_title=video_content.download_title.replace('(video)', ''),
-        extension='mp4',
+        title=video_content.title.replace("(video)", ""),
+        download_title=video_content.download_title.replace("(video)", ""),
+        extension="mp4",
         url=video_content.url,
         user=video_content.user,
         subreddit=video_content.subreddit,
@@ -118,5 +131,5 @@ def create_merged_content(video_content):
         download_date=video_content.download_date,
         download_error=video_content.download_error,
         download_session_id=video_content.download_session_id,
-        comment_id=video_content.comment_id
+        comment_id=video_content.comment_id,
     )

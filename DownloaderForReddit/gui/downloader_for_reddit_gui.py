@@ -22,7 +22,6 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-
 import io
 import logging
 import os
@@ -94,8 +93,9 @@ from ..viewmodels.reddit_object_list_model import RedditObjectListModel
 
 
 class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
-
-    stop_download_signal = pyqtSignal(bool)  # bool indicates whether the stop is a hard stop or not
+    stop_download_signal = pyqtSignal(
+        bool
+    )  # bool indicates whether the stop is a hard stop or not
     # Carries a list[SubmissionData] from ambient_poll (background thread) to start_ambient_download
     # (GUI thread) -- object, not list, so PyQt passes the SubmissionData instances through as-is
     # rather than trying to convert them to QVariants.
@@ -114,7 +114,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         """
         QMainWindow.__init__(self)
         self.setupUi(self)
-        self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
+        self.logger = logging.getLogger(f"DownloaderForReddit.{__name__}")
         self.version = __version__
         self.failed_list = []
         self.last_downloaded_objects = {}
@@ -125,10 +125,19 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.running = False
         self.invalid_list = []
         self.db_handler = injector.get_database_handler()
-        self.spinner = WaitingSpinner(self.user_list_view, roundness=80, fade=72, radius=10,
-                                      lines=12, line_length=12, line_width=4, speed=1.4)
-        self.tray_icon_image = \
-            QIcon(QPixmap('Resources/Images/RedditDownloaderIcon.png').scaled(48, 48))
+        self.spinner = WaitingSpinner(
+            self.user_list_view,
+            roundness=80,
+            fade=72,
+            radius=10,
+            lines=12,
+            line_length=12,
+            line_width=4,
+            speed=1.4,
+        )
+        self.tray_icon_image = QIcon(
+            QPixmap("Resources/Images/RedditDownloaderIcon.png").scaled(48, 48)
+        )
         self.system_tray_icon = QSystemTrayIcon(icon=self.tray_icon_image)
         self.oauth = None
 
@@ -136,18 +145,18 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.settings_manager = injector.get_settings_manager()
 
         geom = self.settings_manager.main_window_geom
-        self.resize(geom['width'], geom['height'])
-        if geom['x'] != 0 and geom['y'] != 0:
-            self.move(geom['x'], geom['y'])
+        self.resize(geom["width"], geom["height"])
+        if geom["x"] != 0 and geom["y"] != 0:
+            self.move(geom["x"], geom["y"])
         self.horz_splitter.setSizes(self.settings_manager.horizontal_splitter_state)
 
         # [mine] feat(gui): download status panel embedded at the bottom of the main window
         self.download_status_panel = DownloadStatusDialog(lambda: download_runner)
         self.verticalLayout_4.addWidget(self.download_status_panel)
 
-        if self.settings_manager.download_radio_state == 'USER':
+        if self.settings_manager.download_radio_state == "USER":
             self.download_users_radio.setChecked(True)
-        elif self.settings_manager.download_radio_state == 'SUBREDDIT':
+        elif self.settings_manager.download_radio_state == "SUBREDDIT":
             self.download_subreddits_radio.setChecked(True)
         else:
             self.constain_to_sub_list_radio.setChecked(True)
@@ -170,7 +179,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
         # region File Menu
         self.open_settings_menu_item.triggered.connect(self.open_settings_dialog)
-        self.connect_reddit_account_menu_item.setText("Connect Reddit Account (unavailable)")
+        self.connect_reddit_account_menu_item.setText(
+            "Connect Reddit Account (unavailable)"
+        )
         self.connect_reddit_account_menu_item.setEnabled(False)
         self.open_data_directory_menu_item.triggered.connect(self.open_data_directory)
         self.minimize_to_tray_menu_item.triggered.connect(self.minimize_to_tray)
@@ -183,89 +194,155 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.list_view_order_group = QActionGroup(self)
         self.list_view_order_group.addAction(self.sort_list_ascending_menu_item)
         self.list_view_order_group.addAction(self.sort_list_descending_menu_item)
-        self.sort_list_ascending_menu_item.triggered.connect(lambda: self.set_list_order(desc=False))
-        self.sort_list_descending_menu_item.triggered.connect(lambda: self.set_list_order(desc=True))
-        self.sort_list_ascending_menu_item.setChecked(not self.settings_manager.order_list_desc)
-        self.sort_list_descending_menu_item.setChecked(self.settings_manager.order_list_desc)
+        self.sort_list_ascending_menu_item.triggered.connect(
+            lambda: self.set_list_order(desc=False)
+        )
+        self.sort_list_descending_menu_item.triggered.connect(
+            lambda: self.set_list_order(desc=True)
+        )
+        self.sort_list_ascending_menu_item.setChecked(
+            not self.settings_manager.order_list_desc
+        )
+        self.sort_list_descending_menu_item.setChecked(
+            self.settings_manager.order_list_desc
+        )
         # endregion
 
         # region Lists Menu
         self.add_user_list_menu_item.triggered.connect(self.add_user_list)
         self.remove_user_list_menu_item.triggered.connect(self.remove_user_list)
         self.add_subreddit_list_menu_item.triggered.connect(self.add_subreddit_list)
-        self.remove_subreddit_list_menu_item.triggered.connect(self.remove_subreddit_list)
+        self.remove_subreddit_list_menu_item.triggered.connect(
+            self.remove_subreddit_list
+        )
 
         self.export_user_list_menu_item.triggered.connect(self.export_user_list)
-        self.export_subreddit_list_menu_item.triggered.connect(self.export_subreddit_list)
+        self.export_subreddit_list_menu_item.triggered.connect(
+            self.export_subreddit_list
+        )
         # endregion
 
         # region Database Menu
         self.database_view_menu_item.triggered.connect(self.open_database_view_dialog)
-        self.download_sessions_view_menu_item.triggered.connect(self.open_download_sessions_dialog)
-        self.reddit_objects_view_menu_item.triggered.connect(self.open_reddit_objects_dialog)
+        self.download_sessions_view_menu_item.triggered.connect(
+            self.open_download_sessions_dialog
+        )
+        self.reddit_objects_view_menu_item.triggered.connect(
+            self.open_reddit_objects_dialog
+        )
         self.posts_view_menu_item.triggered.connect(self.open_posts_dialog)
         self.content_view_menu_item.triggered.connect(self.open_content_dialog)
         self.comments_view_menu_item.triggered.connect(self.open_comment_dialog)
-        self.failed_extraction_view_menu_item.triggered.connect(self.open_failed_extraction_dialog)
-        self.failed_download_view_menu_item.triggered.connect(self.open_failed_downloads_dialog)
-        self.statistics_view_menu_item.triggered.connect(self.open_database_statistics_dialog)
+        self.failed_extraction_view_menu_item.triggered.connect(
+            self.open_failed_extraction_dialog
+        )
+        self.failed_download_view_menu_item.triggered.connect(
+            self.open_failed_downloads_dialog
+        )
+        self.statistics_view_menu_item.triggered.connect(
+            self.open_database_statistics_dialog
+        )
         # endregion
 
         # region Download Menu
         self.download_user_list_menu_item.triggered.connect(self.download_user_list)
-        self.download_subreddit_list_menu_item.triggered.connect(self.download_subreddit_list)
-        self.download_user_list_constrained_menu_item.triggered.connect(self.download_user_list_constrained)
-        self.run_unfinished_extractions_menu_item.triggered.connect(self.run_unextracted_only)
-        self.run_unfinished_downloads_menu_item.triggered.connect(self.run_undownloaded_only)
+        self.download_subreddit_list_menu_item.triggered.connect(
+            self.download_subreddit_list
+        )
+        self.download_user_list_constrained_menu_item.triggered.connect(
+            self.download_user_list_constrained
+        )
+        self.run_unfinished_extractions_menu_item.triggered.connect(
+            self.run_unextracted_only
+        )
+        self.run_unfinished_downloads_menu_item.triggered.connect(
+            self.run_undownloaded_only
+        )
         self.run_all_unfiinished_menu_item.triggered.connect(self.run_all_unfinished)
         # [mine] feat(gui): "Download Posts..." menu item
-        self._single_post_action = QAction('Download Posts...', self)
+        self._single_post_action = QAction("Download Posts...", self)
         self._single_post_action.triggered.connect(self.open_single_post_dialog)
         self.menuDownload.addAction(self._single_post_action)
         # endregion
 
         # region Help Menu
-        self.imgur_credit_dialog_menu_item.triggered.connect(self.display_imgur_client_information)
+        self.imgur_credit_dialog_menu_item.triggered.connect(
+            self.display_imgur_client_information
+        )
         self.user_manual_menu_item.triggered.connect(self.open_user_manual)
-        self.user_manual_menu_item.setDisabled(True)  # TODO: enable after online user manual is created
-        self.ffmpeg_requirement_dialog_menu_item.triggered.connect(self.display_ffmpeg_info_dialog)
-        self.command_line_options_menu_item.triggered.connect(self.output_command_line_options)
-        self.check_for_updates_menu_item.triggered.connect(lambda: self.check_for_updates(True))
+        self.user_manual_menu_item.setDisabled(
+            True
+        )  # TODO: enable after online user manual is created
+        self.ffmpeg_requirement_dialog_menu_item.triggered.connect(
+            self.display_ffmpeg_info_dialog
+        )
+        self.command_line_options_menu_item.triggered.connect(
+            self.output_command_line_options
+        )
+        self.check_for_updates_menu_item.triggered.connect(
+            lambda: self.check_for_updates(True)
+        )
         self.about_menu_item.triggered.connect(self.display_about_dialog)
         # endregion
 
         # endregion
 
-        self.user_list_model = RedditObjectListModel('USER')
+        self.user_list_model = RedditObjectListModel("USER")
         self.user_list_model.starting_add.connect(self.start_spinner)
         self.user_list_model.finished_add.connect(self.stop_spinner)
-        self.user_list_model.reddit_object_added.connect(self.check_new_object_for_download)
-        self.user_list_model.existing_object_added.connect(self.check_existing_object_for_download)
-        self.user_list_model.new_object_in_list.connect(lambda x: self.scroll_to_new(x, 'USER'))
-        self.user_list_model.count_change.connect(lambda x: self.user_count_label.setText(str(x)))
+        self.user_list_model.reddit_object_added.connect(
+            self.check_new_object_for_download
+        )
+        self.user_list_model.existing_object_added.connect(
+            self.check_existing_object_for_download
+        )
+        self.user_list_model.new_object_in_list.connect(
+            lambda x: self.scroll_to_new(x, "USER")
+        )
+        self.user_list_model.count_change.connect(
+            lambda x: self.user_count_label.setText(str(x))
+        )
         self.user_list_view.setModel(self.user_list_model)
-        self.subreddit_list_model = RedditObjectListModel('SUBREDDIT')
+        self.subreddit_list_model = RedditObjectListModel("SUBREDDIT")
         self.subreddit_list_model.starting_add.connect(self.start_spinner)
         self.subreddit_list_model.finished_add.connect(self.stop_spinner)
-        self.subreddit_list_model.reddit_object_added.connect(self.check_new_object_for_download)
-        self.subreddit_list_model.existing_object_added.connect(self.check_existing_object_for_download)
-        self.subreddit_list_model.new_object_in_list.connect(lambda x: self.scroll_to_new(x, 'SUBREDDIT'))
-        self.subreddit_list_model.count_change.connect(lambda x: self.subreddit_count_label.setText(str(x)))
+        self.subreddit_list_model.reddit_object_added.connect(
+            self.check_new_object_for_download
+        )
+        self.subreddit_list_model.existing_object_added.connect(
+            self.check_existing_object_for_download
+        )
+        self.subreddit_list_model.new_object_in_list.connect(
+            lambda x: self.scroll_to_new(x, "SUBREDDIT")
+        )
+        self.subreddit_list_model.count_change.connect(
+            lambda x: self.subreddit_count_label.setText(str(x))
+        )
         self.subreddit_list_view.setModel(self.subreddit_list_model)
 
         self.load_state()
 
         self.user_list_search_edit.textChanged.connect(
-            lambda text: self.user_list_model.search_list(text))
+            lambda text: self.user_list_model.search_list(text)
+        )
         self.subreddit_list_search_edit.textChanged.connect(
-            lambda text: self.subreddit_list_model.search_list(text))
+            lambda text: self.subreddit_list_model.search_list(text)
+        )
 
         self.download_button.clicked.connect(self.run_full_download)
-        self.soft_stop_download_button.clicked.connect(lambda: self.stop_download_signal.emit(False))
-        self.terminate_download_button.clicked.connect(lambda: self.stop_download_signal.emit(True))
+        self.soft_stop_download_button.clicked.connect(
+            lambda: self.stop_download_signal.emit(False)
+        )
+        self.terminate_download_button.clicked.connect(
+            lambda: self.stop_download_signal.emit(True)
+        )
         self.stop_download_signal.connect(self.download_runner.stop_download)
-        self.download_runner.remove_invalid_object.connect(self.remove_invalid_reddit_object)
-        self.download_runner.remove_forbidden_object.connect(self.remove_forbidden_reddit_object)
+        self.download_runner.remove_invalid_object.connect(
+            self.remove_invalid_reddit_object
+        )
+        self.download_runner.remove_forbidden_object.connect(
+            self.remove_forbidden_reddit_object
+        )
         self.download_runner.pool_idle.connect(self.finished_download_gui_shift)
         self.shift_download_buttons()
 
@@ -285,31 +362,48 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.subreddit_list_combo.activated.connect(self.change_subreddit_list)
 
         self.user_list_view.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.user_list_view.customContextMenuRequested.connect(lambda: self.reddit_object_list_context_menu('USER'))
+        self.user_list_view.customContextMenuRequested.connect(
+            lambda: self.reddit_object_list_context_menu("USER")
+        )
 
         self.user_list_view.doubleClicked.connect(
-            lambda: self.open_reddit_object_in_browser(self.get_selected_users()[0], 'USER'))
+            lambda: self.open_reddit_object_in_browser(
+                self.get_selected_users()[0], "USER"
+            )
+        )
         self.user_list_view.setEditTriggers(QAbstractItemView.NoEditTriggers)
 
         self.user_lists_combo.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.user_lists_combo.customContextMenuRequested.connect(self.user_list_combo_context_menu)
+        self.user_lists_combo.customContextMenuRequested.connect(
+            self.user_list_combo_context_menu
+        )
 
         self.subreddit_list_view.setContextMenuPolicy(Qt.CustomContextMenu)
         self.subreddit_list_view.customContextMenuRequested.connect(
-            lambda: self.reddit_object_list_context_menu('SUBREDDIT'))
+            lambda: self.reddit_object_list_context_menu("SUBREDDIT")
+        )
 
         self.subreddit_list_view.doubleClicked.connect(
-            lambda: self.open_reddit_object_in_browser(self.get_selected_subreddits()[0], 'SUBREDDIT'))
+            lambda: self.open_reddit_object_in_browser(
+                self.get_selected_subreddits()[0], "SUBREDDIT"
+            )
+        )
         self.subreddit_list_view.setEditTriggers(QAbstractItemView.NoEditTriggers)
 
         self.subreddit_list_combo.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.subreddit_list_combo.customContextMenuRequested.connect(self.subreddit_list_combo_context_menu)
+        self.subreddit_list_combo.customContextMenuRequested.connect(
+            self.subreddit_list_combo_context_menu
+        )
 
         self.schedule_widget.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.schedule_widget.customContextMenuRequested.connect(self.schedule_context_menu)
+        self.schedule_widget.customContextMenuRequested.connect(
+            self.schedule_context_menu
+        )
 
         self.output_list_view.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.output_list_view.customContextMenuRequested.connect(self.output_context_menu)
+        self.output_list_view.customContextMenuRequested.connect(
+            self.output_context_menu
+        )
 
         self.run_time = 0
         self.timer_widget = QWidget()
@@ -317,8 +411,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         layout = QHBoxLayout()
         layout.setContentsMargins(11, 0, 11, 0)
         self.timer_widget.setLayout(layout)
-        layout.addWidget(QLabel('Run Time: '))
-        self.timer_label = QLabel('00:00:00')
+        layout.addWidget(QLabel("Run Time: "))
+        self.timer_label = QLabel("00:00:00")
         layout.addWidget(self.timer_label)
 
         self.statusbar.addPermanentWidget(self.timer_widget)
@@ -330,7 +424,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.progress_bar.setVisible(False)
         self.progress_label = QLabel()
         self.statusbar.addPermanentWidget(self.progress_label)
-        self.progress_label.setText('Extraction Complete')
+        self.progress_label.setText("Extraction Complete")
         self.progress_label.setVisible(False)
 
         self.setup_system_tray_icon()
@@ -338,20 +432,24 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.check_ffmpeg()
         self.check_for_updates(False)
 
-
         self.log_startup()
 
     def log_startup(self):
-        self.logger.info('Application started', extra={
-            'dfr_version': __version__,
-            'platform': platform.platform(),
-        })
+        self.logger.info(
+            "Application started",
+            extra={
+                "dfr_version": __version__,
+                "platform": platform.platform(),
+            },
+        )
 
     def setup_list_sort_menu(self):
         list_view_group = QActionGroup(self)
         for field in RedditObjectFilter.get_order_fields():
-            text = field.replace('_', ' ').title()
-            item = self.list_sort_menu_item.addAction(text, lambda value=field: self.set_list_order(order_by=value))
+            text = field.replace("_", " ").title()
+            item = self.list_sort_menu_item.addAction(
+                text, lambda value=field: self.set_list_order(order_by=value)
+            )
             list_view_group.addAction(item)
             item.setCheckable(True)
             item.setChecked(field == self.settings_manager.list_order_method)
@@ -407,14 +505,14 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     def reddit_object_list_context_menu(self, object_type):
         menu = QMenu()
         try:
-            if object_type == 'USER':
+            if object_type == "USER":
                 ros = self.get_selected_users()
             else:
                 ros = self.get_selected_subreddits()
         except AttributeError:
             ros = []
 
-        if object_type == 'USER':
+        if object_type == "USER":
             ros = self.get_selected_users()
             open_settings_command = self.user_settings
             add_command = self.add_user
@@ -426,64 +524,91 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             remove_command = self.remove_subreddit
 
         try:
-            download_text = \
-                f'Download {ros[0].name}' if len(ros) == 1 else f'Download {len(ros)} {object_type.title()}s'
+            download_text = (
+                f"Download {ros[0].name}"
+                if len(ros) == 1
+                else f"Download {len(ros)} {object_type.title()}s"
+            )
         except IndexError:
-            download_text = 'Download'
+            download_text = "Download"
 
-        menu.addAction('Settings', lambda: open_settings_command(ros))
+        menu.addAction("Settings", lambda: open_settings_command(ros))
         menu.addSeparator()
-        menu.addAction('Open Download Folder',
-                                        lambda: self.open_reddit_object_download_folder(ros[0]))
-        export_text = f'Export {ros[0].name}' if len(ros) == 1 else f'Export {len(ros)} {object_type.title()}s'
+        menu.addAction(
+            "Open Download Folder",
+            lambda: self.open_reddit_object_download_folder(ros[0]),
+        )
+        export_text = (
+            f"Export {ros[0].name}"
+            if len(ros) == 1
+            else f"Export {len(ros)} {object_type.title()}s"
+        )
         menu.addAction(export_text, lambda: self.export_reddit_objects(ros))
         menu.addSeparator()
-        menu.addAction('Post View',
-                                             lambda: self.open_selected_reddit_object_dialog(ros[0].id, 'POST'))
-        menu.addAction('Content View',
-                                             lambda: self.open_selected_reddit_object_dialog(ros[0].id, 'CONTENT'))
+        menu.addAction(
+            "Post View",
+            lambda: self.open_selected_reddit_object_dialog(ros[0].id, "POST"),
+        )
+        menu.addAction(
+            "Content View",
+            lambda: self.open_selected_reddit_object_dialog(ros[0].id, "CONTENT"),
+        )
         menu.addSeparator()
-        add_object = menu.addAction(f'Add {object_type.title()}', add_command)
-        remove_text = f'Remove {ros[0].name}' if len(ros) == 1 else f'Remove {len(ros)} {object_type.title()}s'
+        add_object = menu.addAction(f"Add {object_type.title()}", add_command)
+        remove_text = (
+            f"Remove {ros[0].name}"
+            if len(ros) == 1
+            else f"Remove {len(ros)} {object_type.title()}s"
+        )
         menu.addAction(remove_text, remove_command)
         menu.addSeparator()
-        self.move_reddit_object_menu_item(menu, ros, object_type, 'MOVE')
-        self.move_reddit_object_menu_item(menu, ros, object_type, 'COPY')
+        self.move_reddit_object_menu_item(menu, ros, object_type, "MOVE")
+        self.move_reddit_object_menu_item(menu, ros, object_type, "COPY")
         menu.addSeparator()
-        delete_menu = menu.addMenu(f'Delete {object_type.title()}')
-        delete_menu.addAction(f'Delete {object_type.title()}',
-                              lambda: self.delete_reddit_objects(ros, delete_files=False))
-        delete_menu.addAction(f'Delete {object_type.title()} with Files',
-                              lambda: self.delete_reddit_objects(ros, delete_files=True))
+        delete_menu = menu.addMenu(f"Delete {object_type.title()}")
+        delete_menu.addAction(
+            f"Delete {object_type.title()}",
+            lambda: self.delete_reddit_objects(ros, delete_files=False),
+        )
+        delete_menu.addAction(
+            f"Delete {object_type.title()} with Files",
+            lambda: self.delete_reddit_objects(ros, delete_files=True),
+        )
         menu.addSeparator()
-        menu.addAction(download_text, lambda: self.add_to_download(*[x.id for x in ros]))
+        menu.addAction(
+            download_text, lambda: self.add_to_download(*[x.id for x in ros])
+        )
 
         # [mine] feat(gui): "Mark as Followed"/"Mark as Unfollowed" toggle -- active tracks whether
         # the dedicated downloader account follows this user; meaningless for subreddits, which
         # are never followed.
         follow_toggle = None
-        if object_type == 'USER':
+        if object_type == "USER":
             try:
                 followed = ros[0].active
             except IndexError:
                 followed = False
             disable_follow_toggle_option = True
             if all(x.active == followed for x in ros):
-                follow_text = 'Mark as Followed' if followed else 'Mark as Unfollowed'
+                follow_text = "Mark as Followed" if followed else "Mark as Unfollowed"
                 if len(ros) > 0:
                     disable_follow_toggle_option = False
             else:
-                follow_text = 'Differing Followed States'
+                follow_text = "Differing Followed States"
             # ids captured now, not inside the lambda -- ros can be detached by the time the menu
             # item is actually clicked (e.g. an ambient download's refresh_session() closing the
             # list model's session while the menu is open), and reading .id off a detached instance
             # would raise the same way ro.set_inactive() used to
             follow_ro_ids = [x.id for x in ros]
-            follow_toggle = menu.addAction(follow_text, lambda: self.toggle_followed(follow_ro_ids))
+            follow_toggle = menu.addAction(
+                follow_text, lambda: self.toggle_followed(follow_ro_ids)
+            )
         # [mine] feat(gui): "Open in Browser" context menu item for users/subreddits -- opens the
         # profile/subreddit directly in the dedicated account's browser window
-        menu.addAction('Open in Browser',
-                                         lambda: self.open_reddit_object_in_browser(ros[0], object_type))
+        menu.addAction(
+            "Open in Browser",
+            lambda: self.open_reddit_object_in_browser(ros[0], object_type),
+        )
 
         for action in menu.actions():
             if action != add_object:
@@ -510,24 +635,39 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                     ro.set_active()
         self.user_list_model.refresh_session()
 
-    def move_reddit_object_menu_item(self, main_menu, reddit_objects, ro_type, action_type):
+    def move_reddit_object_menu_item(
+        self, main_menu, reddit_objects, ro_type, action_type
+    ):
         try:
             if len(reddit_objects) > 1:
-                text = f'{action_type.title()} {len(reddit_objects)} {ro_type.lower()}s to:'
+                text = f"{action_type.title()} {len(reddit_objects)} {ro_type.lower()}s to:"
             else:
-                text = f'{action_type.title()} {reddit_objects[0].name if len(reddit_objects) else ""} to:'
+                text = f"{action_type.title()} {reddit_objects[0].name if len(reddit_objects) else ''} to:"
             menu = main_menu.addMenu(text)
-            current_list_model = self.user_list_model if ro_type == 'USER' else self.subreddit_list_model
-            current_list_id = current_list_model.list.id  # Throws attribute error when no list is available
+            current_list_model = (
+                self.user_list_model if ro_type == "USER" else self.subreddit_list_model
+            )
+            current_list_id = (
+                current_list_model.list.id
+            )  # Throws attribute error when no list is available
             with self.db_handler.get_scoped_session() as session:
-                lists = session.query(RedditObjectList) \
-                    .filter(RedditObjectList.list_type == ro_type) \
+                lists = (
+                    session.query(RedditObjectList)
+                    .filter(RedditObjectList.list_type == ro_type)
                     .filter(RedditObjectList.id != current_list_id)
-            action = self.move_reddit_objects if action_type == 'MOVE' else self.copy_reddit_objects
+                )
+            action = (
+                self.move_reddit_objects
+                if action_type == "MOVE"
+                else self.copy_reddit_objects
+            )
             for ro_list in lists:
                 menu.addAction(
                     ro_list.name,
-                    lambda new_list=ro_list: action([x.id for x in reddit_objects], current_list_id, new_list.id))
+                    lambda new_list=ro_list: action(
+                        [x.id for x in reddit_objects], current_list_id, new_list.id
+                    ),
+                )
             return menu
         except AttributeError:
             # In this case there is no available list
@@ -535,19 +675,24 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     def move_reddit_objects(self, reddit_object_ids, old_list_id, new_list_id):
         if self.settings_manager.ask_to_sync_moved_ro_settings:
-            text = 'Would you like to sync the settings of the moved user/subreddit(s) to the settings defined for ' \
-                   'the list they are being moved to?'
-            sync, ask = message_dialogs.optional_question_dialog(self, 'Sync Settings?', text,
-                                                                 checkbox_text='Do not ask again')
+            text = (
+                "Would you like to sync the settings of the moved user/subreddit(s) to the settings defined for "
+                "the list they are being moved to?"
+            )
+            sync, ask = message_dialogs.optional_question_dialog(
+                self, "Sync Settings?", text, checkbox_text="Do not ask again"
+            )
             self.settings_manager.ask_to_sync_moved_ro_settings = not ask
         else:
             sync = True
         with self.db_handler.get_scoped_update_session() as session:
             for ro_id in reddit_object_ids:
-                session.query(ListAssociation)\
-                    .filter(ListAssociation.reddit_object_id == ro_id)\
-                    .filter(ListAssociation.reddit_object_list_id == old_list_id).delete()
-                new_assoc = ListAssociation(reddit_object_id=ro_id, reddit_object_list_id=new_list_id)
+                session.query(ListAssociation).filter(
+                    ListAssociation.reddit_object_id == ro_id
+                ).filter(ListAssociation.reddit_object_list_id == old_list_id).delete()
+                new_assoc = ListAssociation(
+                    reddit_object_id=ro_id, reddit_object_list_id=new_list_id
+                )
                 session.add(new_assoc)
                 if sync:
                     new_list = session.query(RedditObjectList).get(new_list_id)
@@ -558,27 +703,29 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     def copy_reddit_objects(self, reddit_object_ids, old_list_model, new_list_id):
         with self.db_handler.get_scoped_update_session() as session:
             for ro_id in reddit_object_ids:
-                new_assoc = ListAssociation(reddit_object_id=ro_id, reddit_object_list_id=new_list_id)
+                new_assoc = ListAssociation(
+                    reddit_object_id=ro_id, reddit_object_list_id=new_list_id
+                )
                 session.add(new_assoc)
 
     def user_list_combo_context_menu(self):
         menu = QMenu()
-        menu.addAction('Add User List', self.add_user_list)
-        remove = menu.addAction('Remove User List', self.remove_user_list)
-        remove.setDisabled(self.user_lists_combo.currentText() == '')
+        menu.addAction("Add User List", self.add_user_list)
+        remove = menu.addAction("Remove User List", self.remove_user_list)
+        remove.setDisabled(self.user_lists_combo.currentText() == "")
         menu.addSeparator()
-        settings = menu.addAction('List Settings', self.user_list_settings)
-        settings.setDisabled(self.user_lists_combo.currentText() == '')
+        settings = menu.addAction("List Settings", self.user_list_settings)
+        settings.setDisabled(self.user_lists_combo.currentText() == "")
         menu.exec_(QCursor.pos())
 
     def subreddit_list_combo_context_menu(self):
         menu = QMenu()
-        menu.addAction('Add Subreddit List', self.add_subreddit_list)
-        remove = menu.addAction('Remove Subreddit List', self.remove_subreddit_list)
-        remove.setDisabled(self.subreddit_list_combo.currentText() == '')
+        menu.addAction("Add Subreddit List", self.add_subreddit_list)
+        remove = menu.addAction("Remove Subreddit List", self.remove_subreddit_list)
+        remove.setDisabled(self.subreddit_list_combo.currentText() == "")
         menu.addSeparator()
-        settings = menu.addAction('List Settings', self.subreddit_list_settings)
-        settings.setDisabled(self.subreddit_list_combo.currentText() == '')
+        settings = menu.addAction("List Settings", self.subreddit_list_settings)
+        settings.setDisabled(self.subreddit_list_combo.currentText() == "")
         menu.exec_(QCursor.pos())
 
     def refresh_list_models(self):
@@ -591,16 +738,22 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     def schedule_context_menu(self):
         menu = QMenu()
-        menu.addAction('Schedule Settings', lambda: self.open_settings_dialog(open_display='Schedule'))
+        menu.addAction(
+            "Schedule Settings",
+            lambda: self.open_settings_dialog(open_display="Schedule"),
+        )
         menu.exec_(QCursor.pos())
 
     def output_context_menu(self):
         menu = QMenu()
-        menu.addAction('Output Settings', lambda: self.open_settings_dialog(open_display='Output'))
+        menu.addAction(
+            "Output Settings", lambda: self.open_settings_dialog(open_display="Output")
+        )
         menu.addSeparator()
-        menu.addAction('Clear Output', lambda: self.output_view_model.clear())
-        menu.addAction('Open Log File', self.open_log_file)
+        menu.addAction("Clear Output", lambda: self.output_view_model.clear())
+        menu.addAction("Open Log File", self.open_log_file)
         menu.exec_(QCursor.pos())
+
     # endregion
 
     def user_settings(self, users):
@@ -612,9 +765,15 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         if users is None:
             users = [self.user_list_model.reddit_objects[0]]
         id_list = [x.id for x in users]
-        dialog = RedditObjectSettingsDialog('USER', self.user_list_model.list.name, selected_object_ids=id_list,
-                                            parent=self)
-        dialog.download_signal.connect(lambda download_ids: self.add_to_download(*download_ids))
+        dialog = RedditObjectSettingsDialog(
+            "USER",
+            self.user_list_model.list.name,
+            selected_object_ids=id_list,
+            parent=self,
+        )
+        dialog.download_signal.connect(
+            lambda download_ids: self.add_to_download(*download_ids)
+        )
         dialog.show()
         dialog.exec_()
 
@@ -623,21 +782,33 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         if subreddits is None:
             subreddits = [self.subreddit_list_model.reddit_objects[0]]
         id_list = [x.id for x in subreddits]
-        dialog = RedditObjectSettingsDialog('SUBREDDIT', self.subreddit_list_model.list.name,
-                                            selected_object_ids=id_list, parent=self)
-        dialog.download_signal.connect(lambda download_ids: self.add_to_download(*download_ids))
+        dialog = RedditObjectSettingsDialog(
+            "SUBREDDIT",
+            self.subreddit_list_model.list.name,
+            selected_object_ids=id_list,
+            parent=self,
+        )
+        dialog.download_signal.connect(
+            lambda download_ids: self.add_to_download(*download_ids)
+        )
         dialog.show()
         dialog.exec_()
 
     def user_list_settings(self):
         try:
-            self.open_settings_dialog(open_display='Download Defaults', open_list_id=self.user_list_model.list.id)
+            self.open_settings_dialog(
+                open_display="Download Defaults",
+                open_list_id=self.user_list_model.list.id,
+            )
         except AttributeError:
             pass
 
     def subreddit_list_settings(self):
         try:
-            self.open_settings_dialog(open_display='Download Defaults', open_list_id=self.subreddit_list_model.list.id)
+            self.open_settings_dialog(
+                open_display="Download Defaults",
+                open_list_id=self.subreddit_list_model.list.id,
+            )
         except AttributeError:
             pass
 
@@ -647,20 +818,28 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     def open_single_post_dialog(self):
         # [mine] feat(gui): prompt for post URLs (one per line) and start a download
         if self.running:
-            Message.send_warning('Finish the current download before downloading posts.')
+            Message.send_warning(
+                "Finish the current download before downloading posts."
+            )
             return
-        text, ok = QInputDialog.getMultiLineText(self, 'Download Posts', 'Post URLs (one per line):')
+        text, ok = QInputDialog.getMultiLineText(
+            self, "Download Posts", "Post URLs (one per line):"
+        )
         if ok:
             urls = [line.strip() for line in text.splitlines() if line.strip()]
             if urls:
                 self.run(None, None, single_submission_urls=urls)
 
     def run_full_download(self):
-        run_unextracted = self.settings_manager.finish_incomplete_extractions_at_session_start
-        run_undownloaded = self.settings_manager.finish_incomplete_downloads_at_session_start
+        run_unextracted = (
+            self.settings_manager.finish_incomplete_extractions_at_session_start
+        )
+        run_undownloaded = (
+            self.settings_manager.finish_incomplete_downloads_at_session_start
+        )
         kwargs = {
-            'run_unextracted': run_unextracted,
-            'run_undownloaded': run_undownloaded
+            "run_unextracted": run_unextracted,
+            "run_undownloaded": run_undownloaded,
         }
         if self.download_users_radio.isChecked():
             self.download_user_list(**kwargs)
@@ -683,36 +862,72 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.run(user_id_list, sub_id_list, **kwargs)
 
     def run_all_unfinished(self, *, post_id_list=None, content_id_list=None):
-        self.run(None, None, run_new=False, run_unextracted=True, run_undownloaded=True,
-                 unextracted_id_list=post_id_list, undownloaded_id_list=content_id_list)
+        self.run(
+            None,
+            None,
+            run_new=False,
+            run_unextracted=True,
+            run_undownloaded=True,
+            unextracted_id_list=post_id_list,
+            undownloaded_id_list=content_id_list,
+        )
 
     def run_unextracted_only(self, *, id_list=None):
-        self.run(None, None, run_new=False, run_unextracted=True, unextracted_id_list=id_list)
+        self.run(
+            None, None, run_new=False, run_unextracted=True, unextracted_id_list=id_list
+        )
 
     def run_undownloaded_only(self, *, id_list=None):
-        self.run(None, None, run_new=False, run_undownloaded=True, undownloaded_id_list=id_list)
+        self.run(
+            None,
+            None,
+            run_new=False,
+            run_undownloaded=True,
+            undownloaded_id_list=id_list,
+        )
 
     def run_scheduled_download(self, id_tuple):
         if not self.running:
             user_list_id, subreddit_list_id = id_tuple
             user_id_list = None
             sub_id_list = None
-            run_unextracted = self.settings_manager.finish_incomplete_extractions_at_session_start
-            run_undownloaded = self.settings_manager.finish_incomplete_downloads_at_session_start
+            run_unextracted = (
+                self.settings_manager.finish_incomplete_extractions_at_session_start
+            )
+            run_undownloaded = (
+                self.settings_manager.finish_incomplete_downloads_at_session_start
+            )
             with self.db_handler.get_scoped_session() as session:
                 if user_list_id is not None:
-                    user_id_list = session.query(RedditObjectList).get(user_list_id).get_reddit_object_id_list()
+                    user_id_list = (
+                        session.query(RedditObjectList)
+                        .get(user_list_id)
+                        .get_reddit_object_id_list()
+                    )
                 if subreddit_list_id is not None:
-                    sub_id_list = session.query(RedditObjectList).get(subreddit_list_id).get_reddit_object_id_list()
-                self.run(user_id_list, sub_id_list, run_unextracted=run_unextracted, run_undownloaded=run_undownloaded)
+                    sub_id_list = (
+                        session.query(RedditObjectList)
+                        .get(subreddit_list_id)
+                        .get_reddit_object_id_list()
+                    )
+                self.run(
+                    user_id_list,
+                    sub_id_list,
+                    run_unextracted=run_unextracted,
+                    run_undownloaded=run_undownloaded,
+                )
 
     def run(self, user_id_list, sub_id_list, reddit_object_id_list=None, **kwargs):
         if not self.running:
             self.started_download_gui_shift()
-        params = dict(user_id_list=user_id_list, subreddit_id_list=sub_id_list,
-                     reddit_object_id_list=reddit_object_id_list, **kwargs)
+        params = dict(
+            user_id_list=user_id_list,
+            subreddit_id_list=sub_id_list,
+            reddit_object_id_list=reddit_object_id_list,
+            **kwargs,
+        )
         self.download_runner.request_download.emit(params)
-        self.logger.info('Download requested')
+        self.logger.info("Download requested")
 
     def add_to_download(self, *args: int):
         """
@@ -726,13 +941,17 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     def update_post_scores(self, post_id_list):
         post_count = len(post_id_list)
         if post_count < 200 or self.large_post_update_alert(post_count):
-            self.update_runner = UpdateRunner(run_method='UPDATE_SCORES', post_id_list=post_id_list)
+            self.update_runner = UpdateRunner(
+                run_method="UPDATE_SCORES", post_id_list=post_id_list
+            )
             self.run_update(self.update_runner)
 
     def fetch_new_post_comments(self, post_id_list):
         post_count = len(post_id_list)
         if post_count < 200 or self.large_post_update_alert(post_count):
-            self.update_runner = UpdateRunner(run_method='UPDATE_COMMENTS', post_id_list=post_id_list)
+            self.update_runner = UpdateRunner(
+                run_method="UPDATE_COMMENTS", post_id_list=post_id_list
+            )
             self.run_update(self.update_runner)
 
     def large_post_update_alert(self, count):
@@ -745,9 +964,12 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         """
         if self.settings_manager.large_post_update_warning:
             accepted, do_not_show = message_dialogs.optional_question_dialog(
-                self, 'Update Posts?', f'There are {f"{count:,}"} posts in this selection to be updated.  It '
-                                       f'could take a while to update this many posts.\n\n'
-                                       f'Are you sure you want to proceed?')
+                self,
+                "Update Posts?",
+                f"There are {f'{count:,}'} posts in this selection to be updated.  It "
+                f"could take a while to update this many posts.\n\n"
+                f"Are you sure you want to proceed?",
+            )
             self.settings_manager.large_post_update_warning = not do_not_show
             return accepted
         return True
@@ -812,7 +1034,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.spinner.stop()
 
     def update_status_bar(self):
-        self.statusbar.showMessage(f'Downloaded: {self.downloaded} of {self.potential_downloads}', -1)
+        self.statusbar.showMessage(
+            f"Downloaded: {self.downloaded} of {self.potential_downloads}", -1
+        )
 
     def init_progress_bar(self):
         self.progress_limit = 0
@@ -833,28 +1057,35 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.progress_bar.setValue(self.progress)
 
     def update_scheduled_download(self, countdown):
-        if countdown is not None and self.settings_manager.show_schedule_countdown != 'DO_NOT_SHOW':
+        if (
+            countdown is not None
+            and self.settings_manager.show_schedule_countdown != "DO_NOT_SHOW"
+        ):
             self.schedule_widget.setVisible(True)
             self.schedule_label.setText(countdown)
         else:
-            self.schedule_label.setText('No Download Scheduled')
-            if self.settings_manager.show_schedule_countdown != 'SHOW':
+            self.schedule_label.setText("No Download Scheduled")
+            if self.settings_manager.show_schedule_countdown != "SHOW":
                 self.schedule_widget.setVisible(False)
 
     def add_user_list(self, *, list_name=None):
         if list_name is None:
-            list_name = self.get_list_name('USER')
+            list_name = self.get_list_name("USER")
         if list_name is not None:
-            if list_name != '':
-                added = self.user_list_model.add_new_list(list_name, 'USER')
+            if list_name != "":
+                added = self.user_list_model.add_new_list(list_name, "USER")
                 if added:
                     self.user_lists_combo.addItem(list_name)
                     self.user_lists_combo.setCurrentText(list_name)
                 else:
                     text = f'A user list already exists with the name "{list_name}"'
-                    message_dialogs.generic_message(self, title='List Name Exists', text=text)
+                    message_dialogs.generic_message(
+                        self, title="List Name Exists", text=text
+                    )
             else:
-                self.logger.warning('Unable to add user list', extra={'invalid_name': list_name})
+                self.logger.warning(
+                    "Unable to add user list", extra={"invalid_name": list_name}
+                )
                 message_dialogs.not_valid_name(self)
 
     def get_list_name(self, object_type):
@@ -864,25 +1095,36 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         :param object_type: The type of object that the list will hold.
         """
         list_name, ok = QInputDialog.getText(
-            self, f'New {object_type.capitalize()} List Dialog', f'Enter the new {object_type.lower()} list:')
-        if ok and list_name is not None and list_name != '':
+            self,
+            f"New {object_type.capitalize()} List Dialog",
+            f"Enter the new {object_type.lower()} list:",
+        )
+        if ok and list_name is not None and list_name != "":
             return list_name
         return None
 
     def remove_user_list(self):
         try:
-            if self.verify_remove_list('user'):
+            if self.verify_remove_list("user"):
                 current_user_list = self.user_lists_combo.currentText()
                 list_size = self.user_list_model.rowCount()
                 self.user_list_model.delete_current_list()
                 self.user_lists_combo.removeItem(self.user_lists_combo.currentIndex())
-                if self.user_lists_combo.currentText() != '':
+                if self.user_lists_combo.currentText() != "":
                     self.user_list_model.set_list(self.user_lists_combo.currentText())
                     self.user_list_model.sort_list()
-                self.logger.info('User list removed', extra={'list_name': current_user_list,
-                                                             'previous_list_size': list_size})
+                self.logger.info(
+                    "User list removed",
+                    extra={
+                        "list_name": current_user_list,
+                        "previous_list_size": list_size,
+                    },
+                )
         except KeyError:
-            self.logger.warning('Unable to remove user list: No user list available to remove', exc_info=True)
+            self.logger.warning(
+                "Unable to remove user list: No user list available to remove",
+                exc_info=True,
+            )
             message_dialogs.no_user_list(self)
 
     def change_user_list(self):
@@ -890,10 +1132,15 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         new_list_name = self.user_lists_combo.currentText()
         self.user_list_model.set_list(new_list_name)
         self.user_list_model.sort_list()
-        self.logger.info('User list changed to: %s', new_list_name)
+        self.logger.info("User list changed to: %s", new_list_name)
 
     def export_user_list(self):
-        wizard = ExportWizard(self.user_list_model.list, RedditObjectList, self.user_list_model.name, parent=self)
+        wizard = ExportWizard(
+            self.user_list_model.list,
+            RedditObjectList,
+            self.user_list_model.name,
+            parent=self,
+        )
         wizard.exec_()
 
     def export_reddit_objects(self, ro_list):
@@ -902,34 +1149,51 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     def add_subreddit_list(self, *, list_name=None):
         if list_name is None:
-            list_name = self.get_list_name('SUBREDDIT')
+            list_name = self.get_list_name("SUBREDDIT")
         if list_name is not None:
-            if list_name != '':
-                added = self.subreddit_list_model.add_new_list(list_name, 'SUBREDDIT')
+            if list_name != "":
+                added = self.subreddit_list_model.add_new_list(list_name, "SUBREDDIT")
                 if added:
                     self.subreddit_list_combo.addItem(list_name)
                     self.subreddit_list_combo.setCurrentText(list_name)
                 else:
-                    text = f'A subreddit list already exists with the name "{list_name}"'
-                    message_dialogs.generic_message(self, title='List Name Exists', text=text)
+                    text = (
+                        f'A subreddit list already exists with the name "{list_name}"'
+                    )
+                    message_dialogs.generic_message(
+                        self, title="List Name Exists", text=text
+                    )
             else:
-                self.logger.warning('Unable to add subreddit list', extra={'invalid_name': list_name})
+                self.logger.warning(
+                    "Unable to add subreddit list", extra={"invalid_name": list_name}
+                )
                 message_dialogs.not_valid_name(self)
 
     def remove_subreddit_list(self):
         try:
-            if self.verify_remove_list('subreddit'):
+            if self.verify_remove_list("subreddit"):
                 current_sub_list = self.subreddit_list_combo.currentText()
                 list_size = self.subreddit_list_model.rowCount()
                 self.subreddit_list_model.delete_current_list()
-                self.subreddit_list_combo.removeItem(self.subreddit_list_combo.currentIndex())
-                if self.subreddit_list_combo.currentText() != '':
-                    self.subreddit_list_model.set_list(self.subreddit_list_combo.currentText())
+                self.subreddit_list_combo.removeItem(
+                    self.subreddit_list_combo.currentIndex()
+                )
+                if self.subreddit_list_combo.currentText() != "":
+                    self.subreddit_list_model.set_list(
+                        self.subreddit_list_combo.currentText()
+                    )
                     self.subreddit_list_model.sort_list()
-                self.logger.info('Subreddit list removed', extra={'list_name': current_sub_list,
-                                                                  'previous_list_size': list_size})
+                self.logger.info(
+                    "Subreddit list removed",
+                    extra={
+                        "list_name": current_sub_list,
+                        "previous_list_size": list_size,
+                    },
+                )
         except KeyError:
-            self.logger.warning('Unable to remove subreddit list: No list to remove', exc_info=True)
+            self.logger.warning(
+                "Unable to remove subreddit list: No list to remove", exc_info=True
+            )
             message_dialogs.no_subreddit_list(self)
 
     def verify_remove_list(self, list_type):
@@ -951,13 +1215,17 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.subreddit_list_model.sort_list()
 
     def export_subreddit_list(self):
-        wizard = ExportWizard(self.subreddit_list_model.reddit_objects, RedditObjectList,
-                              self.subreddit_list_model.name, parent=self)
+        wizard = ExportWizard(
+            self.subreddit_list_model.reddit_objects,
+            RedditObjectList,
+            self.subreddit_list_model.name,
+            parent=self,
+        )
         wizard.exec_()
 
     def add_user(self):
         if self.user_list_model.list is None:
-            self.add_user_list(list_name='Default')
+            self.add_user_list(list_name="Default")
         dialog = AddRedditObjectDialog(self.user_list_model, self)
         dialog.exec_()
 
@@ -979,12 +1247,16 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         try:
             remove = True
             if self.settings_manager.remove_reddit_object_warning:
-                remove, warn = message_dialogs.remove_reddit_objects(self, reddit_objects)
+                remove, warn = message_dialogs.remove_reddit_objects(
+                    self, reddit_objects
+                )
                 self.settings_manager.remove_reddit_object_warning = not warn
             if remove:
                 list_model.remove_reddit_objects(*reddit_objects)
         except (KeyError, AttributeError):
-            self.logger.warning('Remove reddit object failed: No object selected', exc_info=True)
+            self.logger.warning(
+                "Remove reddit object failed: No object selected", exc_info=True
+            )
             message_dialogs.no_reddit_object_selected(self, list_model.list_type)
 
     def remove_invalid_reddit_object(self, reddit_object_id):
@@ -996,7 +1268,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         """
         with self.db_handler.get_scoped_update_session() as session:
             reddit_object = session.query(RedditObject).get(reddit_object_id)
-            self.invalid_list.append(InvalidObject(reddit_object.name, reddit_object.id, 'deleted'))
+            self.invalid_list.append(
+                InvalidObject(reddit_object.name, reddit_object.id, "deleted")
+            )
 
     def remove_forbidden_reddit_object(self, reddit_object_id):
         """
@@ -1007,7 +1281,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         """
         with self.db_handler.get_scoped_update_session() as session:
             reddit_object = session.query(RedditObject).get(reddit_object_id)
-            self.invalid_list.append(InvalidObject(reddit_object.name, reddit_object.id, 'suspended/banned'))
+            self.invalid_list.append(
+                InvalidObject(reddit_object.name, reddit_object.id, "suspended/banned")
+            )
 
     def remove_problem_reddit_object(self, reddit_object_id, rename, reason):
         """
@@ -1021,40 +1297,58 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         """
         with self.db_handler.get_scoped_update_session() as session:
             reddit_object = session.query(RedditObject).get(reddit_object_id)
-            session.query(ListAssociation).filter(ListAssociation.reddit_object_id == reddit_object_id).delete()
-            rename_message = 'Not Attempted'
+            session.query(ListAssociation).filter(
+                ListAssociation.reddit_object_id == reddit_object_id
+            ).delete()
+            rename_message = "Not Attempted"
             if rename:
                 path = general_utils.get_reddit_object_download_folder(reddit_object)
                 if not general_utils.rename_invalid_directory(path):
-                    rename_message = 'Failed'
+                    rename_message = "Failed"
                     message_dialogs.failed_to_rename_error(self, reddit_object.name)
                 else:
-                    rename_message = 'Success'
-            self.logger.info('Invalid reddit object removed', extra={'object_name': reddit_object.name,
-                                                                     'folder_rename': rename_message,
-                                                                     'removal_reason': reason})
+                    rename_message = "Success"
+            self.logger.info(
+                "Invalid reddit object removed",
+                extra={
+                    "object_name": reddit_object.name,
+                    "folder_rename": rename_message,
+                    "removal_reason": reason,
+                },
+            )
         self.refresh_list_models()
 
     def delete_reddit_objects(self, reddit_objects, delete_files):
-        count_text = \
-            f'{len(reddit_objects)} {reddit_objects[0].object_type.lower()}{"s" if len(reddit_objects) > 1 else ""}'
-        text = f'Are you sure you want to permanently delete {count_text} from the database?\n' \
-               f'This action cannot be undone.'
-        remove = message_dialogs.warning_question_dialog(self, f'Delete {count_text}?', text)
+        count_text = f"{len(reddit_objects)} {reddit_objects[0].object_type.lower()}{'s' if len(reddit_objects) > 1 else ''}"
+        text = (
+            f"Are you sure you want to permanently delete {count_text} from the database?\n"
+            f"This action cannot be undone."
+        )
+        remove = message_dialogs.warning_question_dialog(
+            self, f"Delete {count_text}?", text
+        )
         if remove:
-            list_model = self.user_list_model if reddit_objects[0].object_type == 'USER' else self.subreddit_list_model
+            list_model = (
+                self.user_list_model
+                if reddit_objects[0].object_type == "USER"
+                else self.subreddit_list_model
+            )
             list_name = list_model.close_session()
             for reddit_object in reddit_objects:
                 try:
-                    ModelManger.delete_reddit_object(reddit_object, delete_files=delete_files)
+                    ModelManger.delete_reddit_object(
+                        reddit_object, delete_files=delete_files
+                    )
                 except:
-                    self.logger.exception('Failed to delete reddit object',
-                                          extra={'reddit_object': reddit_object.name})
+                    self.logger.exception(
+                        "Failed to delete reddit object",
+                        extra={"reddit_object": reddit_object.name},
+                    )
             list_model.open_session(list_name=list_name)
 
     def add_subreddit(self):
         if self.subreddit_list_model.list is None:
-            self.add_subreddit_list(list_name='Default')
+            self.add_subreddit_list(list_name="Default")
         add_sub_dialog = AddRedditObjectDialog(self.subreddit_list_model, self)
         add_sub_dialog.exec_()
 
@@ -1063,7 +1357,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         Gets the currently selected index from the subreddit list and the current subreddit list model and calls a
         method to remove the object at the current index
         """
-        self.remove_reddit_object(self.get_selected_subreddits(), self.subreddit_list_model)
+        self.remove_reddit_object(
+            self.get_selected_subreddits(), self.subreddit_list_model
+        )
 
     def check_existing_object_for_download(self, existing_tuple: tuple):
         """
@@ -1091,7 +1387,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         :param list_type: The type of list to which a reddit object was added.  Used to decide which view should scroll.
         """
         if self.settings_manager.scroll_to_last_added:
-            if list_type == 'USER':
+            if list_type == "USER":
                 view = self.user_list_view
                 index = self.user_list_model.createIndex(index, 0)
             else:
@@ -1106,95 +1402,123 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         """
         database_dialog = DatabaseDialog(**kwargs)
         database_dialog.update_post_score_signal.connect(self.update_post_scores)
-        database_dialog.update_post_comments_signal.connect(self.fetch_new_post_comments)
+        database_dialog.update_post_comments_signal.connect(
+            self.fetch_new_post_comments
+        )
         database_dialog.show()
 
     def open_database_view_dialog(self):
         kwargs = {
-            'filters': self.settings_manager.database_view_default_filters['Database View']
+            "filters": self.settings_manager.database_view_default_filters[
+                "Database View"
+            ]
         }
         self.display_database_dialog(save_settings=True, **kwargs)
 
     def open_download_sessions_dialog(self):
         kwargs = {
-            'focus_model': 'DOWNLOAD_SESSION',
-            'download_session_sort': 'start_time',
-            'download_session_desc': True,
-            'filters': self.settings_manager.database_view_default_filters['Download Session View']
+            "focus_model": "DOWNLOAD_SESSION",
+            "download_session_sort": "start_time",
+            "download_session_desc": True,
+            "filters": self.settings_manager.database_view_default_filters[
+                "Download Session View"
+            ],
         }
         self.display_database_dialog(**kwargs)
 
     def open_reddit_objects_dialog(self):
         kwargs = {
-            'focus_model': 'REDDIT_OBJECT',
-            'reddit_object_sort': 'name',
-            'visible_models': ['REDDIT_OBJECT'],
-            'filters': self.settings_manager.database_view_default_filters['Reddit Object View']
+            "focus_model": "REDDIT_OBJECT",
+            "reddit_object_sort": "name",
+            "visible_models": ["REDDIT_OBJECT"],
+            "filters": self.settings_manager.database_view_default_filters[
+                "Reddit Object View"
+            ],
         }
         self.display_database_dialog(**kwargs)
 
     def open_posts_dialog(self):
         kwargs = {
-            'focus_model': 'POST',
-            'reddit_object_sort': 'title',
-            'visible_models': ['POST'],
-            'filters': self.settings_manager.database_view_default_filters['Post View']
+            "focus_model": "POST",
+            "reddit_object_sort": "title",
+            "visible_models": ["POST"],
+            "filters": self.settings_manager.database_view_default_filters["Post View"],
         }
         self.display_database_dialog(**kwargs)
 
     def open_content_dialog(self):
         kwargs = {
-            'focus_model': 'CONTENT',
-            'reddit_object_sort': 'title',
-            'visible_models': ['CONTENT'],
-            'filters': self.settings_manager.database_view_default_filters['Content View']
+            "focus_model": "CONTENT",
+            "reddit_object_sort": "title",
+            "visible_models": ["CONTENT"],
+            "filters": self.settings_manager.database_view_default_filters[
+                "Content View"
+            ],
         }
         self.display_database_dialog(**kwargs)
 
     def open_comment_dialog(self):
         kwargs = {
-            'focus_model': 'COMMENT',
-            'reddit_object_sort': 'post_title',
-            'visible_models': ['COMMENT'],
-            'filters': self.settings_manager.database_view_default_filters['Comment View']
+            "focus_model": "COMMENT",
+            "reddit_object_sort": "post_title",
+            "visible_models": ["COMMENT"],
+            "filters": self.settings_manager.database_view_default_filters[
+                "Comment View"
+            ],
         }
         self.display_database_dialog(**kwargs)
 
     def open_failed_extraction_dialog(self):
         kwargs = {
-            'focus_model': 'POST',
-            'download_session_sort': 'start_time',
-            'download_session_desc': True,
-            'post_sort': 'title',
-            'visible_models': ['DOWNLOAD_SESSION', 'POST'],
-            'filters': [
-                {'model': 'POST', 'field': 'extracted', 'operator': 'eq', 'value': False},
-            ]
+            "focus_model": "POST",
+            "download_session_sort": "start_time",
+            "download_session_desc": True,
+            "post_sort": "title",
+            "visible_models": ["DOWNLOAD_SESSION", "POST"],
+            "filters": [
+                {
+                    "model": "POST",
+                    "field": "extracted",
+                    "operator": "eq",
+                    "value": False,
+                },
+            ],
         }
-        kwargs['filters'].extend(self.settings_manager.database_view_default_filters['Failed Extract View'])
+        kwargs["filters"].extend(
+            self.settings_manager.database_view_default_filters["Failed Extract View"]
+        )
         self.display_database_dialog(**kwargs)
 
     def open_failed_downloads_dialog(self):
         kwargs = {
-            'focus_model': 'CONTENT',
-            'download_session_sort': 'start_time',
-            'download_session_desc': True,
-            'content_sort': 'title',
-            'visible_models': ['DOWNLOAD_SESSION', 'CONTENT'],
-            'filters': [
-                {'model': 'CONTENT', 'field': 'downloaded', 'operator': 'eq', 'value': False}
-            ]
+            "focus_model": "CONTENT",
+            "download_session_sort": "start_time",
+            "download_session_desc": True,
+            "content_sort": "title",
+            "visible_models": ["DOWNLOAD_SESSION", "CONTENT"],
+            "filters": [
+                {
+                    "model": "CONTENT",
+                    "field": "downloaded",
+                    "operator": "eq",
+                    "value": False,
+                }
+            ],
         }
-        kwargs['filters'].extend(self.settings_manager.database_view_default_filters['Failed Downloads View'])
+        kwargs["filters"].extend(
+            self.settings_manager.database_view_default_filters["Failed Downloads View"]
+        )
         self.display_database_dialog(**kwargs)
 
     def open_selected_reddit_object_dialog(self, selected_id, secondary_view):
         kwargs = {
-            'focus_model': 'REDDIT_OBJECT',
-            'selected_model_id': selected_id,
-            'reddit_object_sort': 'name',
-            'visible_models': ['REDDIT_OBJECT', secondary_view],
-            'filters': self.settings_manager.database_view_default_filters['Reddit Object View']
+            "focus_model": "REDDIT_OBJECT",
+            "selected_model_id": selected_id,
+            "reddit_object_sort": "name",
+            "visible_models": ["REDDIT_OBJECT", secondary_view],
+            "filters": self.settings_manager.database_view_default_filters[
+                "Reddit Object View"
+            ],
         }
         self.display_database_dialog(**kwargs)
 
@@ -1202,11 +1526,15 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     # dedicated account's already-open browser window rather than launching a separate, logged-out
     # system browser. Run off the GUI thread since page.goto() blocks for a second or two.
     def open_reddit_object_in_browser(self, reddit_object, object_type):
-        if object_type == 'USER':
-            url = f'https://www.reddit.com/user/{reddit_object.name}/submitted/?sort=new'
+        if object_type == "USER":
+            url = (
+                f"https://www.reddit.com/user/{reddit_object.name}/submitted/?sort=new"
+            )
         else:
-            url = f'https://www.reddit.com/r/{reddit_object.name}/new/'
-        threading.Thread(target=injector.get_reddit_source().open_url, args=(url,), daemon=True).start()
+            url = f"https://www.reddit.com/r/{reddit_object.name}/new/"
+        threading.Thread(
+            target=injector.get_reddit_source().open_url, args=(url,), daemon=True
+        ).start()
 
     # Ambient extraction: reads whatever's on the currently loaded page, matches against the
     # tracked+download_enabled list, and queues matches for download. Runs regardless of whether
@@ -1220,33 +1548,52 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         try:
             posts = injector.get_reddit_source().read_current_page_posts()
         except TargetClosedError:
-            self.logger.debug('Ambient extraction poll skipped: browser page closed')
+            self.logger.debug("Ambient extraction poll skipped: browser page closed")
             return
         except Exception:
-            self.logger.exception('Ambient extraction poll failed')
+            self.logger.exception("Ambient extraction poll failed")
             return
         if not posts:
             return
         authors = {post.author.lower() for post in posts}
         subreddits = {post.subreddit.lower() for post in posts}
         with self.db_handler.get_scoped_session() as session:
-            tracked_authors = {name for (name,) in session.query(func.lower(User.name))
-                               .filter(User.significant == True, User.download_enabled == True,
-                                       func.lower(User.name).in_(authors))}
-            tracked_subreddits = {name for (name,) in session.query(func.lower(Subreddit.name))
-                                  .filter(Subreddit.significant == True, Subreddit.download_enabled == True,
-                                          func.lower(Subreddit.name).in_(subreddits))}
-        matches = [post for post in posts
-                  if post.author.lower() in tracked_authors or post.subreddit.lower() in tracked_subreddits]
+            tracked_authors = {
+                name
+                for (name,) in session.query(func.lower(User.name)).filter(
+                    User.significant == True,
+                    User.download_enabled == True,
+                    func.lower(User.name).in_(authors),
+                )
+            }
+            tracked_subreddits = {
+                name
+                for (name,) in session.query(func.lower(Subreddit.name)).filter(
+                    Subreddit.significant == True,
+                    Subreddit.download_enabled == True,
+                    func.lower(Subreddit.name).in_(subreddits),
+                )
+            }
+        matches = [
+            post
+            for post in posts
+            if post.author.lower() in tracked_authors
+            or post.subreddit.lower() in tracked_subreddits
+        ]
         if matches:
             self.ambient_matches_found.emit(matches)
 
     def start_ambient_download(self, submissions):
         for submission in submissions:
-            self.logger.debug('checking %s : %s : %s', submission.author, submission.reddit_id, submission.url)
+            self.logger.debug(
+                "checking %s : %s : %s",
+                submission.author,
+                submission.reddit_id,
+                submission.url,
+            )
         if not self.running:
             self.started_download_gui_shift()
-        self.download_runner.request_download.emit({'submissions': submissions})
+        self.download_runner.request_download.emit({"submissions": submissions})
 
     def open_database_statistics_dialog(self):
         dialog = DatabaseStatisticsDialog()
@@ -1265,7 +1612,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.progress_bar.setVisible(True)
         self.shift_download_buttons()
         self.setup_run_timer()
-        self.system_tray_icon.setToolTip('Downloader For Reddit (running)')
+        self.system_tray_icon.setToolTip("Downloader For Reddit (running)")
 
     def finished_download_gui_shift(self):
         """Resets the GUI shift that happens when a download session is started."""
@@ -1279,7 +1626,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.user_list_model.refresh_session()
         self.subreddit_list_model.refresh_session()
         self.check_invalid()
-        self.system_tray_icon.setToolTip('Downloader For Reddit')
+        self.system_tray_icon.setToolTip("Downloader For Reddit")
 
     def shift_download_buttons(self):
         self.download_button.setVisible(not self.running)
@@ -1295,8 +1642,10 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             dialog.exec_()
             for ro in dialog.invalid_ros:
                 if ro.remove:
-                    if ro.status == 'deleted':
-                        rename = self.settings_manager.rename_invalidated_download_folders
+                    if ro.status == "deleted":
+                        rename = (
+                            self.settings_manager.rename_invalidated_download_folders
+                        )
                     else:
                         rename = False
                     self.remove_problem_reddit_object(ro.id, rename, ro.status)
@@ -1306,7 +1655,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         Changes the progress bar text to show that it is complete and also moves the progress bar value to the maximum
         if for whatever reason it was not already there
         """
-        self.progress_label.setText(f'Download complete - Downloaded: {self.potential_downloads}')
+        self.progress_label.setText(
+            f"Download complete - Downloaded: {self.potential_downloads}"
+        )
         if self.progress_bar.value() < self.progress_bar.maximum():
             self.progress_bar.setValue(self.progress_bar.maximum())
 
@@ -1334,11 +1685,12 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         imgur_utils.check_credits()
         reset_date_time = datetime.fromtimestamp(imgur_utils.credit_reset_time)
         reset_time = general_utils.format_datetime(reset_date_time)
-        dialog_text = f"Remaining Credits: {imgur_utils.num_credits}\n" \
-                      f"Reset Time: {reset_time}\n"
+        dialog_text = (
+            f"Remaining Credits: {imgur_utils.num_credits}\nReset Time: {reset_time}\n"
+        )
         if injector.get_settings_manager().imgur_mashape_key:
             dialog_text += "\nFallback to the commercial API enabled!"
-        QMessageBox.information(self, 'Imgur Credits', dialog_text, QMessageBox.Ok)
+        QMessageBox.information(self, "Imgur Credits", dialog_text, QMessageBox.Ok)
 
     def display_about_dialog(self):
         about_dialog = AboutDialog(self)
@@ -1358,7 +1710,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         # except FileNotFoundError:
         #     self.logger.error('Unable to open user manual: Manual file not found', exc_info=True)
         #     message_dialogs.user_manual_not_found(self)
-        self.logger.warning('Attempt was made to open user manual.  User manual has been removed for beta version.')
+        self.logger.warning(
+            "Attempt was made to open user manual.  User manual has been removed for beta version."
+        )
 
     def set_list_order(self, order_by=None, desc=None):
         """Applies the sort and order function to each list model"""
@@ -1397,20 +1751,22 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         super().close()
 
     def save_main_window_settings(self):
-        self.settings_manager.main_window_geom['width'] = self.width()
-        self.settings_manager.main_window_geom['height'] = self.height()
-        self.settings_manager.main_window_geom['x'] = self.x()
-        self.settings_manager.main_window_geom['y'] = self.y()
+        self.settings_manager.main_window_geom["width"] = self.width()
+        self.settings_manager.main_window_geom["height"] = self.height()
+        self.settings_manager.main_window_geom["x"] = self.x()
+        self.settings_manager.main_window_geom["y"] = self.y()
         self.settings_manager.horizontal_splitter_state = self.horz_splitter.sizes()
         self.settings_manager.current_user_list = self.user_lists_combo.currentText()
-        self.settings_manager.current_subreddit_list = self.subreddit_list_combo.currentText()
+        self.settings_manager.current_subreddit_list = (
+            self.subreddit_list_combo.currentText()
+        )
 
         if self.download_users_radio.isChecked():
-            self.settings_manager.download_radio_state = 'USER'
+            self.settings_manager.download_radio_state = "USER"
         elif self.download_subreddits_radio.isChecked():
-            self.settings_manager.download_radio_state = 'SUBREDDIT'
+            self.settings_manager.download_radio_state = "SUBREDDIT"
         else:
-            self.settings_manager.download_radio_state = 'CONSTRAIN'
+            self.settings_manager.download_radio_state = "CONSTRAIN"
 
     def load_state(self):
         """
@@ -1423,38 +1779,54 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             self.load_subreddit_list(session)
 
     def load_list_combos(self, session):
-        user_lists = [x.name for x in session.query(RedditObjectList).filter(RedditObjectList.list_type == 'USER')]
-        sub_lists = \
-            [x.name for x in session.query(RedditObjectList).filter(RedditObjectList.list_type == 'SUBREDDIT')]
+        user_lists = [
+            x.name
+            for x in session.query(RedditObjectList).filter(
+                RedditObjectList.list_type == "USER"
+            )
+        ]
+        sub_lists = [
+            x.name
+            for x in session.query(RedditObjectList).filter(
+                RedditObjectList.list_type == "SUBREDDIT"
+            )
+        ]
         self.user_lists_combo.addItems(user_lists)
         self.subreddit_list_combo.addItems(sub_lists)
 
     def load_user_list(self, session):
         try:
             list_name = self.settings_manager.current_user_list
-            if list_name == '':
-                row = session.query(RedditObjectList.name).filter(RedditObjectList.list_type == 'USER').first()
+            if list_name == "":
+                row = (
+                    session.query(RedditObjectList.name)
+                    .filter(RedditObjectList.list_type == "USER")
+                    .first()
+                )
                 if row is not None:
                     list_name = row.name
-            if list_name != '':
+            if list_name != "":
                 self.user_list_model.set_list(list_name)
                 self.user_lists_combo.setCurrentText(list_name)
         except:
-            self.logger.exception('Failed to load user list from database')
+            self.logger.exception("Failed to load user list from database")
 
     def load_subreddit_list(self, session):
         try:
             list_name = self.settings_manager.current_subreddit_list
-            if list_name == '':
-                row = session.query(RedditObjectList.name)\
-                    .filter(RedditObjectList.list_type == 'SUBREDDIT').first()
+            if list_name == "":
+                row = (
+                    session.query(RedditObjectList.name)
+                    .filter(RedditObjectList.list_type == "SUBREDDIT")
+                    .first()
+                )
                 if row is not None:
                     list_name = row.name
-            if list_name != '':
+            if list_name != "":
                 self.subreddit_list_model.set_list(list_name)
                 self.subreddit_list_combo.setCurrentText(list_name)
         except:
-            self.logger.exception('Failed to load subreddit list from database')
+            self.logger.exception("Failed to load subreddit list from database")
 
     def open_data_directory(self):
         """
@@ -1463,17 +1835,19 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         try:
             system_util.open_in_system(system_util.get_data_directory())
         except Exception:
-            self.logger.exception('Failed to open data directory')
+            self.logger.exception("Failed to open data directory")
 
     def open_log_file(self):
         """
         Opens the application's log file in the default system application.
         """
         try:
-            log_path = os.path.join(system_util.get_data_directory(), 'DownloaderForReddit.log')
+            log_path = os.path.join(
+                system_util.get_data_directory(), "DownloaderForReddit.log"
+            )
             system_util.open_in_system(log_path)
         except Exception:
-            self.logger.exception('Failed to open log file')
+            self.logger.exception("Failed to open log file")
 
     def check_for_updates(self, from_menu):
         """
@@ -1487,7 +1861,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.update_check_thread.started.connect(self.update_checker.run)
         if from_menu:
             self.update_checker.update_available_signal.connect(self.update_dialog)
-            self.update_checker.no_update_signal.connect(self.no_update_available_dialog)
+            self.update_checker.no_update_signal.connect(
+                self.no_update_available_dialog
+            )
         else:
             self.update_checker.update_available_signal.connect(self.display_update)
         self.update_checker.finished.connect(self.stop_spinner)
@@ -1518,7 +1894,10 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         Checks that ffmpeg is installed on the host system and notifies the user if it is not installed.  Will also
         disable reddit video download depending on the user input through the dialog.
         """
-        if not video_merger.ffmpeg_valid and self.settings_manager.display_ffmpeg_warning:
+        if (
+            not video_merger.ffmpeg_valid
+            and self.settings_manager.display_ffmpeg_warning
+        ):
             disable = message_dialogs.ffmpeg_warning(self)
             self.settings_manager.download_reddit_hosted_videos = not disable
             self.settings_manager.display_ffmpeg_warning = False
@@ -1535,20 +1914,22 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     def setup_system_tray_icon(self):
         menu = QMenu()
-        menu.addAction('Download User list', self.download_user_list)
-        menu.addAction('Download Subreddit List', self.download_subreddit_list)
-        menu.addAction('Download User List Constrained', self.download_user_list_constrained)
+        menu.addAction("Download User list", self.download_user_list)
+        menu.addAction("Download Subreddit List", self.download_subreddit_list)
+        menu.addAction(
+            "Download User List Constrained", self.download_user_list_constrained
+        )
         menu.addSeparator()
-        menu.addAction('Hide Window', self.hide)
-        menu.addAction('Show Window', self.activate_window)
+        menu.addAction("Hide Window", self.hide)
+        menu.addAction("Show Window", self.activate_window)
         menu.addSeparator()
-        menu.addAction('Remove Icon', lambda: self.system_tray_icon.hide())
-        menu.addAction('Exit', self.close)
+        menu.addAction("Remove Icon", lambda: self.system_tray_icon.hide())
+        menu.addAction("Exit", self.close)
 
         self.system_tray_icon.setContextMenu(menu)
         self.system_tray_icon.activated.connect(self.handle_tray_icon_click)
         self.system_tray_icon.messageClicked.connect(self.activate_window)
-        self.system_tray_icon.setToolTip('Downloader For Reddit')
+        self.system_tray_icon.setToolTip("Downloader For Reddit")
         if self.settings_manager.show_system_tray_icon:
             self.system_tray_icon.show()
 
@@ -1566,4 +1947,4 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             self.system_tray_icon.show()
             self.hide()
         else:
-            Message.send_error('System tray icon is not available for this system.')
+            Message.send_error("System tray icon is not available for this system.")

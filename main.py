@@ -1,4 +1,3 @@
-
 """
 Downloader for Reddit takes a list of reddit users and subreddits and downloads content posted to reddit either by the
 users or on the subreddits.
@@ -23,7 +22,6 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-
 import ctypes
 import logging
 import sys
@@ -39,9 +37,11 @@ from DownloaderForReddit.messaging.message_receiver import MessageReceiver
 from DownloaderForReddit.utils import injector
 from DownloaderForReddit.version import __version__
 
-if sys.platform == 'win32':
-    myappid = f'SomeGuySoftware.DownloaderForReddit.{__version__}'
-    AppUserModelID = ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+if sys.platform == "win32":
+    myappid = f"SomeGuySoftware.DownloaderForReddit.{__version__}"
+    AppUserModelID = ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+        myappid
+    )
 
 
 def log_unhandled_exception(exc_type, value, traceback):
@@ -49,8 +49,8 @@ def log_unhandled_exception(exc_type, value, traceback):
     # own default behavior for an exception escaping a slot) over a single bad GUI action. Calling
     # sys.exit() defeated that purpose by making every uncaught exception, anywhere, fatal --
     # including mid-download, with no relation to closing/exiting the app.
-    logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
-    logger.critical('Unhandled exception', exc_info=(exc_type, value, traceback))
+    logger = logging.getLogger(f"DownloaderForReddit.{__name__}")
+    logger.critical("Unhandled exception", exc_info=(exc_type, value, traceback))
 
 
 def check_migration():
@@ -115,5 +115,5 @@ def main():
     sys.exit(app.exec_())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

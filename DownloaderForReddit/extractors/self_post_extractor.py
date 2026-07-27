@@ -7,12 +7,11 @@ from .base_extractor import BaseExtractor
 
 
 class SelfPostExtractor(BaseExtractor):
-
     url_key = None
 
     def __init__(self, post, **kwargs):
         super().__init__(post, **kwargs)
-        self.download_session_id = kwargs.get('download_session_id', None)
+        self.download_session_id = kwargs.get("download_session_id", None)
 
     def extract_content(self):
         try:
@@ -23,9 +22,11 @@ class SelfPostExtractor(BaseExtractor):
                 self.make_content(self.url, ext)
         except Exception as e:
             self.failed_extraction = True
-            self.failed_extraction_message = f'Failed to save self post.  ERROR: {e}'
-            self.logger.exception('Failed to save self post',
-                                  extra={'url': self.url, 'user': self.user, 'subreddit': self.subreddit})
+            self.failed_extraction_message = f"Failed to save self post.  ERROR: {e}"
+            self.logger.exception(
+                "Failed to save self post",
+                extra={"url": self.url, "user": self.user, "subreddit": self.subreddit},
+            )
 
     def make_content(self, url, extension, count=None, name_modifier=None):
         content = Content(
@@ -35,7 +36,7 @@ class SelfPostExtractor(BaseExtractor):
             user=self.user,
             subreddit=self.subreddit,
             post=self.post,
-            directory_path=self.make_dir_path()
+            directory_path=self.make_dir_path(),
         )
         self.check_file_path(content)
         self.download_text_post(content)
@@ -46,17 +47,21 @@ class SelfPostExtractor(BaseExtractor):
 
     def download_text_post(self, content):
         try:
-            with open(content.get_full_file_path(), 'w', encoding='utf-8') as file:
+            with open(content.get_full_file_path(), "w", encoding="utf-8") as file:
                 text = self.get_text(content.extension)
                 file.write(text)
                 content.set_downloaded(self.download_session_id)
         except Exception as e:
-            content.set_download_error(Error.TEXT_FAILURE, 'Failed to save text post', extra={'error': e})
+            content.set_download_error(
+                Error.TEXT_FAILURE, "Failed to save text post", extra={"error": e}
+            )
 
     def get_text(self, ext):
-        if ext == 'txt':
+        if ext == "txt":
             return self.comment.body if self.comment is not None else self.post.text
-        return self.comment.body_html if self.comment is not None else self.post.text_html
+        return (
+            self.comment.body_html if self.comment is not None else self.post.text_html
+        )
 
     def check_file_path(self, content):
         self.create_dir_path(content.directory_path)
@@ -65,7 +70,7 @@ class SelfPostExtractor(BaseExtractor):
         download_title = base_path
         path = content.get_full_file_path(download_title)
         while os.path.exists(path):
-            download_title = f'{base_path}({unique_count})'
+            download_title = f"{base_path}({unique_count})"
             path = content.get_full_file_path(download_title)
             unique_count += 1
         content.download_title = download_title
@@ -74,4 +79,6 @@ class SelfPostExtractor(BaseExtractor):
         try:
             system_util.create_directory(dir_path)
         except PermissionError:
-            self.logger.exception('Could not create directory path', extra={'directory_path': dir_path})
+            self.logger.exception(
+                "Could not create directory path", extra={"directory_path": dir_path}
+            )

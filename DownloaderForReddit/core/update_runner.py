@@ -15,7 +15,6 @@ from .submission_handler import SubmissionHandler
 
 
 class UpdateRunner(QObject):
-
     """
     Updates posts with information from reddit that may have been added after the date the post was extracted.
     """
@@ -24,13 +23,13 @@ class UpdateRunner(QObject):
 
     def __init__(self, run_method, **kwargs):
         super().__init__()
-        self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
+        self.logger = logging.getLogger(f"DownloaderForReddit.{__name__}")
         self.settings_manager = injector.get_settings_manager()
         self.db = injector.get_database_handler()
         self.reddit_instance = reddit_utils.get_reddit_instance()
         self.run_method = run_method
-        self.reddit_object_id_list = kwargs.get('reddit_object_id_list', None)
-        self.post_id_list = kwargs.get('post_id_list', None)
+        self.reddit_object_id_list = kwargs.get("reddit_object_id_list", None)
+        self.post_id_list = kwargs.get("post_id_list", None)
 
         self.stop_run = Event()
         self.continue_run = True
@@ -41,18 +40,23 @@ class UpdateRunner(QObject):
         self.download_session_id = None
 
     def run(self):
-        self.logger.debug('Update runner starting')
-        if self.run_method == 'UPDATE_SCORES':
+        self.logger.debug("Update runner starting")
+        if self.run_method == "UPDATE_SCORES":
             self.update_scores()
-        elif self.run_method == 'UPDATE_COMMENTS':
+        elif self.run_method == "UPDATE_COMMENTS":
             self.update_comments()
-        self.logger.debug('Update runner finished')
+        self.logger.debug("Update runner finished")
 
     def create_download_session(self):
         with self.db.get_scoped_session() as session:
-            count = session.query(DownloadSession.id).order_by(DownloadSession.id.desc()).first()[0] + 1
+            count = (
+                session.query(DownloadSession.id)
+                .order_by(DownloadSession.id.desc())
+                .first()[0]
+                + 1
+            )
             download_session = DownloadSession(
-                name=f'Update Session {count}',
+                name=f"Update Session {count}",
                 start_time=datetime.now(),
                 download_thread_count=self.settings_manager.download_thread_count,
             )
@@ -62,7 +66,9 @@ class UpdateRunner(QObject):
 
     def finish_download_session(self):
         with self.db.get_scoped_update_session() as session:
-            download_session = session.query(DownloadSession).get(self.download_session_id)
+            download_session = session.query(DownloadSession).get(
+                self.download_session_id
+            )
             download_session.end_time = datetime.now()
 
     def get_post_ids(self):
@@ -71,8 +77,15 @@ class UpdateRunner(QObject):
         """
         if self.post_id_list is None:
             with self.db.get_scoped_session() as session:
-                self.post_list = session.query(Post.id) \
-                    .filter(Post.significant_reddit_object_id.in_(self.reddit_object_id_list)).all()
+                self.post_list = (
+                    session.query(Post.id)
+                    .filter(
+                        Post.significant_reddit_object_id.in_(
+                            self.reddit_object_id_list
+                        )
+                    )
+                    .all()
+                )
 
     @verify_run
     def update_scores(self):
@@ -90,13 +103,21 @@ class UpdateRunner(QObject):
                 submission = self.reddit_instance.submission(id=post.reddit_id)
                 old_score = post.score
                 post.score = submission.score
-                Message.send_info(f'{post.title} score updated\n'
-                                  f'    Old score: {old_score}  |  New Score: {post.score}')
+                Message.send_info(
+                    f"{post.title} score updated\n"
+                    f"    Old score: {old_score}  |  New Score: {post.score}"
+                )
             except:
-                self.logger.exception('Failed to update post', extra={'post_id': post.id, 'post_title': post.title,
-                                                                       'author': post.author.name,
-                                                                       'subreddit': post.subreddit.name})
-                Message.send_warning(f'Failed to update score for {post.title}')
+                self.logger.exception(
+                    "Failed to update post",
+                    extra={
+                        "post_id": post.id,
+                        "post_title": post.title,
+                        "author": post.author.name,
+                        "subreddit": post.subreddit.name,
+                    },
+                )
+                Message.send_warning(f"Failed to update score for {post.title}")
 
     @verify_run
     def update_comments(self):
@@ -124,8 +145,9 @@ class UpdateRunner(QObject):
         with self.db.get_scoped_session() as session:
             post = session.query(Post).get(post_id)
             submission = self.reddit_instance.submission(id=post.reddit_id)
-            submission_handler = SubmissionHandler(submission, post, self.download_session_id, session,
-                                                   self.download_queue)
+            submission_handler = SubmissionHandler(
+                submission, post, self.download_session_id, session, self.download_queue
+            )
             submission_handler.extract_comments()
 
     def stop(self):

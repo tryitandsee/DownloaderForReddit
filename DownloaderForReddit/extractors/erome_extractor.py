@@ -33,22 +33,22 @@ from .base_extractor import BaseExtractor
 
 def class_filter(target):
     def do_match(tag):
-        classes = tag.get('class', [])
+        classes = tag.get("class", [])
         return target in classes
+
     return do_match
 
 
 def get_content(tag):
-    video_tags = tag.find_all(class_filter('video'))
+    video_tags = tag.find_all(class_filter("video"))
     if video_tags:
-        return video_tags[0].find_all('source')[0].get('src')
-    img_tags = tag.find_all(class_filter('img-back'))
+        return video_tags[0].find_all("source")[0].get("src")
+    img_tags = tag.find_all(class_filter("img-back"))
     return img_tags[0].get("data-src")
 
 
 class EromeExtractor(BaseExtractor):
-
-    url_key: ClassVar[list[str]] = ['erome']
+    url_key: ClassVar[list[str]] = ["erome"]
 
     def __init__(self, post, **kwargs):
         """
@@ -64,25 +64,31 @@ class EromeExtractor(BaseExtractor):
             else:
                 self.extract_album()
         except Exception:
-            message = 'Failed to locate content'
-            self.handle_failed_extract(error=Error.FAILED_TO_LOCATE, message=message, extractor_error_message=message)
+            message = "Failed to locate content"
+            self.handle_failed_extract(
+                error=Error.FAILED_TO_LOCATE,
+                message=message,
+                extractor_error_message=message,
+            )
 
     def extract_single(self):
         # Singles are just ablums containing 1 item
         pass
 
     def extract_album(self):
-        soup = BeautifulSoup(self.get_text(self.url), 'html.parser')
-        album = soup.find_all(class_filter('media-group'))
+        soup = BeautifulSoup(self.get_text(self.url), "html.parser")
+        album = soup.find_all(class_filter("media-group"))
         urls = [get_content(x) for x in album]
         count = 0
         if len(urls) > 1:
             count = 1
         for url in urls:
-            _, hosted_id = url.rsplit('/', 1)
-            base, extension = hosted_id.rsplit('.', 1)
+            _, hosted_id = url.rsplit("/", 1)
+            base, extension = hosted_id.rsplit(".", 1)
             # Image urls have an identifier param after the url, this removes it to get a clean extension
-            if '?' in extension:
-                extension = extension.split('?')[0]
-            self.make_content(url, extension, count=count if count > 0 else None, media_id=base)
+            if "?" in extension:
+                extension = extension.split("?")[0]
+            self.make_content(
+                url, extension, count=count if count > 0 else None, media_id=base
+            )
             count += 1
