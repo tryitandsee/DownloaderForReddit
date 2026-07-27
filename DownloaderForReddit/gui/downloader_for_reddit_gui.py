@@ -29,7 +29,6 @@ import platform
 import threading
 from datetime import datetime
 
-from playwright._impl._errors import TargetClosedError
 from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt5.QtGui import QCursor, QIcon, QPixmap
 from PyQt5.QtWidgets import (
@@ -64,6 +63,7 @@ from ..database.models import (
 from ..gui import message_dialogs
 from ..gui.about_dialog import AboutDialog
 from ..gui.add_reddit_object_dialog import AddRedditObjectDialog
+from ..gui.content_feed_panel import ContentFeedPanel
 from ..gui.database_views.database_dialog import DatabaseDialog
 from ..gui.database_views.database_statistics_dialog import DatabaseStatisticsDialog
 from ..gui.existing_reddit_object_add_dialog import ExistingRedditObjectAddDialog
@@ -77,6 +77,7 @@ from ..gui.tryitandsee_mine_download_status_dialog import (
 )
 from ..gui.update_dialog_gui import UpdateDialog
 from ..guiresources.downloader_for_reddit_gui_auto import Ui_MainWindow
+from ..messaging.content_feed_store import ContentFeedStore
 from ..messaging.message import Message, MessagePriority, MessageType
 from ..utils import (
     UpdateChecker,
@@ -153,6 +154,16 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         # [mine] feat(gui): download status panel embedded at the bottom of the main window
         self.download_status_panel = DownloadStatusDialog(lambda: download_runner)
         self.verticalLayout_4.addWidget(self.download_status_panel)
+
+        # [mine] feat(gui): live content-discovery feed, given the tall splitter-resizable slot
+        # output_list_view used to occupy -- a live feed benefits more from vertical room than
+        # the log pane does. output_list_view moves down into the fixed-height area instead.
+        self.content_feed_store = ContentFeedStore()
+        self.content_feed_panel = ContentFeedPanel()
+        self.verticalLayout_3.removeWidget(self.output_list_view)
+        self.verticalLayout_3.addWidget(self.content_feed_panel)
+        self.output_list_view.setMaximumHeight(200)
+        self.verticalLayout_4.addWidget(self.output_list_view)
 
         if self.settings_manager.download_radio_state == "USER":
             self.download_users_radio.setChecked(True)
@@ -346,12 +357,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.download_runner.pool_idle.connect(self.finished_download_gui_shift)
         self.shift_download_buttons()
 
-        # Ambient extraction: periodically read whatever's currently loaded in the dedicated
-        # account's browser window and queue matches against the tracked list for download.
         self.ambient_matches_found.connect(self.start_ambient_download)
-        self.ambient_poll_timer = QTimer(self)
-        self.ambient_poll_timer.timeout.connect(self.trigger_ambient_poll)
-        self.ambient_poll_timer.start(15000)
 
         self.add_user_button.clicked.connect(self.add_user)
         self.remove_user_button.clicked.connect(self.remove_user)
@@ -431,6 +437,15 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
         self.check_ffmpeg()
         self.check_for_updates(False)
+
+        # Ambient extraction: the browser pushes newly-seen posts to the app directly via a
+        # Playwright binding (see reddit_source.py's injected script + pump loop) instead of
+        # being polled -- register this window as the consumer of that push. Must be the last
+        # thing __init__ does: BrowserRedditSource may flush a buffered batch synchronously the
+        # moment this registers (posts that arrived before any consumer existed), which in turn
+        # can synchronously trigger start_ambient_download -> started_download_gui_shift and
+        # touch widgets (e.g. self.progress_bar) that must already exist by then.
+        injector.get_reddit_source().set_on_posts_found(self.handle_ambient_posts)
 
         self.log_startup()
 
@@ -991,6 +1006,10 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     def handle_message(self, message):
         self.output_view_model.handle_message(message)
 
+    def handle_content_found(self, message):
+        if self.content_feed_store.add(message.payload):
+            self.content_feed_panel.add_entry(message.payload)
+
     def handle_progress(self, message):
         """
         Handles non-text style messages that it receives from the message receiver.  Decides what to update on the main
@@ -1013,10 +1032,15 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                 self.extend_progress(forward=False)
                 self.potential_downloads -= 1
                 self.update_status_bar()
-        else:
+        elif message.message_type == MessageType.ACTUAL_COUNT:
             self.update_progress()
             self.downloaded += 1
             self.update_status_bar()
+        else:
+            self.logger.warning(
+                "Received unexpected non-text message type on handle_progress",
+                extra={"message_type": message.message_type},
+            )
 
     def start_main_spinner(self):
         self.spinner.setParent(self)
@@ -1536,25 +1560,20 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             target=injector.get_reddit_source().open_url, args=(url,), daemon=True
         ).start()
 
-    # Ambient extraction: reads whatever's on the currently loaded page, matches against the
-    # tracked+download_enabled list, and queues matches for download. Runs regardless of whether
-    # an explicit download is in progress; the browser's single-worker executor already serializes
-    # Playwright calls, so this just queues behind an in-progress navigation rather than racing it.
-    # Queues onto the same standing self.download_runner as explicit downloads.
-    def trigger_ambient_poll(self):
-        threading.Thread(target=self.ambient_poll, daemon=True).start()
-
-    def ambient_poll(self):
+    # Ambient extraction: invoked directly by BrowserRedditSource's push callback (see
+    # reddit_source.py) whenever the browser reports newly-seen posts -- runs on the local
+    # ambient HTTP server's own request-handling thread, not the GUI thread, so it only touches
+    # the DB and emits a Qt signal (safe cross-thread; Qt queues the connection automatically)
+    # rather than touching any widget directly. Matches against the tracked+download_enabled
+    # list and queues matches for download onto the same standing self.download_runner as
+    # explicit downloads.
+    def handle_ambient_posts(self, posts):
         try:
-            posts = injector.get_reddit_source().read_current_page_posts()
-        except TargetClosedError:
-            self.logger.debug("Ambient extraction poll skipped: browser page closed")
-            return
+            self._match_and_queue_ambient_posts(posts)
         except Exception:
-            self.logger.exception("Ambient extraction poll failed")
-            return
-        if not posts:
-            return
+            self.logger.exception("Ambient extraction failed")
+
+    def _match_and_queue_ambient_posts(self, posts):
         authors = {post.author.lower() for post in posts}
         subreddits = {post.subreddit.lower() for post in posts}
         with self.db_handler.get_scoped_session() as session:
@@ -1584,13 +1603,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             self.ambient_matches_found.emit(matches)
 
     def start_ambient_download(self, submissions):
-        for submission in submissions:
-            self.logger.debug(
-                "checking %s : %s : %s",
-                submission.author,
-                submission.reddit_id,
-                submission.url,
-            )
         if not self.running:
             self.started_download_gui_shift()
         self.download_runner.request_download.emit({"submissions": submissions})
@@ -1734,7 +1746,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.close()
 
     def close(self):
-        self.ambient_poll_timer.stop()
         self.receiver.stop_run()
         self.scheduler.stop_run()
         self.download_runner.stop_pool()

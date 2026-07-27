@@ -19,7 +19,7 @@ from ..database.models import (
     Subreddit,
     User,
 )
-from ..messaging.message import Message
+from ..messaging.message import ContentFoundPayload, Message
 from ..utils import injector, video_merger
 from ..version import __version__
 from . import const
@@ -465,39 +465,38 @@ class DownloadRunner(QObject):
             Message.send_error(f"Failed to fetch post: {url}")
             return None
         with self.db.get_scoped_session() as session:
-            author = session.query(User).filter(User.name == submission.author).first()
+            # Mirrors prepare_submission's own author resolution below -- otherwise this
+            # pre-check can pass (or fail) on a different criterion than the one that actually
+            # decides the download, e.g. a tracked-but-download_enabled=False author would pass
+            # this check yet still get silently dropped by prepare_submission with no message.
+            author = (
+                session.query(User)
+                .filter(
+                    func.lower(User.name) == submission.author.lower(),
+                    User.significant == True,
+                    User.download_enabled == True,
+                )
+                .first()
+            )
             if author is None:
                 Message.send_error(
                     f"Author {submission.author} is not tracked. Add the user before "
                     f"downloading their post."
                 )
                 return None
-            if not SubmittableCreator.check_duplicate_post(
-                submission.reddit_id, submission.url, session
-            ):
-                Message.send_warning(f"Already downloaded - skipped: {submission.url}")
-                return None
-            author_id = author.id
-        Message.send_info(f"Downloading single post by {submission.author}")
-        # download_session_id filled in by run_batch once a session actually gets created
-        return ExtractionSet(
-            extraction_type="SUBMISSION",
-            extraction_object=submission,
-            significant_id=author_id,
-            download_session_id=None,
-        )
+        return self.prepare_submission(submission)
 
-    # Ambient extraction: same idea as prepare_single_submission but for a SubmissionData already
-    # in hand (no url to re-navigate to). Resolves against whichever of author/subreddit is
-    # actually tracked -- the ambient poll already matched on one or both, case-insensitively, so
-    # this looks up the same way rather than the exact-match self.reddit_source lookups elsewhere.
+    # Shared by explicit single-post downloads (prepare_single_submission, above) and ambient
+    # matches: resolves whichever of author/subreddit is actually tracked, checks for a duplicate
+    # post, and reports one structured "content found" event either way (see
+    # messaging/message.py) instead of each call site messaging differently.
     def prepare_submission(self, submission):
         with self.db.get_scoped_session() as session:
             # Filters must mirror the tracked/download_enabled criteria the ambient poll used to decide
-            # this submission was a match (gui/downloader_for_reddit_gui.py:ambient_poll) -- otherwise a
-            # stale, non-tracked User row sharing the author's name (e.g. auto-created as a post's author
-            # FK on some earlier, unrelated download) wins over the actually-tracked Subreddit that caused
-            # the match, and the post gets saved under the wrong template/path.
+            # this submission was a match (gui/downloader_for_reddit_gui.py:handle_ambient_posts) --
+            # otherwise a stale, non-tracked User row sharing the author's name (e.g. auto-created as a
+            # post's author FK on some earlier, unrelated download) wins over the actually-tracked
+            # Subreddit that caused the match, and the post gets saved under the wrong template/path.
             author = (
                 session.query(User)
                 .filter(
@@ -519,14 +518,21 @@ class DownloadRunner(QObject):
             significant = author or subreddit
             if significant is None:
                 return None
-            if not SubmittableCreator.check_duplicate_post(
+            is_new = SubmittableCreator.check_duplicate_post(
                 submission.reddit_id, submission.url, session
-            ):
-                return None
+            )
             significant_id = significant.id
-        Message.send_debug(
-            f"checking {submission.author} : {submission.reddit_id} : {submission.url}"
+        Message.send_content_found(
+            ContentFoundPayload(
+                reddit_id=submission.reddit_id,
+                author=submission.author,
+                subreddit=submission.subreddit,
+                permalink=submission.permalink,
+                is_new=is_new,
+            )
         )
+        if not is_new:
+            return None
         # download_session_id filled in by run_batch once a session actually gets created
         return ExtractionSet(
             extraction_type="SUBMISSION",
@@ -609,11 +615,8 @@ class DownloadRunner(QObject):
         page, so there's no need for validate_user/validate_subreddit's separate profile-page visit
         before this one.
         """
-        known_ids = self.get_known_post_ids(reddit_object)
         try:
-            result, raw_submissions = source_method(
-                reddit_object.name, limit=reddit_object.post_limit, known_ids=known_ids
-            )
+            result, raw_submissions = source_method(reddit_object.name)
         except PlaywrightError:
             extra = {
                 "object_type": reddit_object.object_type,
@@ -654,10 +657,9 @@ class DownloadRunner(QObject):
         submissions = []
         for submission in raw_submissions:
             if not self.submission_filter.date_filter(submission, reddit_object):
-                # Don't assume raw_submissions is strictly newest-first -- a repost/crosspost (or
-                # the scroll-stop early-exit in reddit_source.py) can leave an older post ahead of
-                # a genuinely new one. Skip it rather than break, so one out-of-order old post
-                # can't silently discard every newer submission after it.
+                # Don't assume raw_submissions is strictly newest-first -- a repost/crosspost can
+                # leave an older post ahead of a genuinely new one. Skip it rather than break, so
+                # one out-of-order old post can't silently discard every newer submission after it.
                 continue
             if (
                 not self.filter_subreddits
@@ -713,15 +715,6 @@ class DownloadRunner(QObject):
                     break
                 submissions = self.filter_submissions(user, user_raw_submissions)
                 self.queue_submissions(user, submissions)
-
-    def get_known_post_ids(self, reddit_object):
-        with self.db.get_scoped_session() as session:
-            rows = (
-                session.query(Post.reddit_id)
-                .filter(Post.significant_reddit_object_id == reddit_object.id)
-                .all()
-            )
-            return {row[0] for row in rows}
 
     def stop_download(self, hard_stop=False):
         """

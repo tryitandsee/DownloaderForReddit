@@ -1,9 +1,12 @@
 from PyQt5.QtCore import QObject, pyqtSignal
 
+from .message import MessageType
+
 
 class MessageReceiver(QObject):
     text_output = pyqtSignal(object)
     non_text_output = pyqtSignal(object)
+    content_output = pyqtSignal(object)
 
     finished = pyqtSignal()
 
@@ -24,7 +27,9 @@ class MessageReceiver(QObject):
             message = self.queue.get()
             if message is not None:
                 try:
-                    if message.message is None:
+                    if message.message_type == MessageType.CONTENT_FOUND:
+                        self.content_output.emit(message)
+                    elif message.message is None:
                         self.non_text_output.emit(message)
                     else:
                         self.text_output.emit(message)

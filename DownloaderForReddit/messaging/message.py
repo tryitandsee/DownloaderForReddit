@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from enum import Enum
 
 from ..utils import injector
@@ -10,6 +11,17 @@ class MessageType(Enum):
     ACTUAL_PROGRESS = 3
     POTENTIAL_COUNT = 4
     ACTUAL_COUNT = 5
+
+    CONTENT_FOUND = 6
+
+
+@dataclass
+class ContentFoundPayload:
+    reddit_id: str
+    author: str
+    subreddit: str
+    permalink: str  # comments page, not the content url -- always browsable in the same shape
+    is_new: bool
 
 
 class MessagePriority(Enum):
@@ -29,10 +41,12 @@ class Message:
         message_type: MessageType,
         message: str | None = None,
         priority: MessagePriority = MessagePriority.INFO,
+        payload: ContentFoundPayload | None = None,
     ):
         self.message_type = message_type
         self.message = message
         self.priority = priority
+        self.payload = payload
 
     @property
     def output(self):
@@ -44,8 +58,9 @@ class Message:
         message_type: MessageType,
         message: str | None = None,
         priority: MessagePriority = MessagePriority.INFO,
+        payload: ContentFoundPayload | None = None,
     ) -> None:
-        m = cls(message_type, message, priority)
+        m = cls(message_type, message, priority, payload)
         cls.message_queue.put(m)
 
     @classmethod
@@ -71,6 +86,10 @@ class Message:
     @classmethod
     def send_requested(cls, message: str) -> None:
         cls.send(MessageType.TEXT, message, MessagePriority.REQUESTED)
+
+    @classmethod
+    def send_content_found(cls, payload: ContentFoundPayload) -> None:
+        cls.send(MessageType.CONTENT_FOUND, payload=payload)
 
     @classmethod
     def send_extraction_error(cls, message: str):

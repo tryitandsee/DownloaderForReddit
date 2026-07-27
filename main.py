@@ -93,6 +93,7 @@ def main():
 
     receiver.text_output.connect(window.handle_message)
     receiver.non_text_output.connect(window.handle_progress)
+    receiver.content_output.connect(window.handle_content_found)
 
     receiver.moveToThread(message_thread)
     message_thread.started.connect(receiver.run)

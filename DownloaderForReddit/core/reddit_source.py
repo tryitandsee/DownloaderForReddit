@@ -6,7 +6,10 @@ disabled this app's client_id and locked app registration behind manual review.
 import html
 import logging
 import re
+import threading
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -14,14 +17,82 @@ from pathlib import Path
 from typing import Protocol
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
-from playwright._impl._errors import TargetClosedError
 from playwright.sync_api import Error as PlaywrightError
-from playwright.sync_api import Locator, Page, sync_playwright
+from playwright.sync_api import Page, sync_playwright
 
 PROFILE_DIR = Path(__file__).resolve().parent.parent.parent / "browser_profile"
 REDDIT_BASE_URL = "https://www.reddit.com"
 
+# How long each pump iteration blocks the Playwright worker thread waiting for CDP messages.
+# Bounds ambient-push latency (a post can wait up to this long for the pump to notice it) and
+# the worst case an explicit-download task queued behind a pump iteration has to wait.
+PUMP_INTERVAL_MS = 500
+
 logger = logging.getLogger(f"DownloaderForReddit.{__name__}")
+
+# Injected once per document via context.add_init_script() -- runs on every page in the
+# persistent context, including tabs the user opens manually (confirmed empirically; Playwright
+# auto-attaches to every target in a persistent context regardless of who opened it). Defines
+# window.__dfrExtractPosts (reused by explicit-navigation's page.evaluate() calls, so there's
+# exactly one place that knows the <shreddit-post> attribute names) and reports newly-seen posts
+# via the __dfrPostsFound binding (context.expose_function, see
+# BrowserRedditSource._handle_posts_found).
+#
+# A real network fetch() to a local server was tried first and rejected: reddit.com's own CSP
+# connect-src is a strict allowlist with no localhost exception, so the browser blocks the
+# request outright (confirmed empirically) -- there's no permission prompt to grant, unlike the
+# unrelated Private Network Access gate. A CDP binding call isn't a network request at all, so
+# CSP doesn't apply to it.
+_INJECTED_SCRIPT = """
+(() => {
+    function extractPosts() {
+        return Array.from(document.querySelectorAll('shreddit-post')).map((el) => ({
+            id: el.getAttribute('id'),
+            postType: el.getAttribute('post-type'),
+            contentHref: el.getAttribute('content-href'),
+            permalink: el.getAttribute('permalink'),
+            postTitle: el.getAttribute('post-title'),
+            domain: el.getAttribute('domain'),
+            author: el.getAttribute('author'),
+            subredditPrefixedName: el.getAttribute('subreddit-prefixed-name'),
+            createdTimestamp: el.getAttribute('created-timestamp'),
+            score: el.getAttribute('score'),
+            nsfw: el.getAttribute('nsfw'),
+        }));
+    }
+    window.__dfrExtractPosts = extractPosts;
+
+    const seen = new Set();
+    function pushNewPosts() {
+        const fresh = extractPosts().filter((p) => p.id && !seen.has(p.id));
+        if (fresh.length === 0) return;
+        fresh.forEach((p) => seen.add(p.id));
+        if (window.__dfrPostsFound) window.__dfrPostsFound(fresh);
+    }
+
+    let debounceHandle = null;
+    function schedulePush() {
+        if (debounceHandle) clearTimeout(debounceHandle);
+        debounceHandle = setTimeout(pushNewPosts, 300);
+    }
+
+    function start() {
+        pushNewPosts();
+        new MutationObserver(schedulePush).observe(document.body, {childList: true, subtree: true});
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', start);
+    } else {
+        start();
+    }
+})();
+"""
+
+# Falls back to an empty list if evaluated before the init script has installed
+# window.__dfrExtractPosts -- shouldn't happen after a real navigation, but a fresh page() call
+# could race it.
+_EXTRACT_POSTS_EXPR = "window.__dfrExtractPosts ? window.__dfrExtractPosts() : []"
 
 
 class ValidationError(Enum):
@@ -99,14 +170,14 @@ def _normalize_reddit_url(url: str) -> str:
     return urlunsplit(parts)
 
 
-def _parse_post(post: Locator) -> SubmissionData | None:
-    raw_id = post.get_attribute("id")
+def _parse_post(raw: dict) -> SubmissionData | None:
+    raw_id = raw.get("id")
     if not raw_id:
         return None
     try:
         # content-href/permalink are relative for some post types (crossposts, self posts) --
         # urljoin leaves already-absolute URLs (i.redd.it, v.redd.it, outbound links) untouched.
-        post_type = post.get_attribute("post-type") or ""
+        post_type = raw.get("postType") or ""
         reddit_id = _strip_fullname_prefix(raw_id)
         if post_type == "gallery":
             # content-href for a gallery is unreliable -- observed as the bare comments permalink
@@ -116,20 +187,18 @@ def _parse_post(post: Locator) -> SubmissionData | None:
             # pattern (its url_key includes 'reddit.com/gallery').
             url = f"{REDDIT_BASE_URL}/gallery/{reddit_id}"
         else:
-            url = urljoin(REDDIT_BASE_URL, post.get_attribute("content-href") or "")
-        permalink = urljoin(REDDIT_BASE_URL, post.get_attribute("permalink") or "")
+            url = urljoin(REDDIT_BASE_URL, raw.get("contentHref") or "")
+        permalink = urljoin(REDDIT_BASE_URL, raw.get("permalink") or "")
         return SubmissionData(
             reddit_id=reddit_id,
-            title=post.get_attribute("post-title") or "",
+            title=raw.get("postTitle") or "",
             url=url,
-            domain=post.get_attribute("domain") or "",
-            author=post.get_attribute("author") or "",
-            subreddit=_strip_subreddit_prefix(
-                post.get_attribute("subreddit-prefixed-name") or ""
-            ),
-            created=datetime.fromisoformat(post.get_attribute("created-timestamp")),
-            score=int(post.get_attribute("score") or 0),
-            nsfw=post.get_attribute("nsfw") is not None,
+            domain=raw.get("domain") or "",
+            author=raw.get("author") or "",
+            subreddit=_strip_subreddit_prefix(raw.get("subredditPrefixedName") or ""),
+            created=datetime.fromisoformat(raw.get("createdTimestamp")),
+            score=int(raw.get("score") or 0),
+            nsfw=raw.get("nsfw") is not None,
             is_self=post_type == "text",
             permalink=permalink,
             post_type=post_type,
@@ -141,6 +210,19 @@ def _parse_post(post: Locator) -> SubmissionData | None:
         return None
 
 
+def parse_posts_payload(raw_posts: list[dict]) -> list[SubmissionData]:
+    posts = []
+    for raw in raw_posts:
+        parsed = _parse_post(raw)
+        if parsed is not None:
+            posts.append(parsed)
+    return posts
+
+
+def _read_posts(page: Page) -> list[SubmissionData]:
+    return parse_posts_payload(page.evaluate(_EXTRACT_POSTS_EXPR))
+
+
 class BrowserRedditSource:
     """
     RedditSource backed by a single long-lived, persistent Playwright browser window
@@ -148,32 +230,110 @@ class BrowserRedditSource:
     <shreddit-post> element attributes (server-rendered, no network interception) rather
     than intercepting network responses.
 
-    Playwright's sync API is thread-bound: it can only be driven from the thread that
-    started it. DownloadRunner runs on a QThread, NameChecker runs on its own thread, and
-    the GUI closes from the main thread -- so a plain threading.Lock is not enough (that
-    only serializes access, it doesn't relocate the caller onto the right thread). All
-    Playwright work is therefore submitted to a dedicated single-worker executor, which
-    both pins every call to one real OS thread and serializes discovery for free (no two
-    scroll sessions ever run at once -- intended, not a limitation: parallel scroll
-    sessions would read as bot activity).
-    """
+    One page is shared by both explicit navigation (single-post fetch, full user/subreddit
+    fetch) and ambient browsing -- there is deliberately no separate, dedicated page for
+    explicit actions. An earlier version of this class tried that, and it was wrong: Chromium
+    focuses newly-created tabs, so every explicit action (or any later recreation of that page)
+    visibly stole focus and interrupted whatever the user was looking at -- exactly the
+    disruption ambient mode exists to avoid. Explicit navigation still does briefly take over
+    the one shared tab (matching this app's original, long-standing behavior), which is a much
+    smaller cost than a second tab silently fighting for focus.
 
-    SCROLL_PASSES = 10
-    SCROLL_PAUSE_MS = 1000
-    KNOWN_POST_STOP_THRESHOLD = 10
+    Ambient discovery is pushed *to* the app by injected page JS calling a Playwright binding
+    (context.expose_function), which relies on the pump loop below to actually be delivered
+    promptly (see PUMP_INTERVAL_MS). Because explicit navigation reuses the same page, its own
+    results would otherwise get reported back in as an ambient "match" too (the injected
+    script's primer fires on every navigation, not just casual browsing) -- _suppressed_ambient
+    marks the window around an explicit navigation so _dispatch_posts_found can drop pushes that
+    are just an explicit action seeing its own page.
+
+    Historical backfill (scrolling to catch up a newly-tracked user/subreddit's older posts) is
+    not implemented -- discovery only ever sees whatever Reddit's server renders on initial page
+    load. TODO: revisit if deep backfill is needed again.
+
+    Playwright's sync API is thread-bound: it can only be driven from the thread that started
+    it, AND it only pumps incoming CDP protocol messages while a call on that thread is
+    blocked/in-flight -- confirmed empirically that a bound JS function's Python callback does
+    not fire while the worker thread sits genuinely idle (e.g. time.sleep). A dedicated pump
+    thread (_pump_loop) keeps the worker thread perpetually occupied in short
+    page.wait_for_timeout() calls specifically so those callbacks get delivered promptly instead
+    of only at the next unrelated blocking call -- confirmed empirically to work even for a
+    binding call originating from a different tab than the one being pumped. Each pump call is
+    its own executor submission, not one long-running task, so an explicit-download job queued
+    on the same single-worker executor waits at most one pump interval (FIFO ordering) rather
+    than being starved indefinitely.
+    """
 
     def __init__(self):
         self._executor = ThreadPoolExecutor(max_workers=1)
         self._playwright = None
         self._context = None
+        self._page = None
+        self._on_posts_found: Callable[[list[SubmissionData]], None] | None = None
+        # BrowserRedditSource.start() (called from injector.get_reddit_source()) navigates the
+        # initial page and fires the injected script's primer scan before the GUI exists to
+        # register a consumer via set_on_posts_found -- buffer anything that arrives before then
+        # and flush it once a consumer registers, rather than silently dropping that first batch
+        # on every app launch.
+        self._pending_posts_lock = threading.Lock()
+        self._pending_posts: list[SubmissionData] = []
+        self._suppress_ambient = threading.Event()
+        self._pump_stop = threading.Event()
+        self._pump_thread = None
+
+    def set_on_posts_found(self, callback: Callable[[list[SubmissionData]], None]):
+        """Registered by the GUI (or a future headless consumer) once it's ready to receive
+        ambient matches -- set after construction since BrowserRedditSource is created before
+        the GUI exists (see injector.get_reddit_source())."""
+        with self._pending_posts_lock:
+            self._on_posts_found = callback
+            pending = self._pending_posts
+            self._pending_posts = []
+        if pending:
+            callback(pending)
+
+    def _handle_posts_found(self, raw_posts: list[dict]) -> None:
+        # Invoked via the __dfrPostsFound binding, which may run on the Playwright worker
+        # thread's own call stack (Playwright's threading model here isn't documented well
+        # enough to assume otherwise) -- hand off immediately rather than risk doing DB work on
+        # that thread, exactly as if this were a genuinely separate thread already.
+        threading.Thread(
+            target=self._dispatch_posts_found, args=(raw_posts,), daemon=True
+        ).start()
+
+    def _dispatch_posts_found(self, raw_posts: list[dict]) -> None:
+        if self._suppress_ambient.is_set():
+            return
+        posts = parse_posts_payload(raw_posts or [])
+        if not posts:
+            return
+        with self._pending_posts_lock:
+            if self._on_posts_found is None:
+                self._pending_posts.extend(posts)
+                return
+            callback = self._on_posts_found
+        callback(posts)
+
+    @contextmanager
+    def _suppressed_ambient(self):
+        # Explicit navigation reuses the ambient-facing page, so its own primer push must be
+        # dropped, not treated as a discovered match -- see the class docstring.
+        self._suppress_ambient.set()
+        try:
+            yield
+        finally:
+            self._suppress_ambient.clear()
 
     def start(self):
         self._executor.submit(self._start_impl).result()
+        self._pump_thread = threading.Thread(target=self._pump_loop, daemon=True)
+        self._pump_thread.start()
 
     def _start_impl(self):
         self._playwright = sync_playwright().start()
         self._launch_context()
-        self._page().goto(REDDIT_BASE_URL)
+        with self._suppressed_ambient():
+            self._page.goto(REDDIT_BASE_URL)
 
     def _launch_context(self):
         self._context = self._playwright.chromium.launch_persistent_context(
@@ -183,10 +343,40 @@ class BrowserRedditSource:
         )
         # If the user closes the browser window, all pages close and the persistent context
         # closes with them -- null it out so the next call relaunches instead of raising into
-        # the ambient poll timer or an explicit download.
+        # an explicit download.
         self._context.on("close", lambda _: setattr(self, "_context", None))
+        self._context.expose_function("__dfrPostsFound", self._handle_posts_found)
+        self._context.add_init_script(_INJECTED_SCRIPT)
+        self._page = (
+            self._context.pages[0]
+            if self._context.pages
+            else self._context.new_page()
+        )
+
+    def _pump_loop(self):
+        # Runs on its own OS thread (never the Playwright worker thread) for the app's
+        # lifetime, resubmitting one short wait to the executor at a time so it never
+        # monopolizes the worker -- see the class docstring.
+        while not self._pump_stop.is_set():
+            pumped = self._executor.submit(self._pump_once).result()
+            if not pumped:
+                # No context/page to wait on yet (e.g. still starting up, or the browser
+                # window is closed and nothing has relaunched it) -- avoid a tight spin loop.
+                self._pump_stop.wait(PUMP_INTERVAL_MS / 1000)
+
+    def _pump_once(self) -> bool:
+        if self._context is None or not self._context.pages:
+            return False
+        try:
+            self._context.pages[0].wait_for_timeout(PUMP_INTERVAL_MS)
+        except PlaywrightError:
+            return False
+        return True
 
     def stop(self):
+        self._pump_stop.set()
+        if self._pump_thread is not None:
+            self._pump_thread.join()
         self._executor.submit(self._stop_impl).result()
         self._executor.shutdown(wait=True)
 
@@ -196,128 +386,36 @@ class BrowserRedditSource:
         if self._playwright is not None:
             self._playwright.stop()
 
-    def _page(self) -> Page:
+    def _get_page(self) -> Page:
         if self._context is None:
             logger.info("Playwright browser window was closed, relaunching")
             self._launch_context()
-        return (
-            self._context.pages[0] if self._context.pages else self._context.new_page()
-        )
+        if self._page is None or self._page.is_closed():
+            self._page = (
+                self._context.pages[0]
+                if self._context.pages
+                else self._context.new_page()
+            )
+        return self._page
 
-    def read_current_page_posts(self) -> list[SubmissionData]:
-        """
-        Reads whatever <shreddit-post> elements are on the page right now -- no navigation, no
-        scrolling. Used for ambient extraction while the dedicated account's browser window is
-        being browsed casually, as opposed to iter_user_submissions/iter_subreddit_submissions
-        which drive their own navigation.
-        """
-        return self._executor.submit(self._read_current_page_posts_impl).result()
+    def _collect(self, url: str) -> list[SubmissionData]:
+        page = self._get_page()
+        with self._suppressed_ambient():
+            page.goto(url)
+            page.wait_for_timeout(2000)
+            return _read_posts(page)
 
-    def _read_current_page_posts_impl(self) -> list[SubmissionData]:
-        # Ambient extraction should pause, not relaunch, while the user has no browser window
-        # open -- unlike explicit downloads/navigation, which need the browser and so relaunch
-        # it via _page().
-        if self._context is None:
-            return []
-        try:
-            page = self._page()
-            results = []
-            for post in page.locator("shreddit-post").all():
-                data = _parse_post(post)
-                if data is not None:
-                    results.append(data)
-            return results
-        except TargetClosedError:
-            # The window can close between the check above and this call actually reaching the
-            # browser -- the 'close' event on the context is delivered asynchronously by
-            # Playwright's dispatcher thread and can lose that race. Null out here too so we
-            # don't wait for the event, and stay silent since this is the same "no window open"
-            # case as the check above, just caught slightly later.
-            self._context = None
-            return []
-
-    def _collect(
-        self, url: str, limit: int | None = None, known_ids: set | None = None
-    ) -> list[SubmissionData]:
-        page = self._page()
-        page.goto(url)
-        page.wait_for_timeout(2000)
-        return self._scroll_and_collect(page, url, limit, known_ids)
-
-    def _scroll_and_collect(
-        self,
-        page: Page,
-        url: str,
-        limit: int | None = None,
-        known_ids: set | None = None,
-    ) -> list[SubmissionData]:
-        seen = set()
-        results = []
-        consecutive_known = 0
-        for scroll_pass in range(self.SCROLL_PASSES):
-            for post in page.locator("shreddit-post").all():
-                data = _parse_post(post)
-                if data is not None and data.reddit_id not in seen:
-                    seen.add(data.reddit_id)
-                    results.append(data)
-                    # Posts are sorted by "new", so once we've seen a CONSECUTIVE run of
-                    # already-downloaded posts we've caught up with the last run -- stop scrolling
-                    # instead of always doing all SCROLL_PASSES regardless of content. Must be
-                    # consecutive, not cumulative: known and new posts can be interspersed (e.g.
-                    # crossposts/reposts sorting slightly out of strict chronological order), and a
-                    # cumulative count would stop before reaching a genuinely new post sitting past
-                    # scattered known ones.
-                    if known_ids is not None and data.reddit_id in known_ids:
-                        consecutive_known += 1
-                        if consecutive_known >= self.KNOWN_POST_STOP_THRESHOLD:
-                            logger.debug(
-                                "Caught up with already-downloaded posts, stopping scroll",
-                                extra={
-                                    "url": url,
-                                    "scroll_pass": scroll_pass + 1,
-                                    "collected": len(results),
-                                },
-                            )
-                            return results
-                    else:
-                        consecutive_known = 0
-                    if limit is not None and len(results) >= limit:
-                        logger.debug(
-                            "Reached post limit, stopping scroll",
-                            extra={
-                                "url": url,
-                                "scroll_pass": scroll_pass + 1,
-                                "collected": len(results),
-                            },
-                        )
-                        return results
-            page.mouse.wheel(0, 2000)
-            page.wait_for_timeout(self.SCROLL_PAUSE_MS)
-        logger.debug(
-            "Reached SCROLL_PASSES limit without catching up or hitting post limit",
-            extra={
-                "url": url,
-                "scroll_passes": self.SCROLL_PASSES,
-                "collected": len(results),
-            },
-        )
-        return results
-
-    def iter_user_submissions(
-        self, name: str, limit: int | None = None, known_ids: set | None = None
-    ) -> list[SubmissionData]:
+    def iter_user_submissions(self, name: str) -> list[SubmissionData]:
         url = f"https://www.reddit.com/user/{name}/submitted/?sort=new"
-        return self._executor.submit(self._collect, url, limit, known_ids).result()
+        return self._executor.submit(self._collect, url).result()
 
-    def iter_subreddit_submissions(
-        self, name: str, limit: int | None = None, known_ids: set | None = None
-    ) -> list[SubmissionData]:
+    def iter_subreddit_submissions(self, name: str) -> list[SubmissionData]:
         url = f"https://www.reddit.com/r/{name}/new/"
-        return self._executor.submit(self._collect, url, limit, known_ids).result()
+        return self._executor.submit(self._collect, url).result()
 
-    def iter_home_feed(self, limit: int | None = None) -> list[SubmissionData]:
+    def iter_home_feed(self) -> list[SubmissionData]:
         return self._executor.submit(
-            self._collect, "https://www.reddit.com/new/", limit
+            self._collect, "https://www.reddit.com/new/"
         ).result()
 
     def validate_user(self, name: str) -> ValidationResult:
@@ -329,16 +427,21 @@ class BrowserRedditSource:
         return self._executor.submit(self._validate, url).result()
 
     def _validate(self, url: str) -> ValidationResult:
-        page = self._page()
-        try:
-            page.goto(url)
-        except PlaywrightError:
-            logger.warning(
-                "Navigation failed during validation", extra={"url": url}, exc_info=True
-            )
-            return ValidationResult(valid=False, error=ValidationError.CONNECTION_ERROR)
-        page.wait_for_timeout(1500)
-        return self._check_validity(page)
+        page = self._get_page()
+        with self._suppressed_ambient():
+            try:
+                page.goto(url)
+            except PlaywrightError:
+                logger.warning(
+                    "Navigation failed during validation",
+                    extra={"url": url},
+                    exc_info=True,
+                )
+                return ValidationResult(
+                    valid=False, error=ValidationError.CONNECTION_ERROR
+                )
+            page.wait_for_timeout(1500)
+            return self._check_validity(page)
 
     @staticmethod
     def _check_validity(page: Page) -> ValidationResult:
@@ -358,42 +461,41 @@ class BrowserRedditSource:
         return ValidationResult(valid=True)
 
     def validate_and_iter_user_submissions(
-        self, name: str, limit: int | None = None, known_ids: set | None = None
+        self, name: str
     ) -> tuple[ValidationResult, list[SubmissionData]]:
         url = f"https://www.reddit.com/user/{name}/submitted/?sort=new"
-        return self._executor.submit(
-            self._validate_and_collect, url, limit, known_ids
-        ).result()
+        return self._executor.submit(self._validate_and_collect, url).result()
 
     def validate_and_iter_subreddit_submissions(
-        self, name: str, limit: int | None = None, known_ids: set | None = None
+        self, name: str
     ) -> tuple[ValidationResult, list[SubmissionData]]:
         url = f"https://www.reddit.com/r/{name}/new/"
-        return self._executor.submit(
-            self._validate_and_collect, url, limit, known_ids
-        ).result()
+        return self._executor.submit(self._validate_and_collect, url).result()
 
     def _validate_and_collect(
-        self, url: str, limit: int | None = None, known_ids: set | None = None
+        self, url: str
     ) -> tuple[ValidationResult, list[SubmissionData]]:
         # A single navigation serves both validation and the submissions scrape -- the submitted/new
         # listing page shows the same 404/private/suspended copy as the plain profile page, so there's
         # no need to visit the profile page first just to check it exists.
-        page = self._page()
-        try:
-            page.goto(url)
-        except PlaywrightError:
-            logger.warning(
-                "Navigation failed during validation", extra={"url": url}, exc_info=True
-            )
-            return ValidationResult(
-                valid=False, error=ValidationError.CONNECTION_ERROR
-            ), []
-        page.wait_for_timeout(2000)
-        validation = self._check_validity(page)
-        if not validation.valid:
-            return validation, []
-        return validation, self._scroll_and_collect(page, url, limit, known_ids)
+        page = self._get_page()
+        with self._suppressed_ambient():
+            try:
+                page.goto(url)
+            except PlaywrightError:
+                logger.warning(
+                    "Navigation failed during validation",
+                    extra={"url": url},
+                    exc_info=True,
+                )
+                return ValidationResult(
+                    valid=False, error=ValidationError.CONNECTION_ERROR
+                ), []
+            page.wait_for_timeout(2000)
+            validation = self._check_validity(page)
+            if not validation.valid:
+                return validation, []
+            return validation, _read_posts(page)
 
     def get_post(self, url: str) -> SubmissionData | None:
         return self._executor.submit(self._get_post_impl, url).result()
@@ -404,22 +506,23 @@ class BrowserRedditSource:
         # www.reddit.com's permalink page renders it, same as the listing pages. Normalize the
         # domain before navigating.
         url = _normalize_reddit_url(url)
-        page = self._page()
-        try:
-            page.goto(url)
-        except PlaywrightError:
-            logger.warning(
-                "Navigation failed fetching single post",
-                extra={"url": url},
-                exc_info=True,
-            )
-            return None
-        page.wait_for_timeout(2000)
-        post = page.locator("shreddit-post").first
-        if post.count() == 0:
-            logger.warning("No shreddit-post found at url", extra={"url": url})
-            return None
-        return _parse_post(post)
+        page = self._get_page()
+        with self._suppressed_ambient():
+            try:
+                page.goto(url)
+            except PlaywrightError:
+                logger.warning(
+                    "Navigation failed fetching single post",
+                    extra={"url": url},
+                    exc_info=True,
+                )
+                return None
+            page.wait_for_timeout(2000)
+            posts = _read_posts(page)
+            if not posts:
+                logger.warning("No shreddit-post found at url", extra={"url": url})
+                return None
+            return posts[0]
 
     def get_gallery_media_metadata(self, permalink: str) -> dict:
         """
@@ -441,7 +544,7 @@ class BrowserRedditSource:
             _normalize_reddit_url(urljoin(REDDIT_BASE_URL, permalink)).rstrip("/")
             + ".json"
         )
-        page = self._page()
+        page = self._get_page()
         try:
             data = page.evaluate(
                 "(url) => fetch(url).then(r => r.ok ? r.json() : null)", url
@@ -478,7 +581,10 @@ class BrowserRedditSource:
         self._executor.submit(self._open_url_impl, url).result()
 
     def _open_url_impl(self, url: str) -> None:
-        page = self._page()
+        # Deliberately not wrapped in _suppressed_ambient -- unlike the background fetches
+        # above, this navigates the user's own view to a page they asked to look at, so a real
+        # ambient match there is exactly the behavior "browse naturally, get pushed" implies.
+        page = self._get_page()
         try:
             page.goto(_normalize_reddit_url(url))
             page.bring_to_front()
