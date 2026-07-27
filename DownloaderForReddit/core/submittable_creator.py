@@ -1,11 +1,11 @@
 import logging
 from datetime import datetime
-from typing import Optional, Union
+
+from praw.models import Comment as PrawComment
 from sqlalchemy import or_
 from sqlalchemy.orm.session import Session
-from praw.models import Comment as PrawComment
 
-from ..database.models import User, Subreddit, Post, Comment
+from ..database.models import Comment, Post, Subreddit, User
 from ..utils import injector
 from .reddit_source import SubmissionData
 
@@ -23,7 +23,7 @@ class SubmittableCreator:
 
     @classmethod
     def create_post(cls, submission: SubmissionData, significant_id: int, session: Session,
-                    download_session_id: int) -> Optional[Post]:
+                    download_session_id: int) -> Post | None:
         post = None
         if cls.check_duplicate_post(submission.reddit_id, submission.url, session):
             author = cls.get_author(submission, session)
@@ -60,7 +60,7 @@ class SubmittableCreator:
 
     @classmethod
     def create_comment(cls, praw_comment: PrawComment, post: Post, session: Session, download_session_id: int,
-                       parent_comment_id: Optional[int] = None):
+                       parent_comment_id: int | None = None):
         if cls.check_duplicate_comment(praw_comment.id, session):
             author = cls.get_author(praw_comment, session)
             subreddit = cls.get_subreddit(praw_comment, session)
@@ -86,22 +86,22 @@ class SubmittableCreator:
         return session.query(Comment).filter(Comment.reddit_id == praw_comment_id).scalar() is None
 
     @classmethod
-    def get_author(cls, praw_object: Union[SubmissionData, PrawComment], session: Session):
+    def get_author(cls, praw_object: SubmissionData | PrawComment, session: Session):
         try:
             name = praw_object.author if isinstance(praw_object, SubmissionData) else praw_object.author.name
             author = cls.get_db().get_or_create(User, name=name, defaults={}, session=session)[0]
         except AttributeError:
-            cls.logger.error('Failed to get author', exc_info=True)
+            cls.logger.exception('Failed to get author')
             author = cls.get_db().get_or_create(User, name='deleted', session=session)[0]
         return author
 
     @classmethod
-    def get_subreddit(cls, praw_object: Union[SubmissionData, PrawComment], session: Session):
+    def get_subreddit(cls, praw_object: SubmissionData | PrawComment, session: Session):
         try:
             name = praw_object.subreddit if isinstance(praw_object, SubmissionData) \
                 else praw_object.subreddit.display_name
             subreddit = cls.get_db().get_or_create(Subreddit, name=name, defaults={}, session=session)[0]
         except AttributeError:
-            cls.logger.error('Failed to get subreddit', exc_info=True)
+            cls.logger.exception('Failed to get subreddit')
             subreddit = cls.get_db().get_or_create(Subreddit, name='deleted', session=session)[0]
         return subreddit

@@ -36,6 +36,14 @@ dev = [
 ]
 
 [tool.ruff.lint]
+ignore = [
+    "E722", # deliberate catch-and-continue at worker-thread/GUI boundaries; TODO narrow case by case
+    "BLE001", # deliberate catch-and-continue at worker-thread/GUI boundaries; TODO narrow case by case
+    "DTZ005", # single-user desktop app stores naive local time throughout (SQLite has no native tz storage)
+    "DTZ006", # single-user desktop app stores naive local time throughout (SQLite has no native tz storage)
+    "DTZ007", # single-user desktop app stores naive local time throughout (SQLite has no native tz storage)
+    "DTZ012", # single-user desktop app stores naive local time throughout (SQLite has no native tz storage)
+]
 extend-select = [
     "A",   # flake8-builtins
     "B",   # flake8-bugbear
@@ -46,6 +54,36 @@ extend-select = [
     "RUF", # Ruff-specific rules
     "UP",  # pyupgrade
     "PLC", # pylint conventions
+]
+
+[tool.ruff.lint.per-file-ignores]
+"DownloaderForReddit/guiresources/**" = [
+    "N801", # auto-generated from .ui files by pyuic5
+    "N802", # auto-generated from .ui files by pyuic5
+    "N803", # auto-generated from .ui files by pyuic5
+    "N806", # auto-generated from .ui files by pyuic5
+    "RUF001", # auto-generated from .ui files by pyuic5
+]
+"DownloaderForReddit/customwidgets/**" = [
+    "N802", # PyQt5 API overrides must match Qt's camelCase names
+]
+"DownloaderForReddit/gui/**" = [
+    "N802", # PyQt5 API overrides must match Qt's camelCase names
+    "N803", # PyQt5 API overrides must match Qt's camelCase names
+]
+"DownloaderForReddit/viewmodels/**" = [
+    "N802", # PyQt5 API overrides must match Qt's camelCase names
+    "N803", # PyQt5 API overrides must match Qt's camelCase names
+    "B008", # QModelIndex() default is an immutable Qt value object, not a mutable-default bug
+]
+"DownloaderForReddit/utils/injector.py" = [
+    "PLC0415", # deliberate lazy imports to avoid circular imports between the singletons it wires up
+]
+"DownloaderForReddit/utils/reddit_utils.py" = [
+    "PLC0415", # deliberate lazy import of injector to avoid a circular import via utils/__init__.py
+]
+"**/__init__.py" = [
+    "F401", # re-exports and side-effect imports (e.g. extractor/task subclass registration)
 ]
 
 [tool.mypy]

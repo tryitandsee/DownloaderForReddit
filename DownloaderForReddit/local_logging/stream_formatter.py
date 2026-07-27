@@ -60,12 +60,12 @@ class JsonStreamFormatter(jsonlogger.JsonFormatter):
         self.add_fields(log_record, record, message_dict)
         log_record = self.process_log_record(log_record)
 
-        return '%s%s\n' % (self.prefix, self.format_return(log_record))
+        return f'{self.prefix}{self.format_return(log_record)}\n'
 
     @staticmethod
     def format_return(log_record):
         """Formats the log_record to display each item on a new line to increase readability"""
         ret_list = []
         for key, value in log_record.items():
-            ret_list.append('%s: %s' % (key, value))
+            ret_list.append(f'{key}: {value}')
         return '\n'.join(ret_list)

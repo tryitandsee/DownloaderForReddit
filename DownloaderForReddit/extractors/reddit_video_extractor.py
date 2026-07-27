@@ -23,16 +23,18 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import re
+from typing import ClassVar
+
 import requests
 
-from .base_extractor import BaseExtractor
 from ..core.errors import Error
 from ..utils import reddit_utils, video_merger
+from .base_extractor import BaseExtractor
 
 
 class RedditVideoExtractor(BaseExtractor):
 
-    url_key = ['v.redd.it']
+    url_key: ClassVar[list[str]] = ['v.redd.it']
 
     def __init__(self, post, **kwargs):
         super().__init__(post, **kwargs)
@@ -54,7 +56,7 @@ class RedditVideoExtractor(BaseExtractor):
             try:
                 r = reddit_utils.get_reddit_instance()
                 parent_submission = r.submission(self.submission.crosspost_parrent.split('_')[1])
-                parent_submission.title  # fetch info from server to load submission
+                parent_submission.title  # noqa: B018 -- fetch info from server to load submission
                 return parent_submission
             except AttributeError:
                 pass
@@ -100,8 +102,7 @@ class RedditVideoExtractor(BaseExtractor):
 
     def get_video_content(self):
         ext = 'mp4'
-        content = self.make_content(self.url, ext, name_modifier='(video)' if self.audio_url is not None else '')
-        return content
+        return self.make_content(self.url, ext, name_modifier='(video)' if self.audio_url is not None else '')
 
     def get_audio_url(self):
         """
@@ -135,5 +136,4 @@ class RedditVideoExtractor(BaseExtractor):
 
     def get_audio_content(self):
         ext = 'mp3'
-        content = self.make_content(self.audio_url, ext, name_modifier='(audio)')
-        return content
+        return self.make_content(self.audio_url, ext, name_modifier='(audio)')

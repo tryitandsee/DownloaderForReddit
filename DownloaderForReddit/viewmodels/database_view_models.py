@@ -1,7 +1,18 @@
 import os
-from PyQt5.QtCore import (QAbstractListModel, QAbstractTableModel, QAbstractItemModel, Qt, QSize, QModelIndex, QVariant,
-                          pyqtSignal)
-from PyQt5.QtGui import QPixmap, QIcon, QColor
+from collections.abc import Callable
+from typing import Any, ClassVar
+
+from PyQt5.QtCore import (
+    QAbstractItemModel,
+    QAbstractListModel,
+    QAbstractTableModel,
+    QModelIndex,
+    QSize,
+    Qt,
+    QVariant,
+    pyqtSignal,
+)
+from PyQt5.QtGui import QColor, QIcon, QPixmap
 
 from ..core import const
 from ..utils import injector
@@ -32,12 +43,11 @@ class CustomItemModel:
     def get_item(self, row):
         if row >= 0:
             return self.items[row]
-        else:
-            raise IndexError
+        raise IndexError
 
     def get_items(self, indices):
         items = []
-        rows = set(x.row() for x in indices)
+        rows = {x.row() for x in indices}
         for x in rows:
             items.append(self.items[x])
         return items
@@ -61,7 +71,7 @@ class CustomItemModel:
     def remove_item(self, item):
         try:
             self.items.remove(item)
-        except:
+        except ValueError:
             pass
 
     def set_data(self, query):
@@ -112,7 +122,7 @@ class DownloadSessionModel(QAbstractListModel, CustomItemModel):
     def data(self, index, role=None):
         if role == Qt.DisplayRole:
             return self.items[index.row()].name
-        elif role == Qt.ToolTipRole:
+        if role == Qt.ToolTipRole:
             session = self.items[index.row()]
             return f'Start time: {session.start_time_display}\n' \
                    f'End time: {session.end_time_display}\n' \
@@ -132,26 +142,25 @@ class RedditObjectModel(QAbstractListModel, CustomItemModel):
     def data(self, index, role=None):
         if role == Qt.DisplayRole or role == Qt.EditRole:
             return self.items[index.row()].name
-        elif role == Qt.ForegroundRole:
+        if role == Qt.ForegroundRole:
             ro = self.items[index.row()]
             if not ro.download_enabled and \
                     self.settings_manager.colorize_disabled_reddit_objects:
                 r, g, b = self.settings_manager.disabled_reddit_object_display_color
                 return QColor(r, g, b, 255)
-            elif not ro.active and self.settings_manager.colorize_inactive_reddit_objects:
+            if not ro.active and self.settings_manager.colorize_inactive_reddit_objects:
                 r, g, b = self.settings_manager.inactive_reddit_object_display_color
                 return QColor(r, g, b, 255)
-            elif ro.new and self.settings_manager.colorize_new_reddit_objects:
+            if ro.new and self.settings_manager.colorize_new_reddit_objects:
                 r, g, b = self.settings_manager.new_reddit_object_display_color
                 return QColor(r, g, b, 255)
-            else:
-                return None
+            return None
         return None
 
 
 class PostTableModel(QAbstractTableModel, CustomItemModel):
 
-    header_map = {
+    header_map: ClassVar[dict[str, Callable[[Any], Any]]] = {
         'title': lambda x: x.title,
         'date_posted': lambda x: x.date_posted_display,
         'score': lambda x: x.score_display,
@@ -175,9 +184,9 @@ class PostTableModel(QAbstractTableModel, CustomItemModel):
                         'subreddit', 'nsfw', 'extracted', 'extraction_date', 'extraction_error', 'error_message']
 
     def headerData(self, row, orientation, role=None):
-        if role == Qt.DisplayRole:
-            if orientation == Qt.Horizontal:
-                return self.headers[row].replace('_', ' ').title()
+        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
+            return self.headers[row].replace('_', ' ').title()
+        return None
 
     def data(self, index, role=None):
         col = index.column()
@@ -186,12 +195,11 @@ class PostTableModel(QAbstractTableModel, CustomItemModel):
                 return self.header_map[self.headers[col]](self.items[index.row()])
             except AttributeError:
                 pass
-        if role == Qt.ToolTipRole:
-            if col != self.headers.index('text'):
-                try:
-                    return self.header_map[self.headers[col]](self.items[index.row()])
-                except AttributeError:
-                    pass
+        if role == Qt.ToolTipRole and col != self.headers.index('text'):
+            try:
+                return self.header_map[self.headers[col]](self.items[index.row()])
+            except AttributeError:
+                pass
         return None
 
     def get_post_attribute(self, column, post):
@@ -218,10 +226,9 @@ class ContentListModel(QAbstractListModel, CustomItemModel):
             content = self.items[index.row()]
             if role == Qt.DisplayRole:
                 return content.title
-            elif role == Qt.DecorationRole:
-                icon = self.get_icon(content)
-                return icon
-            elif role == Qt.ToolTipRole:
+            if role == Qt.DecorationRole:
+                return self.get_icon(content)
+            if role == Qt.ToolTipRole:
                 tip = f'Title: {content.title}\n' \
                        f'Extension: {content.extension}\n' \
                        f'Author: {content.user.name}\n' \
@@ -282,8 +289,7 @@ class CommentTreeModel(QAbstractItemModel, CustomItemModel):
         for x in searchable:
             if x == item:
                 return True
-            else:
-                return self.cascade_contains(x.children, item)
+            return self.cascade_contains(x.children, item)
         return False
 
     def get_first_index(self):
@@ -299,8 +305,8 @@ class CommentTreeModel(QAbstractItemModel, CustomItemModel):
         for x in searchable.children:
             if x.data(0, Qt.UserRole) == item:
                 return self.createIndex(x.row(), 0, searchable)
-            else:
-                return self.cascade_get_item_index(x, item)
+            return self.cascade_get_item_index(x, item)
+        return None
 
     def get_item(self, index):
         try:
@@ -351,8 +357,7 @@ class CommentTreeModel(QAbstractItemModel, CustomItemModel):
     def columnCount(self, parent=None):
         if parent and parent.isValid():
             return parent.internalPointer().columnCount()
-        else:
-            return len(self.headers)
+        return len(self.headers)
 
     def data(self, index, role=None):
         if not index.isValid():
@@ -380,8 +385,7 @@ class CommentTreeModel(QAbstractItemModel, CustomItemModel):
         child = parent.child(row)
         if child:
             return self.createIndex(row, column, child)
-        else:
-            return QModelIndex()
+        return QModelIndex()
 
     def parent(self, index):
         if not index.isValid():
@@ -412,7 +416,7 @@ class CommentTreeModel(QAbstractItemModel, CustomItemModel):
 
 class TreeItem:
 
-    header_map = {
+    header_map: ClassVar[dict[str, Callable[[Any], Any]]] = {
         'author': lambda x: x.author.name,
         'id': lambda x: x.id,
         'subreddit': lambda x: x.subreddit.name,

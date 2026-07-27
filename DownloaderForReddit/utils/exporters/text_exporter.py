@@ -24,7 +24,6 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -47,8 +46,7 @@ def format_post_output(post):
     :param post: The post that is to be formatted.
     :return: The supplied posts attributes in a readable formatted string.
     """
-    return 'Author: %s\nSubreddit: %s\nTitle: %s\nCreated: %s\nUrl: %s\nStatus: %s\nSave Status: %s' % \
-           (post.author, post.subreddit, post.title, post.date_posted, post.url, post.status, post.save_status)
+    return f'Author: {post.author}\nSubreddit: {post.subreddit}\nTitle: {post.title}\nCreated: {post.date_posted}\nUrl: {post.url}\nStatus: {post.status}\nSave Status: {post.save_status}'
 
 
 def export_url_list(url_list, file_path):
@@ -58,8 +56,7 @@ def export_url_list(url_list, file_path):
     :param file_path: The path at which the text file will be created.
     """
     with open(file_path, 'a') as file:
-        for url in url_list:
-            file.write('%s\n' % url)
+        file.writelines(f'{url}\n' for url in url_list)
     logger.info('Exported url list to text file', extra={'export_count': len(url_list)})
 
 
@@ -70,6 +67,5 @@ def export_reddit_objects_to_text(object_list, file_path):
     :param file_path: The path at which the text file will be created.
     """
     with open(file_path, mode='a', encoding='utf-8') as file:
-        for ro in object_list:
-            file.write(ro.name + '\n')
+        file.writelines(ro.name + '\n' for ro in object_list)
     logger.info('Exported reddit objects to text file', extra={'export_count': len(object_list)})

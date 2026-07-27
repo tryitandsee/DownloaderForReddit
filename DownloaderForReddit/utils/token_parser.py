@@ -1,12 +1,14 @@
 import re
+from collections.abc import Callable
 from operator import attrgetter
+from typing import Any, ClassVar
 
 
 class TokenParser:
 
-    regex = '%\[(.*?)\]'
+    regex = r'%\[(.*?)\]'
 
-    token_dict = {
+    token_dict: ClassVar[dict[str, Callable[[Any], Any]]] = {
         'title': lambda x: TokenParser.tokenize(x, 'sanitized_title', 'post.sanitized_title'),
         'short_title': lambda x: TokenParser.tokenize(x, 'sanitized_short_title', 'post.sanitized_short_title'),
         'author_id': lambda x: TokenParser.tokenize(x, 'author.id', 'user.id'),
@@ -62,6 +64,6 @@ class TokenParser:
         try:
             return str(attrgetter(args[index])(obj))
         except AttributeError:
-            return cls.tokenize(obj, index=index + 1, *args)
+            return cls.tokenize(obj, *args, index=index + 1)
         except IndexError:
             return ''

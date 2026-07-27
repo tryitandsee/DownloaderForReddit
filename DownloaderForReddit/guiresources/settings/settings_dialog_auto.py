@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 # Form implementation generated from reading ui file 'Resources\ui_files\settings\settings_dialog.ui'
 #
@@ -11,7 +10,7 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 
-class Ui_SettingsDialog(object):
+class Ui_SettingsDialog:
     def setupUi(self, SettingsDialog):
         SettingsDialog.setObjectName("SettingsDialog")
         SettingsDialog.resize(1169, 820)

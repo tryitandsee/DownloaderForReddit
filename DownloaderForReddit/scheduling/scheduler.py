@@ -1,11 +1,12 @@
 import logging
 from datetime import datetime
 from threading import Event
+
 import schedule
 from PyQt5.QtCore import QObject, pyqtSignal
 
-from .tasks import DownloadTask, Interval
 from ..utils import injector, system_util
+from .tasks import DownloadTask, Interval
 
 
 class Scheduler(QObject):
@@ -82,10 +83,10 @@ class Scheduler(QObject):
                 n = n.at(task.value)
             n.do(self.launch_task, user_list_id=task.user_list_id, subreddit_list_id=task.subreddit_list_id).tag(task.tag)
             self.update_countdown = True
-        except Exception as e:
+        except Exception:
             # Log the error no matter what it is, then raise the exception and let the caller handle it as necessary
-            self.logger.error('Failed to schedule task', extra={'task': task.display}, exc_info=True)
-            raise e
+            self.logger.exception('Failed to schedule task', extra={'task': task.display})
+            raise
 
     def pause_task(self, task):
         schedule.clear(task.tag)

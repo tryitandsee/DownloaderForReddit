@@ -3,11 +3,11 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from queue import Empty
 
+from ..database.models import Post, RedditObject
+from ..utils import injector
 from .runner import Runner, verify_run
 from .submission_handler import SubmissionHandler
 from .submittable_creator import SubmittableCreator
-from ..database.models import Post, RedditObject
-from ..utils import injector
 
 
 class ContentRunner(Runner):

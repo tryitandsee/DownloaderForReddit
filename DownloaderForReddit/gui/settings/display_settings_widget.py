@@ -1,12 +1,16 @@
 from datetime import date, datetime
-from PyQt5.QtWidgets import QCheckBox, QColorDialog, QMenu
+
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor, QCursor
+from PyQt5.QtWidgets import QCheckBox, QColorDialog, QMenu
 
-from DownloaderForReddit.guiresources.settings.display_settings_widget_auto import Ui_DispalySettingsWidget
-from .abstract_settings_widget import AbstractSettingsWidget
 from DownloaderForReddit.core import const
+from DownloaderForReddit.guiresources.settings.display_settings_widget_auto import (
+    Ui_DispalySettingsWidget,
+)
 from DownloaderForReddit.utils import general_utils
+
+from .abstract_settings_widget import AbstractSettingsWidget
 
 
 class DisplaySettingsWidget(AbstractSettingsWidget, Ui_DispalySettingsWidget):
@@ -18,13 +22,13 @@ class DisplaySettingsWidget(AbstractSettingsWidget, Ui_DispalySettingsWidget):
         self.colors = {}
         self.tooltips = {}
         self.date_tokens = [
-            ('%a', 'Weekday as locale’s abbreviated name.', 'Mon'),
-            ('%A', 'Weekday as locale’s full name.', 'Monday'),
+            ('%a', "Weekday as locale's abbreviated name.", 'Mon'),
+            ('%A', "Weekday as locale's full name.", 'Monday'),
             ('%w', 'Weekday as a decimal number, where 0 is Sunday and 6 is Saturday.', '1'),
             ('%d', 'Day of the month as a zero-padded decimal number.', '30'),
             ('%-d', 'Day of the month as a decimal number. (Platform specific)', '30'),
-            ('%b', 'Month as locale’s abbreviated name.', 'Sep'),
-            ('%B', 'Month as locale’s full name.', 'September'),
+            ('%b', "Month as locale's abbreviated name.", 'Sep'),
+            ('%B', "Month as locale's full name.", 'September'),
             ('%m', 'Month as a zero-padded decimal number.', '09'),
             ('%-m', 'Month as a decimal number. (Platform specific)', '9'),
             ('%y', 'Year without century as a zero-padded decimal number.', '13'),
@@ -32,21 +36,21 @@ class DisplaySettingsWidget(AbstractSettingsWidget, Ui_DispalySettingsWidget):
             ('%j', 'Day of the year as a zero-padded decimal number.', '273'),
             ('%-j', 'Day of the year as a decimal number. (Platform specific)', '273'),
             ('%U',
-             'Week number of the year (Sunday as the first day of the week) as a zero padded decimal number. All days '
-             'in a new year preceding the first Sunday are considered to be in week 0.', '39'),
+             ('Week number of the year (Sunday as the first day of the week) as a zero padded decimal number. All days '
+             'in a new year preceding the first Sunday are considered to be in week 0.'), '39'),
             ('%W',
-             'Week number of the year (Monday as the first day of the week) as a decimal number. All days in a new '
-             'year preceding the first Monday are considered to be in week 0.', '39'),
-            ('%c', 'Locale’s appropriate date and time representation.', 'Mon Sep 30 07:06:05 2013'),
-            ('%x', 'Locale’s appropriate date representation.', '09/30/13'),
-            ('%X', 'Locale’s appropriate time representation.', '07:06:05'),
+             ('Week number of the year (Monday as the first day of the week) as a decimal number. All days in a new '
+             'year preceding the first Monday are considered to be in week 0.'), '39'),
+            ('%c', "Locale's appropriate date and time representation.", 'Mon Sep 30 07:06:05 2013'),
+            ('%x', "Locale's appropriate date representation.", '09/30/13'),
+            ('%X', "Locale's appropriate time representation.", '07:06:05'),
         ]
         self.time_tokens = [
             ('%H', 'Hour (24-hour clock) as a zero-padded decimal number.', '07'),
             ('%-H', 'Hour (24-hour clock) as a decimal number. (Platform specific)', '7'),
             ('%I', 'Hour (12-hour clock) as a zero-padded decimal number.', '07'),
             ('%-I', 'Hour (12-hour clock) as a decimal number. (Platform specific)', '7'),
-            ('%p', 'Locale’s equivalent of either AM or PM.', 'AM'),
+            ('%p', "Locale's equivalent of either AM or PM.", 'AM'),
             ('%M', 'Minute as a zero-padded decimal number.', '06'),
             ('%-M', 'Minute as a decimal number. (Platform specific)', '6'),
             ('%S', 'Second as a zero-padded decimal number.', '05'),

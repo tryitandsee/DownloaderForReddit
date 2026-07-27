@@ -1,8 +1,9 @@
 import os
-from contextlib import contextmanager
 import sqlite3
-from sqlalchemy.ext.declarative import declarative_base
+from contextlib import contextmanager
+
 import sqlalchemy
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 from ..core import const
@@ -34,8 +35,6 @@ class DatabaseHandler:
         session = self.Session()
         try:
             yield session
-        except:
-            raise
         finally:
             session.close()
 
@@ -90,20 +89,19 @@ class DatabaseHandler:
         :rtype: tuple
         """
         if session is None:
-            with self.get_scoped_update_session() as session:
-                return self.get_or_create(model, session=session, defaults=defaults, **kwargs)
+            with self.get_scoped_update_session() as db_session:
+                return self.get_or_create(model, session=db_session, defaults=defaults, **kwargs)
         instance = session.query(model).filter_by(**kwargs).first()
         if instance:
             return instance, False
-        else:
-            params = {}
-            if defaults is not None:
-                params.update(defaults)
-            params.update(kwargs)
-            instance = model(**params)
-            session.add(instance)
-            session.commit()
-            return instance, True
+        params = {}
+        if defaults is not None:
+            params.update(defaults)
+        params.update(kwargs)
+        instance = model(**params)
+        session.add(instance)
+        session.commit()
+        return instance, True
 
     def vacuum(self):
         connection = sqlite3.connect(self.database_path)

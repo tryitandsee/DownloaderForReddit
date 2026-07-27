@@ -1,12 +1,14 @@
-import os
-import requests
 import asyncio
 import logging
+import os
 from concurrent.futures import ThreadPoolExecutor
 
-from . import HEADERS
+import requests
+
 from DownloaderForReddit.core.runner import Runner, verify_run
 from DownloaderForReddit.utils import injector
+
+from . import HEADERS
 
 
 class MultipartDownloader(Runner):
@@ -25,7 +27,7 @@ class MultipartDownloader(Runner):
         try:
             loop.run_until_complete(self.download(content, path, size))
         except:
-            self.logger.error('Multi-part download failed', extra={'url': content.url, 'path': path}, exc_info=True)
+            self.logger.exception('Multi-part download failed', extra={'url': content.url, 'path': path})
         finally:
             loop.close()
 
@@ -47,16 +49,18 @@ class MultipartDownloader(Runner):
         ]
         await asyncio.wait(tasks)
 
-        with open(path, 'wb') as file:
+        # This event loop is a dedicated per-download throwaway (see `run()`), not a shared reactor --
+        # blocking here doesn't stall any other task.
+        with open(path, 'wb') as file:  # noqa: ASYNC230
             for x in range(self.part_count):
                 try:
                     chunk_path = f'{path}.part{x}'
-                    with open(chunk_path, 'rb') as part_file:
+                    with open(chunk_path, 'rb') as part_file:  # noqa: ASYNC230
                         file.write(part_file.read())
                     os.remove(chunk_path)
                 except FileNotFoundError:
-                    self.logger.error('Failed to join multi-download part into complete file',
-                                      extra={'chunk_path': chunk_path}, exc_info=True)
+                    self.logger.exception('Failed to join multi-download part into complete file',
+                                          extra={'chunk_path': chunk_path})
 
     @verify_run
     def download_part(self, content, start, end, path):
@@ -69,13 +73,11 @@ class MultipartDownloader(Runner):
             response = requests.get(url, headers=headers, stream=True, timeout=10)
             if response.status_code == 206:
                 with open(path, 'wb') as file:
-                    for chunk in response.iter_content(self.chunk_size):
-                        file.write(chunk)
+                    file.writelines(response.iter_content(self.chunk_size))
                 return True
-            else:
-                self.log_part_error('Failed to download chunk of muli-part download - bad response',
-                                    extra={'status_code': response.status_code}, exc_info=False)
-                return False
+            self.log_part_error('Failed to download chunk of muli-part download - bad response',
+                                extra={'status_code': response.status_code}, exc_info=False)
+            return False
 
         while self.continue_run and retry and tries < 3:
             tries += 1

@@ -1,3 +1,4 @@
+# ruff: noqa: N999
 """
 Downloader for Reddit takes a list of reddit users and subreddits and downloads content posted to reddit either by the
 users or on the subreddits.
@@ -25,11 +26,11 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 
 # Import each extractor class in the Extractors package so that BaseExtractor.__subclasses__() will pick up the
 # extractor class to be used in the Extractor.assign_extractor method.
-from .imgur_extractor import ImgurExtractor
+from .erome_extractor import EromeExtractor
+from .generic_video_extractor import GenericVideoExtractor
 from .gfycat_extractor import GfycatExtractor
-from .redgifs_extractor import RedgifsExtractor
-from .vidble_extractor import VidbleExtractor
+from .imgur_extractor import ImgurExtractor
 from .reddit_uploads_extractor import RedditUploadsExtractor
 from .reddit_video_extractor import RedditVideoExtractor
-from .generic_video_extractor import GenericVideoExtractor
-from .erome_extractor import EromeExtractor
+from .redgifs_extractor import RedgifsExtractor
+from .vidble_extractor import VidbleExtractor

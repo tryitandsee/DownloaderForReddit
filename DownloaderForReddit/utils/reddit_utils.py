@@ -22,14 +22,14 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import praw
 import logging
 from collections import namedtuple
 from urllib.parse import urlsplit
 
-from . import system_util
-from ..version import __version__
+import praw
 
+from ..version import __version__
+from . import system_util
 
 USER_AGENT = (
     f'{system_util.get_platform_str()}:DownloaderForReddit:{__version__} '
@@ -38,7 +38,7 @@ USER_AGENT = (
 CLIENT_ID = 'frGEUVAuHGL2PQ'
 
 
-logger = logging.getLogger('DownloaderForReddit.{}'.format(__name__))
+logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
 ValidationSet = namedtuple('ValidationSet', 'name date_created valid')
 _token = None
 
@@ -103,7 +103,7 @@ class NameChecker:
         :type object_type: str, None
         """
         super().__init__()
-        self.logger = logging.getLogger('DownloaderForReddit.%s' % __name__)
+        self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
         from . import injector
         self.source = injector.get_reddit_source()
         self.continue_run = True
@@ -112,8 +112,7 @@ class NameChecker:
     def check_reddit_object_name(self, name):
         if self.object_type == 'USER':
             return self.check_user_name(name)
-        else:
-            return self.check_subreddit_name(name)
+        return self.check_subreddit_name(name)
 
     def check_user_name(self, name):
         name = extract_name_from_text(name, 'USER')
@@ -121,7 +120,7 @@ class NameChecker:
             result = self.source.validate_user(name)
             return ValidationSet(name=name, date_created=None, valid=result.valid)
         except:
-            self.logger.error('Unable to validate user name', extra={'user_name': name}, exc_info=True)
+            self.logger.exception('Unable to validate user name', extra={'user_name': name})
             return ValidationSet(name=name, date_created=None, valid=False)
 
     def check_subreddit_name(self, name):
@@ -130,5 +129,5 @@ class NameChecker:
             result = self.source.validate_subreddit(name)
             return ValidationSet(name=name, date_created=None, valid=result.valid)
         except:
-            self.logger.error('Unable to validate subreddit name', extra={'subreddit_name': name}, exc_info=True)
+            self.logger.exception('Unable to validate subreddit name', extra={'subreddit_name': name})
             return ValidationSet(name=name, date_created=None, valid=False)

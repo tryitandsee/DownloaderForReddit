@@ -1,6 +1,9 @@
 from PyQt5.QtWidgets import QCheckBox
 
-from DownloaderForReddit.guiresources.settings.database_settings_widget_auto import Ui_DatabaseSettingsWidget
+from DownloaderForReddit.guiresources.settings.database_settings_widget_auto import (
+    Ui_DatabaseSettingsWidget,
+)
+
 from .abstract_settings_widget import AbstractSettingsWidget
 
 

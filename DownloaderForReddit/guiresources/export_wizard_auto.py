@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 # Form implementation generated from reading ui file 'Resources\ui_files\export_wizard.ui'
 #
@@ -7,10 +6,10 @@
 # WARNING! All changes made in this file will be lost!
 
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtWidgets
 
 
-class Ui_ExportWizard(object):
+class Ui_ExportWizard:
     def setupUi(self, ExportWizard):
         ExportWizard.setObjectName("ExportWizard")
         ExportWizard.resize(819, 353)

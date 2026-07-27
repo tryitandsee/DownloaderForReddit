@@ -1,8 +1,8 @@
 import threading
 
+from PyQt5.QtCore import QEvent, QModelIndex, Qt
+from PyQt5.QtGui import QTextCharFormat, QTextCursor, QTextDocument
 from PyQt5.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem
-from PyQt5.QtGui import QTextDocument, QTextCursor, QTextCharFormat
-from PyQt5.QtCore import QEvent, Qt, QModelIndex
 
 from ..utils import injector
 

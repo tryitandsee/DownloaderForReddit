@@ -22,11 +22,13 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+from typing import ClassVar
+
 from bs4 import BeautifulSoup
 
-from .base_extractor import BaseExtractor
-from ..core.errors import Error
 from ..core import const
+from ..core.errors import Error
+from .base_extractor import BaseExtractor
 
 
 def class_filter(target):
@@ -40,14 +42,13 @@ def get_content(tag):
     video_tags = tag.find_all(class_filter('video'))
     if video_tags:
         return video_tags[0].find_all('source')[0].get('src')
-    else:
-        img_tags = tag.find_all(class_filter('img-back'))
-        return img_tags[0].get("data-src")
+    img_tags = tag.find_all(class_filter('img-back'))
+    return img_tags[0].get("data-src")
 
 
 class EromeExtractor(BaseExtractor):
 
-    url_key = ['erome']
+    url_key: ClassVar[list[str]] = ['erome']
 
     def __init__(self, post, **kwargs):
         """

@@ -24,7 +24,6 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
 
-
 DATABASE_NAME = 'dfr.db'
 IMAGE_EXT = ('jpg', 'jpeg', 'png')
 GIF_EXT = ('gif', 'gifv', 'webm')

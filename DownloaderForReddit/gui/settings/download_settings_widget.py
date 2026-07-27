@@ -1,8 +1,11 @@
-from DownloaderForReddit.guiresources.settings.download_settings_widget_auto import Ui_DownloadSettingsWidget
-from .abstract_settings_widget import AbstractSettingsWidget
-from DownloaderForReddit.utils import injector
-from DownloaderForReddit.database.models import RedditObjectList
 from DownloaderForReddit.core.reddit_object_creator import RedditObjectCreator
+from DownloaderForReddit.database.models import RedditObjectList
+from DownloaderForReddit.guiresources.settings.download_settings_widget_auto import (
+    Ui_DownloadSettingsWidget,
+)
+from DownloaderForReddit.utils import injector
+
+from .abstract_settings_widget import AbstractSettingsWidget
 
 
 class DownloadSettingsWidget(AbstractSettingsWidget, Ui_DownloadSettingsWidget):

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 # Form implementation generated from reading ui file 'Resources\ui_files\existing_names_dialog.ui'
 #
@@ -10,7 +9,7 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 
-class Ui_ExistingNameDialog(object):
+class Ui_ExistingNameDialog:
     def setupUi(self, ExistingNameDialog):
         ExistingNameDialog.setObjectName("ExistingNameDialog")
         ExistingNameDialog.resize(545, 610)

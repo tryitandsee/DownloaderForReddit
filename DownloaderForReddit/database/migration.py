@@ -1,16 +1,18 @@
-import os
 import logging
-from alembic import command
+import os
+
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from sqlalchemy import desc
-from sqlalchemy.exc import OperationalError, IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 
+from alembic import command
+
+from .. import version
+from ..utils import injector, system_util
 from .database_handler import DatabaseHandler
 from .model_enums import DuplicateControlMethod
-from .models import Version, RedditObject, RedditObjectList
-from ..utils import injector, system_util
-from .. import version
+from .models import RedditObject, RedditObjectList, Version
 
 
 class Migrator:
@@ -46,8 +48,8 @@ class Migrator:
             else:
                 self.session.add(Version(version=version.__version__))
                 self.session.commit()
-                self.logger.info(f'Migration not performed: no version information found in database.  Database entry'
-                                 f'for version {version.__version__} has been created.')
+                self.logger.info('Migration not performed: no version information found in database.  Database entry'
+                                 'for version %s has been created.', version.__version__)
         finally:
             self.session.close()
 
@@ -72,12 +74,12 @@ class Migrator:
         databases.  If this version is not stored when created, the application will not be able to migrate future
         versions of the database in the event that it is updated again.
         """
-        if cache_version is None or version.is_updated(cache_version.version, 'v3.2.1'):
-            if not self.check_version_three_three_zero():
-                cached_revision = self.get_cached_revision()
-                if cached_revision is None:
-                    current_version = self.get_current_version()
-                    self.write_version_to_db(current_version)
+        if (cache_version is None or version.is_updated(cache_version.version, 'v3.2.1')) \
+                and not self.check_version_three_three_zero():
+            cached_revision = self.get_cached_revision()
+            if cached_revision is None:
+                current_version = self.get_current_version()
+                self.write_version_to_db(current_version)
 
     def get_cached_revision(self):
         """
@@ -189,10 +191,10 @@ class DefaultDuplicateControls:
         naming_method = getattr(obj, 'duplicate_naming_method', None)
         save_struct = getattr(obj, 'duplicate_save_structure', None)
         if hash_dup is None:
-            setattr(obj, 'hash_duplicates', False)
+            obj.hash_duplicates = False
         if duplicate_control is None:
-            setattr(obj, 'duplicate_control_method', DuplicateControlMethod.DELETE)
+            obj.duplicate_control_method = DuplicateControlMethod.DELETE
         if naming_method is None:
-            setattr(obj, 'duplicate_naming_method', '%[title]')
+            obj.duplicate_naming_method = '%[title]'
         if save_struct is None:
-            setattr(obj, 'duplicate_save_structure', '%[author_name]/Duplicates')
+            obj.duplicate_save_structure = '%[author_name]/Duplicates'

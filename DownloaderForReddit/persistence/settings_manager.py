@@ -1,13 +1,14 @@
-import os
-import toml
 import logging
+import os
 
-from ..extractors.base_extractor import BaseExtractor
-from ..utils import system_util
+import toml
+
 from ..core import const
-from ..database.model_enums import *
 from ..database import model_enums
+from ..database.model_enums import *
+from ..extractors.base_extractor import BaseExtractor
 from ..messaging.message import MessagePriority
+from ..utils import system_util
 
 
 class SettingsManager:
@@ -418,7 +419,7 @@ class SettingsManager:
 
     def load_config_file(self):
         try:
-            with open(self.config_file_path, 'r', encoding='utf-8') as file:
+            with open(self.config_file_path, encoding='utf-8') as file:
                 self.config = toml.load(file)
         except FileNotFoundError:
             self.logger.info('No config file found.  Generating new file')
@@ -475,8 +476,7 @@ class SettingsManager:
             value = default_value
         if converter is None:
             return value
-        else:
-            return converter(value)
+        return converter(value)
 
     def map_section(self, section, key):
         try:

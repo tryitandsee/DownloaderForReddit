@@ -51,6 +51,6 @@ def log_proxy(class_name, level, message=None, exc_info=False, **kwargs):
     :type message: str
     :type exc_info: bool
     """
-    logger = logging.getLogger('DownloaderForReddit.%s' % class_name)
+    logger = logging.getLogger(f'DownloaderForReddit.{class_name}')
     log_dict = {'DEBUG': logger.debug, 'INFO': logger.info, 'WARNING': logger.warning, 'ERROR': logger.error}
     log_dict[level](message, extra=kwargs, exc_info=exc_info)

@@ -1,13 +1,25 @@
 import time
-from PyQt5.QtWidgets import QListWidgetItem, QCheckBox, QWidget, QLabel, QVBoxLayout, QFrame, QMenu
+
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QCursor
+from PyQt5.QtWidgets import (
+    QCheckBox,
+    QFrame,
+    QLabel,
+    QListWidgetItem,
+    QMenu,
+    QVBoxLayout,
+    QWidget,
+)
+
+from DownloaderForReddit.database.models import RedditObjectList
+from DownloaderForReddit.guiresources.settings.schedule_settings_widget_auto import (
+    Ui_ScheduleSettingsWidget,
+)
+from DownloaderForReddit.scheduling.tasks import DownloadTask, Interval
+from DownloaderForReddit.utils import injector
 
 from .abstract_settings_widget import AbstractSettingsWidget
-from DownloaderForReddit.guiresources.settings.schedule_settings_widget_auto import Ui_ScheduleSettingsWidget
-from DownloaderForReddit.utils import injector
-from DownloaderForReddit.scheduling.tasks import DownloadTask, Interval
-from DownloaderForReddit.database.models import RedditObjectList
 
 
 class ScheduleSettingsWidget(AbstractSettingsWidget, Ui_ScheduleSettingsWidget):
@@ -67,13 +79,12 @@ class ScheduleSettingsWidget(AbstractSettingsWidget, Ui_ScheduleSettingsWidget):
     def check_modified(self):
         with self.db.get_scoped_session() as session:
             for task in self.task_map.values():
-                if task not in self.new_tasks and task not in self.deleted_tasks:
-                    if session.is_modified(task):
-                        session.add(task)
-                        if task.active:
-                            self.scheduler.schedule_task(task)
-                        else:
-                            self.scheduler.pause_task(task)
+                if task not in self.new_tasks and task not in self.deleted_tasks and session.is_modified(task):
+                    session.add(task)
+                    if task.active:
+                        self.scheduler.schedule_task(task)
+                    else:
+                        self.scheduler.pause_task(task)
             session.commit()
 
     def add_task(self):
@@ -104,10 +115,9 @@ class ScheduleSettingsWidget(AbstractSettingsWidget, Ui_ScheduleSettingsWidget):
     def check_value_entry(self):
         if self.check_value_format():
             return True
-        else:
-            self.error_label.setText('Invalid value entered')
-            self.error_label.setVisible(True)
-            return False
+        self.error_label.setText('Invalid value entered')
+        self.error_label.setVisible(True)
+        return False
 
     def check_value_format(self):
         text = self.interval_value_line_edit.text()
@@ -138,7 +148,7 @@ class ScheduleSettingsWidget(AbstractSettingsWidget, Ui_ScheduleSettingsWidget):
 
     def add_task_to_list(self, task):
         item = QListWidgetItem()
-        setattr(item, 'tag', task.tag)
+        item.tag = task.tag
         widget = QWidget()
         layout = QVBoxLayout()
         layout.addWidget(QLabel(task.display))

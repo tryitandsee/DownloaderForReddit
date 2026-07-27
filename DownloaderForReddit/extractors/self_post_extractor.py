@@ -1,9 +1,9 @@
 import os
 
-from .base_extractor import BaseExtractor
-from ..database import Content
 from ..core.errors import Error
+from ..database import Content
 from ..utils import system_util
+from .base_extractor import BaseExtractor
 
 
 class SelfPostExtractor(BaseExtractor):
@@ -24,8 +24,8 @@ class SelfPostExtractor(BaseExtractor):
         except Exception as e:
             self.failed_extraction = True
             self.failed_extraction_message = f'Failed to save self post.  ERROR: {e}'
-            self.logger.error('Failed to save self post',
-                              extra={'url': self.url, 'user': self.user, 'subreddit': self.subreddit}, exc_info=True)
+            self.logger.exception('Failed to save self post',
+                                  extra={'url': self.url, 'user': self.user, 'subreddit': self.subreddit})
 
     def make_content(self, url, extension, count=None, name_modifier=None):
         content = Content(
@@ -56,8 +56,7 @@ class SelfPostExtractor(BaseExtractor):
     def get_text(self, ext):
         if ext == 'txt':
             return self.comment.body if self.comment is not None else self.post.text
-        else:
-            return self.comment.body_html if self.comment is not None else self.post.text_html
+        return self.comment.body_html if self.comment is not None else self.post.text_html
 
     def check_file_path(self, content):
         self.create_dir_path(content.directory_path)
@@ -75,4 +74,4 @@ class SelfPostExtractor(BaseExtractor):
         try:
             system_util.create_directory(dir_path)
         except PermissionError:
-            self.logger.error('Could not create directory path', extra={'directory_path': dir_path}, exc_info=True)
+            self.logger.exception('Could not create directory path', extra={'directory_path': dir_path})

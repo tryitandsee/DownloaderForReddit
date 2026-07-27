@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 # Form implementation generated from reading ui file 'Resources\ui_files\widgets\object_info_widget.ui'
 #
@@ -10,7 +9,7 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 
-class Ui_ObjectInfoWidget(object):
+class Ui_ObjectInfoWidget:
     def setupUi(self, ObjectInfoWidget):
         ObjectInfoWidget.setObjectName("ObjectInfoWidget")
         ObjectInfoWidget.resize(354, 361)

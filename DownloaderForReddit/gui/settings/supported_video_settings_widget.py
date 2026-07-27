@@ -1,12 +1,23 @@
 import os
 from time import time
-from PyQt5.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QSizePolicy,
-                             QCheckBox, QLineEdit, QPushButton)
-from PyQt5.QtGui import QColor
 
-from .abstract_settings_widget import AbstractSettingsWidget
+from PyQt5.QtGui import QColor
+from PyQt5.QtWidgets import (
+    QCheckBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QPushButton,
+    QSizePolicy,
+    QVBoxLayout,
+)
+
 from DownloaderForReddit.core import const
 from DownloaderForReddit.gui import message_dialogs
+
+from .abstract_settings_widget import AbstractSettingsWidget
 
 
 class SupportedVideoSettingsWidget(AbstractSettingsWidget):
@@ -60,8 +71,8 @@ class SupportedVideoSettingsWidget(AbstractSettingsWidget):
         self.setLayout(layout)
 
     def load_settings(self):
-        with open(self.supported_sites_path, 'r') as file:
-            for line in file.readlines():
+        with open(self.supported_sites_path) as file:
+            for line in file:
                 site = line.strip()
                 checked = False
                 if site.endswith('*'):
@@ -78,7 +89,7 @@ class SupportedVideoSettingsWidget(AbstractSettingsWidget):
         self.list_widget.addItem(item)
         self.list_widget.setItemWidget(item, checkbox)
         self.site_map[site] = checkbox
-        setattr(item, 'site', site)
+        item.site = site
 
     def apply_settings(self):
         try:

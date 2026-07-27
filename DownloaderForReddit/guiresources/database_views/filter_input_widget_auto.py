@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 # Form implementation generated from reading ui file 'Resources\ui_files\database_views\filter_input_widget.ui'
 #
@@ -10,7 +9,7 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 
-class Ui_FilterInputWidget(object):
+class Ui_FilterInputWidget:
     def setupUi(self, FilterInputWidget):
         FilterInputWidget.setObjectName("FilterInputWidget")
         FilterInputWidget.resize(479, 255)

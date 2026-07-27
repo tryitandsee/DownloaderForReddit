@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 # Form implementation generated from reading ui file 'Resources\ui_files\settings\quick_filter_settings_widget.ui'
 #
@@ -7,10 +6,10 @@
 # WARNING! All changes made in this file will be lost!
 
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtWidgets
 
 
-class Ui_QuickFilterSettingsWidget(object):
+class Ui_QuickFilterSettingsWidget:
     def setupUi(self, QuickFilterSettingsWidget):
         QuickFilterSettingsWidget.setObjectName("QuickFilterSettingsWidget")
         QuickFilterSettingsWidget.resize(906, 709)

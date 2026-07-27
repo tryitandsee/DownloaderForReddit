@@ -22,10 +22,11 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PyQt5.QtCore import QAbstractListModel, QModelIndex, Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QPixmap
 import os
 from queue import Queue
+
+from PyQt5.QtCore import QAbstractListModel, QModelIndex, Qt, QThread, pyqtSignal
+from PyQt5.QtGui import QPixmap
 
 from ..utils.reddit_utils import NameChecker
 
@@ -69,7 +70,7 @@ class AddRedditObjectListModel(QAbstractListModel):
 
     def removeRows(self, pos, rows, parent=QModelIndex(), *args, **kwargs):
         self.beginRemoveRows(parent, pos, pos + rows - 1)
-        for x in range(rows):
+        for _x in range(rows):
             name = self.name_list[pos]
             self.name_list.remove(name)
             del self.validation_dict[name]
@@ -93,14 +94,14 @@ class AddRedditObjectListModel(QAbstractListModel):
     def data(self, index, role=Qt.DisplayRole):
         if role == Qt.DisplayRole:
             return self.name_list[index.row()]
-        elif role == Qt.DecorationRole:
+        if role == Qt.DecorationRole:
             name = self.name_list[index.row()]
             if self.validation_dict[name] is None:
                 return None
             if self.validation_dict[name]:
                 return self.valid_img
-            else:
-                return self.non_valid_img
+            return self.non_valid_img
+        return None
 
     def add_complete_object(self, reddit_object):
         """

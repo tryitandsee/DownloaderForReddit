@@ -22,13 +22,14 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import os
 import logging
+import os
 from logging.handlers import RotatingFileHandler
+
 from pythonjsonlogger import jsonlogger
 
-from ..utils import system_util
 from ..local_logging.stream_formatter import JsonStreamFormatter
+from ..utils import system_util
 
 
 def make_logger():

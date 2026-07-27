@@ -1,9 +1,20 @@
-from PyQt5.QtWidgets import (QLabel, QVBoxLayout, QHBoxLayout, QWidget, QFrame, QListWidgetItem, QToolButton,
-                             QInputDialog)
 from PyQt5.QtCore import QSize
 from PyQt5.QtGui import QColor
+from PyQt5.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QListWidgetItem,
+    QToolButton,
+    QVBoxLayout,
+    QWidget,
+)
 
-from DownloaderForReddit.guiresources.settings.quick_filter_settings_widget_auto import Ui_QuickFilterSettingsWidget
+from DownloaderForReddit.guiresources.settings.quick_filter_settings_widget_auto import (
+    Ui_QuickFilterSettingsWidget,
+)
+
 from .abstract_settings_widget import AbstractSettingsWidget
 
 
@@ -85,7 +96,7 @@ class QuickFilterSettingsWidget(AbstractSettingsWidget, Ui_QuickFilterSettingsWi
 
     def add_quick_filter(self):
         name, ok = QInputDialog.getText(self, 'New Quick Filter', 'Enter new quick filter name')
-        if ok and name != '' and name not in self.filters.keys():
+        if ok and name != '' and name not in self.filters:
             self.filters[name] = []
             self.name_list_widget.addItem(name)
             self.name_list_widget.setCurrentRow(self.name_list_widget.count() - 1)

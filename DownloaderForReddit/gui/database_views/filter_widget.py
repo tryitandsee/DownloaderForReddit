@@ -1,9 +1,21 @@
-from PyQt5.QtWidgets import QWidget, QLabel, QToolButton, QHBoxLayout, QVBoxLayout, QListWidgetItem, QFrame, QListView
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtGui import QColor
+from PyQt5.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QListView,
+    QListWidgetItem,
+    QToolButton,
+    QVBoxLayout,
+    QWidget,
+)
 
-from DownloaderForReddit.guiresources.database_views.filter_widget_auto import Ui_FilterWidget
+from DownloaderForReddit.guiresources.database_views.filter_widget_auto import (
+    Ui_FilterWidget,
+)
 from DownloaderForReddit.utils import injector
+
 from .filter_item import FilterItem
 
 

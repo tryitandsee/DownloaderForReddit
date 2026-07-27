@@ -26,10 +26,16 @@ import json
 import logging
 from datetime import datetime
 
+from DownloaderForReddit.database.model_enums import (
+    CommentDownload,
+    CommentSortMethod,
+    LimitOperator,
+    NsfwFilter,
+    PostSortMethod,
+)
+from DownloaderForReddit.database.models import Subreddit, User
+
 from . import legacy_import
-from DownloaderForReddit.database.models import User, Subreddit
-from DownloaderForReddit.database.model_enums import (LimitOperator, PostSortMethod, NsfwFilter, CommentDownload,
-                                                      CommentSortMethod)
 
 logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
 
@@ -53,7 +59,7 @@ TYPE_MAP = {
 
 def import_json(file_path):
     reddit_objects = []
-    with open(file_path, 'r', encoding='utf-8') as file:
+    with open(file_path, encoding='utf-8') as file:
         j = json.load(file)
         try:
             reddit_objects = import_reddit_objects(j)
@@ -70,13 +76,12 @@ def import_reddit_objects(json_element):
     legacy_ros = json_element.get('object_list', None)
     if new_ros is not None:
         return _get_reddit_objects(new_ros)
-    elif ro_lists is not None:
+    if ro_lists is not None:
         ros = []
         for ro_list in ro_lists:
             ros.extend(ro_list['reddit_objects'])
         return _get_reddit_objects(ros)
-    else:
-        return legacy_import.import_legacy(legacy_ros)
+    return legacy_import.import_legacy(legacy_ros)
 
 
 def _get_reddit_objects(ro_data):

@@ -1,4 +1,4 @@
-from PyQt5.QtCore import QEvent, Qt, QObject
+from PyQt5.QtCore import QEvent, QObject, Qt
 from PyQt5.QtGui import QTextDocument
 
 

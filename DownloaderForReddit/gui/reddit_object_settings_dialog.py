@@ -1,10 +1,13 @@
 import logging
-from PyQt5 import QtWidgets
-from PyQt5.QtCore import pyqtSignal, QItemSelectionModel
 
-from ..guiresources.reddit_object_settings_dialog_auto import Ui_RedditObjectSettingsDialog
-from ..viewmodels.reddit_object_list_model import RedditObjectListModel
+from PyQt5 import QtWidgets
+from PyQt5.QtCore import QItemSelectionModel, pyqtSignal
+
+from ..guiresources.reddit_object_settings_dialog_auto import (
+    Ui_RedditObjectSettingsDialog,
+)
 from ..utils import injector
+from ..viewmodels.reddit_object_list_model import RedditObjectListModel
 
 
 class RedditObjectSettingsDialog(QtWidgets.QDialog, Ui_RedditObjectSettingsDialog):

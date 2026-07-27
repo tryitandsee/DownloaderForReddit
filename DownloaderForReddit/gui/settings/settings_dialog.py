@@ -1,18 +1,21 @@
 from PyQt5.QtWidgets import QDialog, QDialogButtonBox
 
-from DownloaderForReddit.guiresources.settings.settings_dialog_auto import Ui_SettingsDialog
+from DownloaderForReddit.guiresources.settings.settings_dialog_auto import (
+    Ui_SettingsDialog,
+)
+from DownloaderForReddit.utils import injector
+
 from .core_settings_widget import CoreSettingsWidget
-from .download_settings_widget import DownloadSettingsWidget
-from .display_settings_widget import DisplaySettingsWidget
-from .output_settings_widget import OutputSettingsWidget
-from .imgur_settings_widget import ImgurSettingsWidget
 from .database_settings_widget import DatabaseSettingsWidget
+from .default_filter_settings_widget import DefaultFilterSettingsWidget
+from .display_settings_widget import DisplaySettingsWidget
+from .download_settings_widget import DownloadSettingsWidget
+from .imgur_settings_widget import ImgurSettingsWidget
+from .notification_settings_widget import NotificationSettingsWidget
+from .output_settings_widget import OutputSettingsWidget
+from .quick_filter_settings_widget import QuickFilterSettingsWidget
 from .schedule_settings_widget import ScheduleSettingsWidget
 from .supported_video_settings_widget import SupportedVideoSettingsWidget
-from .quick_filter_settings_widget import QuickFilterSettingsWidget
-from .default_filter_settings_widget import DefaultFilterSettingsWidget
-from .notification_settings_widget import NotificationSettingsWidget
-from DownloaderForReddit.utils import injector
 
 
 class SettingsDialog(QDialog, Ui_SettingsDialog):
@@ -42,7 +45,7 @@ class SettingsDialog(QDialog, Ui_SettingsDialog):
             'Notifications': NotificationSettingsWidget(),
         }
 
-        for item in self.settings_map.keys():
+        for item in self.settings_map:
             self.settings_list_widget.addItem(item)
 
         self.current_display = None

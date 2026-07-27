@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 # Form implementation generated from reading ui file 'Resources\ui_files\database_views\filter_widget.ui'
 #
@@ -7,10 +6,10 @@
 # WARNING! All changes made in this file will be lost!
 
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtWidgets
 
 
-class Ui_FilterWidget(object):
+class Ui_FilterWidget:
     def setupUi(self, FilterWidget):
         FilterWidget.setObjectName("FilterWidget")
         FilterWidget.resize(350, 850)

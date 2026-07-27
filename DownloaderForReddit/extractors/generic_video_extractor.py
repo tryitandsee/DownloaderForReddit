@@ -24,13 +24,14 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 
 
 from time import time
+
 from yt_dlp import YoutubeDL
 
-from .base_extractor import BaseExtractor
-from ..core.errors import Error
 from ..core import const
+from ..core.errors import Error
 from ..local_logging import log_utils
 from ..utils import injector
+from .base_extractor import BaseExtractor
 
 
 class GenericVideoExtractor(BaseExtractor):
@@ -42,8 +43,8 @@ class GenericVideoExtractor(BaseExtractor):
     def get_url_key(cls):
         if cls.load_time is None or cls.load_time < injector.get_settings_manager().supported_videos_updated:
             try:
-                with open(const.SUPPORTED_SITES_FILE, 'r') as file:
-                    cls.key = [x.strip().strip('*') for x in file.readlines() if x.endswith('*\n')]
+                with open(const.SUPPORTED_SITES_FILE) as file:
+                    cls.key = [x.strip().strip('*') for x in file if x.endswith('*\n')]
                     load_time = time()
                     cls.load_time = load_time
                     injector.get_settings_manager().supported_videos_updated = load_time

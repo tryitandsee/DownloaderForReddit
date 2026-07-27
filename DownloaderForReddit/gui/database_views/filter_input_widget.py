@@ -1,11 +1,26 @@
-from PyQt5.QtWidgets import QWidget, QLineEdit, QSpinBox, QComboBox, QDateTimeEdit, QSizePolicy
 from PyQt5.QtCore import Qt, pyqtSignal
-from sqlalchemy import Integer, String, DateTime, Enum, Boolean
+from PyQt5.QtWidgets import (
+    QComboBox,
+    QDateTimeEdit,
+    QLineEdit,
+    QSizePolicy,
+    QSpinBox,
+    QWidget,
+)
+from sqlalchemy import Boolean, DateTime, Enum, Integer, String
 
-from DownloaderForReddit.guiresources.database_views.filter_input_widget_auto import Ui_FilterInputWidget
-from DownloaderForReddit.database.filters import (DownloadSessionFilter, RedditObjectFilter, PostFilter, ContentFilter,
-                                                  CommentFilter)
+from DownloaderForReddit.database.filters import (
+    CommentFilter,
+    ContentFilter,
+    DownloadSessionFilter,
+    PostFilter,
+    RedditObjectFilter,
+)
+from DownloaderForReddit.guiresources.database_views.filter_input_widget_auto import (
+    Ui_FilterInputWidget,
+)
 from DownloaderForReddit.utils import injector
+
 from .filter_item import FilterItem
 
 
@@ -101,10 +116,11 @@ class FilterInputWidget(QWidget, Ui_FilterInputWidget):
         t = type(self.value_field)
         if t == QComboBox:
             return self.value_field.currentData(Qt.UserRole)
-        elif t == QLineEdit:
+        if t == QLineEdit:
             return self.value_field.text()
-        elif t == QSpinBox:
+        if t == QSpinBox:
             return self.value_field.value()
+        return None
 
     def handle_quick_filter(self):
         if self.launch_quick_filter and self.quick_filter_combo.currentIndex() != 0:

@@ -23,20 +23,21 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from os import path
+from typing import ClassVar
 from urllib.parse import urlparse
 
 import requests
 
-from .base_extractor import BaseExtractor
-from ..core.errors import Error
 from ..core import const
+from ..core.errors import Error
+from .base_extractor import BaseExtractor
 
 _GFYCAT_ENDPOINT = "https://api.gfycat.com/v1/gfycats/"
 
 
 class GfycatExtractor(BaseExtractor):
 
-    url_key = ['gfycat']
+    url_key: ClassVar[list[str]] = ['gfycat']
 
     def __init__(self, post, **kwargs):
         """
@@ -60,8 +61,7 @@ class GfycatExtractor(BaseExtractor):
     def extract_single(self):
         item = urlparse(self.url)
         gif_id = item.path
-        if gif_id.startswith("/watch/"):
-            gif_id = gif_id[len('/watch/'):]
+        gif_id = gif_id.removeprefix("/watch/")
         gif_id = path.basename(gif_id).split('-')[0]
 
         response = requests.get(_GFYCAT_ENDPOINT + gif_id, timeout=10)

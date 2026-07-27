@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 # Form implementation generated from reading ui file 'Resources\ui_files\widgets\object_settings_widget.ui'
 #
@@ -11,7 +10,7 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 
-class Ui_ObjectSettingsWidget(object):
+class Ui_ObjectSettingsWidget:
     def setupUi(self, ObjectSettingsWidget):
         ObjectSettingsWidget.setObjectName("ObjectSettingsWidget")
         ObjectSettingsWidget.resize(403, 1407)

@@ -1,10 +1,9 @@
-import logging
 import csv
+import logging
 import sqlite3
 
 from DownloaderForReddit.database.models import RedditObject, RedditObjectList
 from DownloaderForReddit.utils import injector
-
 
 logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
 
@@ -33,5 +32,4 @@ def export_csv(object_list, model, file_path):
 def get_id_list(object_list):
     if isinstance(object_list, RedditObjectList):
         return [x.id for x in object_list.reddit_objects]
-    else:
-        return [x.id for x in object_list]
+    return [x.id for x in object_list]

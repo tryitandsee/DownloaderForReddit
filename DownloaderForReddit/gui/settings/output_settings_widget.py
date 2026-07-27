@@ -1,9 +1,12 @@
-from PyQt5.QtWidgets import QColorDialog
 from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QColorDialog
 
-from DownloaderForReddit.guiresources.settings.output_settings_widget_auto import Ui_OutputSettingsWidget
-from .abstract_settings_widget import AbstractSettingsWidget
+from DownloaderForReddit.guiresources.settings.output_settings_widget_auto import (
+    Ui_OutputSettingsWidget,
+)
+
 from ...messaging.message import MessagePriority
+from .abstract_settings_widget import AbstractSettingsWidget
 
 
 class OutputSettingsWidget(AbstractSettingsWidget, Ui_OutputSettingsWidget):

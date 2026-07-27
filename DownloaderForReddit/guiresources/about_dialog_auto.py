@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 # Form implementation generated from reading ui file 'Resources\ui_files\about_dialog.ui'
 #
@@ -10,7 +9,7 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 
-class Ui_About(object):
+class Ui_About:
     def setupUi(self, About):
         About.setObjectName("About")
         About.resize(413, 491)

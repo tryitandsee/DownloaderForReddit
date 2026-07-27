@@ -1,10 +1,11 @@
 import os
 from datetime import datetime
-from PyQt5.QtWidgets import QWizard, QFileDialog
+
+from PyQt5.QtWidgets import QFileDialog, QWizard
 
 from ..guiresources.export_wizard_auto import Ui_ExportWizard
-from ..utils import injector, system_util, general_utils
-from ..utils.exporters import json_exporter, csv_exporter
+from ..utils import general_utils, injector, system_util
+from ..utils.exporters import csv_exporter, json_exporter
 
 
 class ExportWizard(QWizard, Ui_ExportWizard):
@@ -37,8 +38,7 @@ class ExportWizard(QWizard, Ui_ExportWizard):
     def extension(self):
         if self.csv_export_radio.isChecked():
             return 'csv'
-        else:
-            return 'json'
+        return 'json'
 
     def toggle_nested_page(self):
         """
@@ -69,9 +69,8 @@ class ExportWizard(QWizard, Ui_ExportWizard):
             else:
                 self.export_csv()
             return True
-        else:
-            self.export_path_line_edit.setStyleSheet('border: 1px solid red;')
-            return False
+        self.export_path_line_edit.setStyleSheet('border: 1px solid red;')
+        return False
 
     def export_json(self):
         export_method = self.json_export_map[self.export_model.__name__]

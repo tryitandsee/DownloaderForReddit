@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QDialog, QTableWidgetItem, QCheckBox
+from PyQt5.QtWidgets import QCheckBox, QDialog, QTableWidgetItem
 
 from ..guiresources.existing_names_dialog_auto import Ui_ExistingNameDialog
 
@@ -17,7 +17,7 @@ class ExistingNamesDialog(QDialog, Ui_ExistingNameDialog):
         self.existing_names = existing_names
         self.name_table_widget.setRowCount(len(self.existing_names))
         self.checkboxes = []
-        self.decisions = {x: False for x in existing_names.keys()}
+        self.decisions = {x: False for x in existing_names}
 
         self.select_all_checkbox.toggled.connect(self.toggle_all)
         self.setup_table()

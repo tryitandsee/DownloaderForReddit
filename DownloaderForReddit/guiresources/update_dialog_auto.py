@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 # Form implementation generated from reading ui file 'Resources\ui_files\update_dialog.ui'
 #
@@ -10,7 +9,7 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 
-class Ui_update_dialog_box(object):
+class Ui_update_dialog_box:
     def setupUi(self, update_dialog_box):
         update_dialog_box.setObjectName("update_dialog_box")
         update_dialog_box.resize(794, 231)

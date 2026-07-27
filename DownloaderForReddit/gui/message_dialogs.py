@@ -23,8 +23,8 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 
-from PyQt5.QtWidgets import QMessageBox as Message
 from PyQt5.QtWidgets import QCheckBox
+from PyQt5.QtWidgets import QMessageBox as Message
 
 
 def generic_message(parent, title='', text=''):
@@ -44,8 +44,8 @@ def no_subreddit_list(parent):
     return reply == Message.Ok
 
 
-def no_reddit_object_selected(parent, type):
-    text = 'No %s selected' % type
+def no_reddit_object_selected(parent, object_type):
+    text = f'No {object_type} selected'
     reply = Message.information(parent, 'No Selection', text, Message.Ok)
     return reply == Message.Ok
 
@@ -76,7 +76,7 @@ def remove_list(parent, list_type):
 
 def reddit_object_not_valid(parent, name, type_):
     type_ = type_.lower()
-    text = '%s is not a valid %s. Would you like to remove this %s from the %s list?' % (name, type_, type_, type_)
+    text = f'{name} is not a valid {type_}. Would you like to remove this {type_} from the {type_} list?'
     reply = Message.question(parent, 'Invalid Object', text, Message.Yes, Message.No)
     return reply == Message.Yes
 
@@ -90,33 +90,33 @@ def reddit_object_forbidden(parent, name, type_):
 
 
 def user_not_valid(parent, user):
-    text = '%s is not a valid user. Would you like to remove this user from the user list?' % user
+    text = f'{user} is not a valid user. Would you like to remove this user from the user list?'
     reply = Message.information(parent, 'Invalid User', text, Message.Yes, Message.No)
     return reply == Message.Ok
 
 
 def subreddit_not_valid(parent, sub):
-    text = '%s is not a valid subreddit. Would you like to remove this sub from the subreddit list?' % sub
+    text = f'{sub} is not a valid subreddit. Would you like to remove this sub from the subreddit list?'
     reply = Message.information(parent, 'Invalid Subreddit', text, Message.Yes, Message.No)
     return reply == Message.Ok
 
 
 def not_valid_name(parent, name):
-    text = 'Sorry, "%s" is not a valid name' % name
+    text = f'Sorry, "{name}" is not a valid name'
     reply = Message.information(parent, 'Invalid Name', text, Message.Ok)
     return reply == Message.Ok
 
 
 def invalid_names(parent, name_list):
-    text = '%s\nare not valid names' % '\n'.join(x for x in name_list)
+    text = '{}\nare not valid names'.format('\n'.join(x for x in name_list))
     reply = Message.information(parent, 'Invalid Names', text, Message.Ok)
     return reply == Message.Ok
 
 
 def no_download_folder(parent, object_type):
     object_type = object_type.lower()
-    text = 'The %s you selected does not appear to have a download folder. This is likely because nothing has ' \
-           'been downloaded for this %s yet.' % (object_type, object_type)
+    text = f'The {object_type} you selected does not appear to have a download folder. This is likely because nothing has ' \
+           f'been downloaded for this {object_type} yet.'
     reply = Message.information(parent, 'Folder Does Not Exist', text, Message.Ok)
     return reply == Message.Ok
 
@@ -143,7 +143,7 @@ def invalid_file_path(parent):
 
 
 def failed_to_rename_error(parent, object_name):
-    text = '%s was removed from the download list, but the folder was not able to be renamed' % object_name
+    text = f'{object_name} was removed from the download list, but the folder was not able to be renamed'
     reply = Message.information(parent, 'Rename Failure', text, Message.Ok)
     return reply == Message.Ok
 
@@ -162,7 +162,7 @@ def optional_info_dialog(parent, title, text):
     dialog.setText(text)
     checkbox = QCheckBox('Do not show again')
     dialog.setCheckBox(checkbox)
-    reply = dialog.exec_()
+    dialog.exec_()
     return checkbox.isChecked()
 
 
@@ -173,8 +173,7 @@ def warning_question_dialog(parent, title, text):
     dialog.setText(text + '\n')
     dialog.setStandardButtons(Message.Yes | Message.No)
     dialog.setDefaultButton(Message.No)
-    reply = dialog.exec_() == Message.Yes
-    return reply
+    return dialog.exec_() == Message.Yes
 
 
 def optional_question_dialog(parent, title, text, checkbox_text='Do not show again'):
@@ -195,5 +194,4 @@ def error_dialog(parent, title, text):
     dialog = Message(parent)
     dialog.setWindowTitle(title)
     dialog.setText(text)
-    reply = dialog.exec_()
-    return reply
+    return dialog.exec_()

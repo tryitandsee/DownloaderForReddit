@@ -1,9 +1,16 @@
 from threading import Thread
-from PyQt5.QtWidgets import QWidget
-from PyQt5.QtCore import pyqtSignal, QMetaObject, Qt, Q_ARG
 
+from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtWidgets import QWidget
+
+from ...database.models import (
+    Comment,
+    Content,
+    ListAssociation,
+    Post,
+    RedditObjectList,
+)
 from ...guiresources.widgets.object_info_widget_auto import Ui_ObjectInfoWidget
-from ...database.models import Post, Comment, Content, RedditObject, RedditObjectList, ListAssociation, User, Subreddit
 from ...utils import injector
 
 

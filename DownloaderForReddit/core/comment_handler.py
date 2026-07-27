@@ -1,9 +1,9 @@
 import logging
 
-from .runner import Runner, verify_run
 from ..core.comment_filter import CommentFilter
 from ..core.submittable_creator import SubmittableCreator
 from ..utils import injector
+from .runner import Runner, verify_run
 
 
 class CommentHandler(Runner):
@@ -30,8 +30,7 @@ class CommentHandler(Runner):
         sort_method = self.significant_ro.comment_sort_method
         if sort_method.value == 6:
             return 'q&a'
-        else:
-            return sort_method.name.lower()
+        return sort_method.name.lower()
 
     def run(self):
         if self.session is not None:

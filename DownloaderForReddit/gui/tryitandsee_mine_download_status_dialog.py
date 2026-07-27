@@ -1,16 +1,24 @@
 # [mine] feat(gui): download status window showing active threads and queue depth
+import logging
+
+from PyQt5.QtCore import QTimer
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTableWidget,
-    QTableWidgetItem, QHeaderView, QSizePolicy,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QSizePolicy,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt5.QtCore import QTimer, Qt
-from PyQt5.QtGui import QFont
 
 
 class DownloadStatusDialog(QWidget):
 
     def __init__(self, get_runner):
         super().__init__()
+        self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
         self.get_runner = get_runner
         self._build_ui()
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
@@ -65,7 +73,7 @@ class DownloadStatusDialog(QWidget):
         try:
             self._refresh()
         except Exception:
-            pass
+            self.logger.exception('Failed to refresh download status dialog')
 
     def _refresh(self):
         try:

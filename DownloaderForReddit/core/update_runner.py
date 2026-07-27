@@ -1,15 +1,17 @@
 import logging
 from datetime import datetime
 from queue import Queue
-from threading import Thread, Event
+from threading import Event, Thread
+
 from PyQt5.QtCore import QObject, pyqtSignal
 
-from .submission_handler import SubmissionHandler
 from DownloaderForReddit.core.download.downloader import Downloader
-from .runner import verify_run
+
 from ..database.models import DownloadSession, Post
-from ..utils import injector, reddit_utils
 from ..messaging.message import Message
+from ..utils import injector, reddit_utils
+from .runner import verify_run
+from .submission_handler import SubmissionHandler
 
 
 class UpdateRunner(QObject):
@@ -91,9 +93,9 @@ class UpdateRunner(QObject):
                 Message.send_info(f'{post.title} score updated\n'
                                   f'    Old score: {old_score}  |  New Score: {post.score}')
             except:
-                self.logger.error('Failed to update post', extra={'post_id': post.id, 'post_title': post.title,
-                                                                  'author': post.author.name,
-                                                                  'subreddit': post.subreddit.name}, exc_info=True)
+                self.logger.exception('Failed to update post', extra={'post_id': post.id, 'post_title': post.title,
+                                                                       'author': post.author.name,
+                                                                       'subreddit': post.subreddit.name})
                 Message.send_warning(f'Failed to update score for {post.title}')
 
     @verify_run

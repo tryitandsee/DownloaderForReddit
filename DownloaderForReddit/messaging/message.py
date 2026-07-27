@@ -1,5 +1,4 @@
 from enum import Enum
-from typing import Optional
 
 from ..utils import injector
 
@@ -28,7 +27,7 @@ class Message:
 
     message_queue = injector.get_message_queue()
 
-    def __init__(self, message_type: MessageType, message: Optional[str] = None,
+    def __init__(self, message_type: MessageType, message: str | None = None,
                  priority: MessagePriority = MessagePriority.INFO):
         self.message_type = message_type
         self.message = message
@@ -39,7 +38,7 @@ class Message:
         return f'{self.priority.name}:  {self.message}'
 
     @classmethod
-    def send(cls, message_type: MessageType, message: Optional[str] = None,
+    def send(cls, message_type: MessageType, message: str | None = None,
              priority: MessagePriority = MessagePriority.INFO) -> None:
         m = cls(message_type, message, priority)
         cls.message_queue.put(m)

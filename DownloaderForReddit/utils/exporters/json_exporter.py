@@ -25,8 +25,7 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 import json
 import logging
 
-from ...database.models import RedditObjectList, RedditObject, Post, Content, Comment
-
+from ...database.models import Comment, Content, Post, RedditObject, RedditObjectList
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +77,7 @@ class SimpleJSONRedditObjectListEncoder(json.JSONEncoder):
                 'download_enabled': o.download_enabled,
                 'absolute_date_limit': o.absolute_date_limit_export,
             }
+        return None
 
 
 class NestedJSONRedditObjectListEncoder(SimpleJSONRedditObjectListEncoder):
@@ -87,6 +87,7 @@ class NestedJSONRedditObjectListEncoder(SimpleJSONRedditObjectListEncoder):
             data = super().default(o)
             data['reddit_objects'] = json.loads(json.dumps(o.reddit_objects.all(), cls=NestedJSONRedditObjectEncoder))
             return data
+        return None
 
 
 class RedditObjectCollection:
@@ -141,6 +142,7 @@ class SimpleJSONRedditObjectEncoder(json.JSONEncoder):
                 'new': o.new,
                 'object_type': o.object_type,
             }
+        return None
 
 
 class NestedJSONRedditObjectEncoder(SimpleJSONRedditObjectEncoder):
@@ -153,6 +155,7 @@ class NestedJSONRedditObjectEncoder(SimpleJSONRedditObjectEncoder):
             data['comments'] = json.loads(json.dumps(o.comments, cls=SimpleJSONCommentEncoder))
             data['lists'] = [{'id': l.id, 'name': l.name} for l in o.lists]
             return data
+        return None
 
 
 class PostCollection:
@@ -201,6 +204,7 @@ class NestedJSONPostEncoder(SimpleJSONPostEncoder):
             data['author'] = json.loads(json.dumps(o.author, cls=SimpleJSONRedditObjectEncoder))
             data['subreddit'] = json.loads(json.dumps(o.subreddit, cls=SimpleJSONRedditObjectEncoder))
             return data
+        return None
 
 
 class CommentCollection:
@@ -249,6 +253,7 @@ class NestedJSONCommentEncoder(SimpleJSONCommentEncoder):
             data['subreddit'] = json.loads(json.dumps(o.subreddit, cls=SimpleJSONRedditObjectEncoder))
             data['post'] = json.loads(json.dumps(o.post, cls=SimpleJSONPostEncoder))
             return data
+        return None
 
 
 class ContentCollection:
@@ -297,6 +302,7 @@ class NestedJSONContentEncoder(SimpleJSONContentEncoder):
             data['post'] = json.loads(json.dumps(o.post, cls=SimpleJSONPostEncoder))
             data['comment'] = json.loads(json.dumps(o.comment, cls=SimpleJSONCommentEncoder))
             return data
+        return None
 
 
 def export_reddit_object_list_to_json(object_list, file_path, nested=False):
@@ -341,5 +347,5 @@ def export_comments_to_json(comment_list, file_path, nested=False):
 def _export(collection, file_path, encoder):
     with open(file_path, mode='a', encoding='utf-8') as file:
         json.dump(collection.__dict__, file, cls=encoder, indent=4, ensure_ascii=False)
-    logger.info(f'Exported {collection.__class__.__name__} to json file',
+    logger.info('Exported %s to json file', collection.__class__.__name__,
                 extra={'encoder': encoder.__name__, 'export_count': collection.size()})

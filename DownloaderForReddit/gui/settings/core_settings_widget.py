@@ -1,11 +1,15 @@
 import os
-from PyQt5.QtWidgets import QFileDialog, QCheckBox, QListWidgetItem
-from PyQt5.QtGui import QValidator
-from PyQt5.QtCore import Qt
 
-from DownloaderForReddit.guiresources.settings.core_settings_widget_auto import Ui_CoreSettingsWidget
-from .abstract_settings_widget import AbstractSettingsWidget
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QValidator
+from PyQt5.QtWidgets import QCheckBox, QFileDialog, QListWidgetItem
+
+from DownloaderForReddit.guiresources.settings.core_settings_widget_auto import (
+    Ui_CoreSettingsWidget,
+)
 from DownloaderForReddit.utils import general_utils, system_util
+
+from .abstract_settings_widget import AbstractSettingsWidget
 
 
 class CoreSettingsWidget(AbstractSettingsWidget, Ui_CoreSettingsWidget):
@@ -120,5 +124,4 @@ class FormatValidator(QValidator):
     def validate(self, text, pos):
         if '%[dir_name]' in text:
             return QValidator.Acceptable, text, pos
-        else:
-            return QValidator.Invalid, text, pos
+        return QValidator.Invalid, text, pos

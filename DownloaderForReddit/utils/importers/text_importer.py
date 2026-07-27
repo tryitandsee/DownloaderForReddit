@@ -24,7 +24,6 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -37,7 +36,7 @@ def import_list_from_text_file(file_path):
     :return: A list of names which are to become reddit objects when returned.
     """
     reddit_objects = []
-    with open(file_path, 'r') as file:
+    with open(file_path) as file:
         content = file.readlines()
     names = [line for line in content]
     for name in names:

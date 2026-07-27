@@ -1,6 +1,9 @@
 from PyQt5.QtCore import Qt
 
-from DownloaderForReddit.guiresources.settings.notification_settings_widget_auto import Ui_NotificationSettingsWidget
+from DownloaderForReddit.guiresources.settings.notification_settings_widget_auto import (
+    Ui_NotificationSettingsWidget,
+)
+
 from .abstract_settings_widget import AbstractSettingsWidget
 
 

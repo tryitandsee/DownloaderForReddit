@@ -1,12 +1,12 @@
 import sys
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+
+from sqlalchemy import engine_from_config, pool
+
 from alembic import context
 
-sys.path = ['', '..'] + sys.path[1:]
+sys.path = ['', '..', *sys.path[1:]]
 from DownloaderForReddit.database.database_handler import DatabaseHandler
 from DownloaderForReddit.utils import injector
-
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

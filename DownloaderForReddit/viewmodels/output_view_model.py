@@ -1,7 +1,7 @@
 from PyQt5.QtCore import QAbstractListModel, QModelIndex, Qt, QVariant, pyqtSignal
 from PyQt5.QtGui import QColor
 
-from ..utils import injector, html_formatting
+from ..utils import html_formatting, injector
 
 
 class OutputViewModel(QAbstractListModel):
@@ -60,8 +60,7 @@ class OutputViewModel(QAbstractListModel):
                 text = self.display_messages[row].output
             else:
                 text = self.display_messages[row].message
-            formatted_text = html_formatting.format_html(text)
-            return formatted_text
+            return html_formatting.format_html(text)
         if role == Qt.ForegroundRole and self.settings_manager.use_color_output:
             r, g, b = getattr(self.settings_manager, f'{self.display_messages[row].priority.name.lower()}_color')
             return QColor(r, g, b)

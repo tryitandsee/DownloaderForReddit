@@ -1,6 +1,3 @@
-from abc import ABC
-
-
 def verify_run(method):
     """
     Decorator method that verifies that the containing class's continue_run variable is set to True before calling the
@@ -10,11 +7,12 @@ def verify_run(method):
     def check(instance, *args, **kwargs):
         if instance.continue_run:
             return method(instance, *args, **kwargs)
+        return None
 
     return check
 
 
-class Runner(ABC):
+class Runner:
 
     def __init__(self, stop_run):
         self.stop_run = stop_run

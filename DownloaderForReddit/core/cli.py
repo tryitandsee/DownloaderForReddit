@@ -1,9 +1,9 @@
 import argparse
 import os
 
-from ..version import __version__
-from ..utils import system_util, injector
 from ..messaging.message import Message
+from ..utils import injector, system_util
+from ..version import __version__
 
 
 class CLI:

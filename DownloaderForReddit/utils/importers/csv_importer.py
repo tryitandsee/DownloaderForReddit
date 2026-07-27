@@ -1,10 +1,17 @@
-import logging
 import csv
+import logging
 import sqlite3
 
-from DownloaderForReddit.database.models import RedditObjectList, RedditObject, User, Subreddit, Post, Content, Comment
+from DownloaderForReddit.database.models import (
+    Comment,
+    Content,
+    Post,
+    RedditObject,
+    RedditObjectList,
+    Subreddit,
+    User,
+)
 from DownloaderForReddit.utils import injector
-
 
 model_map = {model.__name__: model for model in [RedditObjectList, RedditObject, User, Subreddit, Post, Content,
                                                  Comment]}
@@ -64,7 +71,7 @@ def read_file(file_path):
     object_type = None
     data = []
     columns = []
-    with open(file_path, 'r', encoding='utf-8') as file:
+    with open(file_path, encoding='utf-8') as file:
         reader = csv.reader(file)
         count = 0
         for row in reader:

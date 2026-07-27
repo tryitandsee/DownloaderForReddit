@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 # Form implementation generated from reading ui file 'DownloadSessionsDialog.ui'
 #
@@ -6,9 +5,10 @@
 #
 # WARNING! All changes made in this file will be lost!
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtWidgets
 
-class Ui_DownloadSessionDialog(object):
+
+class Ui_DownloadSessionDialog:
     def setupUi(self, DownloadSessionDialog):
         DownloadSessionDialog.setObjectName("DownloadSessionDialog")
         DownloadSessionDialog.resize(1689, 919)

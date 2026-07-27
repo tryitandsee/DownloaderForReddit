@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 # Form implementation generated from reading ui file 'Resources\ui_files\add_reddit_object_dialog.ui'
 #
@@ -11,7 +10,7 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 
-class Ui_AddRedditObjectDialog(object):
+class Ui_AddRedditObjectDialog:
     def setupUi(self, AddRedditObjectDialog):
         AddRedditObjectDialog.setObjectName("AddRedditObjectDialog")
         AddRedditObjectDialog.resize(666, 328)

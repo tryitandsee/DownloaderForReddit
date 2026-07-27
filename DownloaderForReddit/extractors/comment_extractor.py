@@ -1,8 +1,8 @@
 import os
 
-from .self_post_extractor import SelfPostExtractor
 from ..core.errors import Error
 from ..utils import system_util
+from .self_post_extractor import SelfPostExtractor
 
 
 class CommentExtractor(SelfPostExtractor):
@@ -34,9 +34,9 @@ class CommentExtractor(SelfPostExtractor):
                 text = self.get_text(extension)
                 file.write(text)
         except:
-            self.logger.error('Failed to download comment text',
-                              extra={'post': self.post.title, 'post_id': self.post.id, 'comment_id': self.comment.id,
-                                     'directory_path': dir_path, 'title': title}, exc_info=True)
+            self.logger.exception('Failed to download comment text',
+                                  extra={'post': self.post.title, 'post_id': self.post.id,
+                                         'comment_id': self.comment.id, 'directory_path': dir_path, 'title': title})
 
     def check_file_path(self, dir_path, name, ext):
         self.create_dir_path(dir_path)

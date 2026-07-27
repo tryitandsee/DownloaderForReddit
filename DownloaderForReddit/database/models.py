@@ -1,16 +1,34 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, SmallInteger, String, Boolean, DateTime, ForeignKey, Text, Enum, event
-from sqlalchemy.orm import relationship, backref
+from typing import Any, ClassVar
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    SmallInteger,
+    String,
+    Text,
+    event,
+)
+from sqlalchemy.orm import backref, relationship
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql import func
 
-from .database_handler import DatabaseHandler
-from .model_enums import (CommentDownload, NsfwFilter, LimitOperator, PostSortMethod, CommentSortMethod,
-                          DuplicateControlMethod)
-from ..core.errors import Error
 from ..core import const
-from ..utils import system_util, injector, general_utils
-
+from ..core.errors import Error
+from ..utils import general_utils, injector, system_util
+from .database_handler import DatabaseHandler
+from .model_enums import (
+    CommentDownload,
+    CommentSortMethod,
+    DuplicateControlMethod,
+    LimitOperator,
+    NsfwFilter,
+    PostSortMethod,
+)
 
 Base = DatabaseHandler.base
 
@@ -291,7 +309,7 @@ class RedditObject(BaseModel):
 
     object_type = Column(String(15))
 
-    __mapper_args__ = {
+    __mapper_args__: ClassVar[dict[str, Any]] = {
         'polymorphic_identity': 'REDDIT_OBJECT',
         'polymorphic_on':  object_type,
     }
@@ -371,7 +389,7 @@ class RedditObject(BaseModel):
 
     @property
     def total_score_display(self):
-        return '{:,}'.format(self.total_score)
+        return f'{self.total_score:,}'
 
     @property
     def post_count(self):
@@ -442,7 +460,7 @@ class User(RedditObject):
 
     id = Column(ForeignKey('reddit_object.id'), primary_key=True, autoincrement=True)
 
-    __mapper_args__ = {
+    __mapper_args__: ClassVar[dict[str, Any]] = {
         'polymorphic_identity': 'USER',
     }
 
@@ -453,7 +471,7 @@ class Subreddit(RedditObject):
 
     id = Column(ForeignKey('reddit_object.id'), primary_key=True, autoincrement=True)
 
-    __mapper_args__ = {
+    __mapper_args__: ClassVar[dict[str, Any]] = {
         'polymorphic_identity': 'SUBREDDIT',
     }
 
@@ -545,7 +563,7 @@ class DownloadSession(BaseModel):
 
 
 @event.listens_for(DownloadSession.end_time, 'set')
-def set_download_session_duration(target, value, oldValue, initiator):
+def set_download_session_duration(target, value, old_value, initiator):
     target.duration = value.timestamp() - target.start_time.timestamp()
 
 
@@ -600,8 +618,7 @@ class Post(BaseModel):
         length = injector.get_settings_manager().short_title_char_length
         if length > 0:
             return self.title[:length]
-        else:
-            return self.title
+        return self.title
 
     @property
     def sanitized_title(self):
@@ -629,7 +646,7 @@ class Post(BaseModel):
 
     @property
     def score_display(self):
-        return '{:,}'.format(self.score)
+        return f'{self.score:,}'
 
     @property
     def extraction_date_display(self):
@@ -681,7 +698,7 @@ class Comment(BaseModel):
     post_id = Column(ForeignKey('post.id'))
     post = relationship('Post', backref='comments')
     parent_id = Column(ForeignKey('comment.id'), nullable=True)
-    parent = relationship('Comment', remote_side=[id], backref='children')
+    parent = relationship('Comment', remote_side=[id], backref='children')  # noqa: A003 -- id is the primary key Column defined above
     download_session_id = Column(ForeignKey('download_session.id'))
     download_session = relationship('DownloadSession', backref='comments')  # session where the comment was extracted
 
@@ -706,7 +723,7 @@ class Comment(BaseModel):
 
     @property
     def score_display(self):
-        return '{:,}'.format(self.score)
+        return f'{self.score:,}'
 
     @property
     def extraction_date_display(self):
@@ -780,8 +797,7 @@ class Content(BaseModel):
         length = injector.get_settings_manager().short_title_char_length
         if length > 0:
             return self.title[:length]
-        else:
-            return self.title
+        return self.title
 
     @property
     def download_date_display(self):

@@ -11,11 +11,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Protocol, Tuple
+from typing import Protocol
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
 from playwright._impl._errors import TargetClosedError
-from playwright.sync_api import Error as PlaywrightError, Locator, Page, sync_playwright
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import Locator, Page, sync_playwright
 
 PROFILE_DIR = Path(__file__).resolve().parent.parent.parent / 'browser_profile'
 REDDIT_BASE_URL = 'https://www.reddit.com'
@@ -34,7 +35,7 @@ class ValidationError(Enum):
 @dataclass
 class ValidationResult:
     valid: bool
-    error: Optional[ValidationError] = None
+    error: ValidationError | None = None
 
 
 @dataclass
@@ -59,19 +60,19 @@ class RedditSource(Protocol):
 
     def validate_subreddit(self, name: str) -> ValidationResult: ...
 
-    def iter_user_submissions(self, name: str) -> List[SubmissionData]: ...
+    def iter_user_submissions(self, name: str) -> list[SubmissionData]: ...
 
-    def iter_subreddit_submissions(self, name: str) -> List[SubmissionData]: ...
+    def iter_subreddit_submissions(self, name: str) -> list[SubmissionData]: ...
 
-    def iter_home_feed(self) -> List[SubmissionData]: ...  # following-only aggregation
+    def iter_home_feed(self) -> list[SubmissionData]: ...  # following-only aggregation
 
     # Combined single-navigation validate + collect, for the initial fetch of a single user/subreddit
     # -- avoids a separate profile-page visit before the submitted/new-listing visit.
-    def validate_and_iter_user_submissions(self, name: str) -> Tuple[ValidationResult, List[SubmissionData]]: ...
+    def validate_and_iter_user_submissions(self, name: str) -> tuple[ValidationResult, list[SubmissionData]]: ...
 
-    def validate_and_iter_subreddit_submissions(self, name: str) -> Tuple[ValidationResult, List[SubmissionData]]: ...
+    def validate_and_iter_subreddit_submissions(self, name: str) -> tuple[ValidationResult, list[SubmissionData]]: ...
 
-    def get_post(self, url: str) -> Optional[SubmissionData]: ...
+    def get_post(self, url: str) -> SubmissionData | None: ...
 
     def open_url(self, url: str) -> None: ...
 
@@ -93,7 +94,7 @@ def _normalize_reddit_url(url: str) -> str:
     return urlunsplit(parts)
 
 
-def _parse_post(post: Locator) -> Optional[SubmissionData]:
+def _parse_post(post: Locator) -> SubmissionData | None:
     raw_id = post.get_attribute('id')
     if not raw_id:
         return None
@@ -192,7 +193,7 @@ class BrowserRedditSource:
             self._launch_context()
         return self._context.pages[0] if self._context.pages else self._context.new_page()
 
-    def read_current_page_posts(self) -> List[SubmissionData]:
+    def read_current_page_posts(self) -> list[SubmissionData]:
         """
         Reads whatever <shreddit-post> elements are on the page right now -- no navigation, no
         scrolling. Used for ambient extraction while the dedicated account's browser window is
@@ -201,7 +202,7 @@ class BrowserRedditSource:
         """
         return self._executor.submit(self._read_current_page_posts_impl).result()
 
-    def _read_current_page_posts_impl(self) -> List[SubmissionData]:
+    def _read_current_page_posts_impl(self) -> list[SubmissionData]:
         # Ambient extraction should pause, not relaunch, while the user has no browser window
         # open -- unlike explicit downloads/navigation, which need the browser and so relaunch
         # it via _page().
@@ -224,14 +225,14 @@ class BrowserRedditSource:
             self._context = None
             return []
 
-    def _collect(self, url: str, limit: Optional[int] = None, known_ids: Optional[set] = None) -> List[SubmissionData]:
+    def _collect(self, url: str, limit: int | None = None, known_ids: set | None = None) -> list[SubmissionData]:
         page = self._page()
         page.goto(url)
         page.wait_for_timeout(2000)
         return self._scroll_and_collect(page, url, limit, known_ids)
 
-    def _scroll_and_collect(self, page: Page, url: str, limit: Optional[int] = None,
-                            known_ids: Optional[set] = None) -> List[SubmissionData]:
+    def _scroll_and_collect(self, page: Page, url: str, limit: int | None = None,
+                            known_ids: set | None = None) -> list[SubmissionData]:
         seen = set()
         results = []
         consecutive_known = 0
@@ -269,17 +270,17 @@ class BrowserRedditSource:
         })
         return results
 
-    def iter_user_submissions(self, name: str, limit: Optional[int] = None,
-                              known_ids: Optional[set] = None) -> List[SubmissionData]:
+    def iter_user_submissions(self, name: str, limit: int | None = None,
+                              known_ids: set | None = None) -> list[SubmissionData]:
         url = f'https://www.reddit.com/user/{name}/submitted/?sort=new'
         return self._executor.submit(self._collect, url, limit, known_ids).result()
 
-    def iter_subreddit_submissions(self, name: str, limit: Optional[int] = None,
-                                   known_ids: Optional[set] = None) -> List[SubmissionData]:
+    def iter_subreddit_submissions(self, name: str, limit: int | None = None,
+                                   known_ids: set | None = None) -> list[SubmissionData]:
         url = f'https://www.reddit.com/r/{name}/new/'
         return self._executor.submit(self._collect, url, limit, known_ids).result()
 
-    def iter_home_feed(self, limit: Optional[int] = None) -> List[SubmissionData]:
+    def iter_home_feed(self, limit: int | None = None) -> list[SubmissionData]:
         return self._executor.submit(self._collect, 'https://www.reddit.com/new/', limit).result()
 
     def validate_user(self, name: str) -> ValidationResult:
@@ -308,26 +309,26 @@ class BrowserRedditSource:
         body_text = page.locator('body').inner_text().lower()
         if 'nobody on reddit goes by that name' in body_text or 'this user has deleted their account' in body_text:
             return ValidationResult(valid=False, error=ValidationError.NOT_FOUND)
-        if 'community doesn’t exist' in body_text or 'page not found' in body_text:
+        if 'community doesn’t exist' in body_text or 'page not found' in body_text:  # noqa: RUF001 -- matches reddit's actual page copy, which uses a curly apostrophe
             return ValidationResult(valid=False, error=ValidationError.NOT_FOUND)
         if 'this community is private' in body_text or 'suspended' in body_text:
             return ValidationResult(valid=False, error=ValidationError.FORBIDDEN)
         return ValidationResult(valid=True)
 
-    def validate_and_iter_user_submissions(self, name: str, limit: Optional[int] = None,
-                                           known_ids: Optional[set] = None
-                                           ) -> Tuple[ValidationResult, List[SubmissionData]]:
+    def validate_and_iter_user_submissions(self, name: str, limit: int | None = None,
+                                           known_ids: set | None = None
+                                           ) -> tuple[ValidationResult, list[SubmissionData]]:
         url = f'https://www.reddit.com/user/{name}/submitted/?sort=new'
         return self._executor.submit(self._validate_and_collect, url, limit, known_ids).result()
 
-    def validate_and_iter_subreddit_submissions(self, name: str, limit: Optional[int] = None,
-                                                known_ids: Optional[set] = None
-                                                ) -> Tuple[ValidationResult, List[SubmissionData]]:
+    def validate_and_iter_subreddit_submissions(self, name: str, limit: int | None = None,
+                                                known_ids: set | None = None
+                                                ) -> tuple[ValidationResult, list[SubmissionData]]:
         url = f'https://www.reddit.com/r/{name}/new/'
         return self._executor.submit(self._validate_and_collect, url, limit, known_ids).result()
 
-    def _validate_and_collect(self, url: str, limit: Optional[int] = None, known_ids: Optional[set] = None
-                              ) -> Tuple[ValidationResult, List[SubmissionData]]:
+    def _validate_and_collect(self, url: str, limit: int | None = None, known_ids: set | None = None
+                              ) -> tuple[ValidationResult, list[SubmissionData]]:
         # A single navigation serves both validation and the submissions scrape -- the submitted/new
         # listing page shows the same 404/private/suspended copy as the plain profile page, so there's
         # no need to visit the profile page first just to check it exists.
@@ -343,10 +344,10 @@ class BrowserRedditSource:
             return validation, []
         return validation, self._scroll_and_collect(page, url, limit, known_ids)
 
-    def get_post(self, url: str) -> Optional[SubmissionData]:
+    def get_post(self, url: str) -> SubmissionData | None:
         return self._executor.submit(self._get_post_impl, url).result()
 
-    def _get_post_impl(self, url: str) -> Optional[SubmissionData]:
+    def _get_post_impl(self, url: str) -> SubmissionData | None:
         # A real old.reddit.com URL reached this method and correctly found no <shreddit-post>
         # (old.reddit.com has no web components at all) -- confirming the assumption that only
         # www.reddit.com's permalink page renders it, same as the listing pages. Normalize the

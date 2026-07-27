@@ -22,15 +22,17 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from .base_extractor import BaseExtractor
-from ..utils import imgur_utils, ImgurError
-from ..core.errors import Error
+from typing import ClassVar
+
 from ..core import const
+from ..core.errors import Error
+from ..utils import ImgurError, imgur_utils
+from .base_extractor import BaseExtractor
 
 
 class ImgurExtractor(BaseExtractor):
 
-    url_key = ['imgur']
+    url_key: ClassVar[list[str]] = ['imgur']
 
     def __init__(self, post, **kwargs):
         """
@@ -68,9 +70,7 @@ class ImgurExtractor(BaseExtractor):
             return url.split('?')[0]
         if '#' in url:
             return url.split('#')[0]
-        if url.endswith('/'):
-            url = url[:-1]
-        return url
+        return url.removesuffix('/')
 
     def extract_album(self):
         count = 1
@@ -94,7 +94,7 @@ class ImgurExtractor(BaseExtractor):
             image_id, extension = id_with_ext.rsplit('.', 1)
             if extension == 'gif':
                 extension = 'mp4'
-            url = "{}/{}.{}".format(domain, image_id, extension)
+            url = f"{domain}/{image_id}.{extension}"
             self.make_content(url, extension, media_id=image_id)
         except (AttributeError, NameError, TypeError):
             message = 'Unrecognized extension'
@@ -173,6 +173,5 @@ class ImgurExtractor(BaseExtractor):
         for ext in const.ALL_EXT:
             if ext in self.url:
                 index = self.url.find(ext)
-                url = self.url[:index] + ext
-                return url
+                return self.url[:index] + ext
         return None

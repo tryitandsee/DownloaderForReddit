@@ -1,8 +1,8 @@
 from sqlalchemy.orm.exc import MultipleResultsFound
 
-from . import const
 from ..database.models import Content
 from ..utils import injector
+from . import const
 
 
 class ContentFilter:
@@ -29,8 +29,7 @@ class ContentFilter:
             if post.significant_reddit_object.avoid_duplicates:
                 session = post.get_session()
                 return session.query(Content.id).filter(Content.url == url).scalar() is None
-            else:
-                return True
+            return True
         except MultipleResultsFound:
             return False
 
@@ -41,7 +40,6 @@ class ContentFilter:
         ro = post.significant_reddit_object
         if extension in const.IMAGE_EXT:
             return ro.download_images
-        elif extension in const.GIF_EXT:
+        if extension in const.GIF_EXT:
             return ro.download_gifs
-        else:
-            return ro.download_videos
+        return ro.download_videos

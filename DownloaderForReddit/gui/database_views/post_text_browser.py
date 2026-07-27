@@ -1,7 +1,15 @@
-from PyQt5.QtWidgets import (QWidget, QTextBrowser, QFontComboBox, QComboBox, QLabel, QMenu, QHBoxLayout,
-                             QWidgetAction)
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QCursor, QFont
+from PyQt5.QtWidgets import (
+    QComboBox,
+    QFontComboBox,
+    QHBoxLayout,
+    QLabel,
+    QMenu,
+    QTextBrowser,
+    QWidget,
+    QWidgetAction,
+)
 
 from ...utils import injector
 

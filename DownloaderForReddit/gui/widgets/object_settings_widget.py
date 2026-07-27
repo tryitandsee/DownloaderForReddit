@@ -1,14 +1,12 @@
-import os
 from datetime import datetime
-from PyQt5.QtWidgets import QWidget, QMenu, QButtonGroup, QFileDialog
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QCursor
 
-from ...guiresources.widgets.object_settings_widget_auto import Ui_ObjectSettingsWidget
-from ...database.models import User, Subreddit, Post
-from ...database.model_enums import *
-from ...utils import TokenParser, injector
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QButtonGroup, QWidget
+
 from ...core import const
+from ...database.model_enums import *
+from ...guiresources.widgets.object_settings_widget_auto import Ui_ObjectSettingsWidget
+from ...utils import injector
 
 
 class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
@@ -258,8 +256,8 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
         return None
 
     def sync_date_limits(self):
-        date_limit = getattr(self.selected_objects[0], 'date_limit')
-        if all(getattr(x, 'date_limit') == date_limit for x in self.selected_objects):
+        date_limit = self.selected_objects[0].date_limit
+        if all(x.date_limit == date_limit for x in self.selected_objects):
             if date_limit is not None:
                 if date_limit.timestamp() < const.FIRST_POST_EPOCH:
                     self.limit_date_checkbox.setChecked(False)
@@ -274,14 +272,14 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
                 self.update_custom_date_limit_radio.setDisabled(True)
                 self.do_not_update_custom_date_limit_radio.setDisabled(True)
 
-        abs_date_limit = getattr(self.selected_objects[0], 'absolute_date_limit')
-        if all(getattr(x, 'absolute_date_limit') == abs_date_limit for x in self.selected_objects):
+        abs_date_limit = self.selected_objects[0].absolute_date_limit
+        if all(x.absolute_date_limit == abs_date_limit for x in self.selected_objects):
             self.absolute_date_limit_label.setText(self.selected_objects[0].absolute_date_limit_display)
         else:
             self.absolute_date_limit_label.setText('---')
 
-        update_limit = getattr(self.selected_objects[0], 'update_date_limit')
-        if all(getattr(x, 'update_date_limit') == update_limit for x in self.selected_objects):
+        update_limit = self.selected_objects[0].update_date_limit
+        if all(x.update_date_limit == update_limit for x in self.selected_objects):
             if update_limit:
                 self.update_custom_date_limit_radio.setChecked(True)
             else:

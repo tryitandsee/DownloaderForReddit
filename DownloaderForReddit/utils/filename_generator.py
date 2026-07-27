@@ -1,7 +1,6 @@
-from typing import Optional, Union
 
-from . import injector, TokenParser, system_util
-from ..database.models import Post, Content, Comment
+from ..database.models import Comment, Content, Post
+from . import TokenParser, injector, system_util
 
 
 class FilenameGenerator:
@@ -26,7 +25,7 @@ class FilenameGenerator:
     :type is_duplicate: bool
     """
 
-    def __init__(self, obj: Union[Post, Content, Comment], is_duplicate: bool = False):
+    def __init__(self, obj: Post | Content | Comment, is_duplicate: bool = False):
         self.settings_manager = injector.get_settings_manager()
         self.post = None
         self.reddit_object = None
@@ -34,7 +33,7 @@ class FilenameGenerator:
         self.is_duplicate = is_duplicate
         self.setup(obj)
 
-    def setup(self, obj: Union[Post, Content, Comment]) -> None:
+    def setup(self, obj: Post | Content | Comment) -> None:
         """
         Configures internal state based on the provided object type. It handles several types of input objects and
         sets the corresponding attributes such as post, comment, and reddit_object.
@@ -57,7 +56,7 @@ class FilenameGenerator:
             self.comment = None
 
     @property
-    def title_obj(self) -> Union[Post, Comment]:
+    def title_obj(self) -> Post | Comment:
         """
         Provides a property to return either a post or comment object, depending on which one is set.
 
@@ -66,8 +65,7 @@ class FilenameGenerator:
         """
         if self.comment is not None:
             return self.comment
-        else:
-            return self.post
+        return self.post
 
     def make_title(self) -> str:
         """
@@ -104,10 +102,9 @@ class FilenameGenerator:
         defaults = self._get_defaults()
         if self.comment is not None:
             return defaults['comment_naming_method']
-        elif self.is_duplicate:
+        if self.is_duplicate:
             return defaults['duplicate_naming_method']
-        else:
-            return defaults['post_download_naming_method']
+        return defaults['post_download_naming_method']
 
     def make_dir_path(self):
         """
@@ -120,8 +117,7 @@ class FilenameGenerator:
         sub_path = TokenParser.parse_tokens(self.title_obj, token_string)
         clean_sub_path = system_util.clean_path(sub_path, ends_with_dir=True)
         base_path = self._get_base_path()
-        combined_path = system_util.join_path(base_path, clean_sub_path)
-        return combined_path
+        return system_util.join_path(base_path, clean_sub_path)
 
     def _get_dir_token_string(self) -> str:
         """
@@ -134,10 +130,9 @@ class FilenameGenerator:
         defaults = self._get_defaults()
         if self.is_duplicate:
             return defaults['duplicate_save_structure']
-        elif self.comment is not None:
+        if self.comment is not None:
             return defaults['comment_save_structure']
-        else:
-            return defaults['post_save_structure']
+        return defaults['post_save_structure']
 
     def _get_base_path(self) -> str:
         """
@@ -148,5 +143,4 @@ class FilenameGenerator:
         """
         if self.reddit_object.object_type == 'USER':
             return self.settings_manager.user_save_directory
-        else:
-            return self.settings_manager.subreddit_save_directory
+        return self.settings_manager.subreddit_save_directory

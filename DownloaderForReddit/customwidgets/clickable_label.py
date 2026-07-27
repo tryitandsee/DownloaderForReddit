@@ -31,7 +31,7 @@ class ClickableLabel(QtWidgets.QLabel):
     clicked = QtCore.pyqtSignal()
 
     def __init__(self, parent=None):
-        super(ClickableLabel, self).__init__(parent)
+        super().__init__(parent)
 
     def mousePressEvent(self, event):
         if event.button() == QtCore.Qt.LeftButton:

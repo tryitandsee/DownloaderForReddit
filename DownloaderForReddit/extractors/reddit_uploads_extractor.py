@@ -24,18 +24,18 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 
 
 import re
-from urllib.parse import urlparse, parse_qs
+from typing import ClassVar
+from urllib.parse import parse_qs, urlparse
 
-from .base_extractor import BaseExtractor
-from ..messaging.message import Message
-from ..core.errors import Error
 from ..core import const
+from ..core.errors import Error
 from ..utils import injector, reddit_utils
+from .base_extractor import BaseExtractor
 
 
 class RedditUploadsExtractor(BaseExtractor):
 
-    url_key = ['reddituploads', 'i.redd.it', 'reddit.com/gallery']
+    url_key: ClassVar[list[str]] = ['reddituploads', 'i.redd.it', 'reddit.com/gallery']
 
     def __init__(self, post, **kwargs):
         super().__init__(post, **kwargs)
@@ -46,7 +46,7 @@ class RedditUploadsExtractor(BaseExtractor):
             try:
                 r = reddit_utils.get_reddit_instance()
                 parent_submission = r.submission(self.submission.crosspost_parent.split('_')[1])
-                parent_submission.title
+                parent_submission.title  # noqa: B018 -- fetch info from server to load submission
                 return parent_submission
             except AttributeError:
                 pass
@@ -160,7 +160,7 @@ class RedditUploadsExtractor(BaseExtractor):
                 self.url = mp4_url
                 ext = url_ext
             except (AttributeError, KeyError, TypeError):
-                self.logger.debug(f'mp4 preview not available, falling back to gif: {self.url}')
+                self.logger.debug('mp4 preview not available, falling back to gif: %s', self.url)
         media_id = self.clean_ext(self.get_link_id())
         self.make_content(self.url, ext, media_id=media_id)
 
@@ -169,14 +169,13 @@ class RedditUploadsExtractor(BaseExtractor):
         Separates the first part of the link after the domain to be used as the post id.  If this fails, the entire url
         after the domain is returned.
         """
-        reg = re.search('(?<=com\/)(.*?)(?=\?)', self.url)
+        reg = re.search(r'(?<=com\/)(.*?)(?=\?)', self.url)
         try:
             return reg.group()
         except AttributeError:
             if '.com' in self.url:
                 return self.url.split('.com/', 1)[1]
-            else:
-                return self.url.rsplit('/', 1)[1]
+            return self.url.rsplit('/', 1)[1]
 
     @staticmethod
     def clean_ext(link_id):

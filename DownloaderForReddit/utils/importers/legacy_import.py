@@ -1,9 +1,8 @@
 import logging
 from datetime import datetime
 
-from DownloaderForReddit.database.models import User, Subreddit
 from DownloaderForReddit.database.model_enums import NsfwFilter
-
+from DownloaderForReddit.database.models import Subreddit, User
 
 logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
 
@@ -46,10 +45,9 @@ def get_ro_kwargs(data):
 def convert_download_nsfw(nsfw):
     if nsfw == 'INCLUDE':
         return NsfwFilter.INCLUDE
-    elif nsfw == 'EXCLUDE':
+    if nsfw == 'EXCLUDE':
         return NsfwFilter.EXCLUDE
-    else:
-        return NsfwFilter.ONLY
+    return NsfwFilter.ONLY
 
 
 def get_date_limit(date_limit):

@@ -1,5 +1,6 @@
-from PyQt5.QtWidgets import QWidget
 import logging
+
+from PyQt5.QtWidgets import QWidget
 
 from DownloaderForReddit.utils import injector
 

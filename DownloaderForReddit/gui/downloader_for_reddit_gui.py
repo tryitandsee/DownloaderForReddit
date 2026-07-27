@@ -24,47 +24,73 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 
 
 import io
+import logging
 import os
 import platform
 import threading
 from datetime import datetime
-from PyQt5.QtWidgets import (QMainWindow, QAction, QActionGroup, QAbstractItemView, QProgressBar, QLabel, QMenu,
-                             QInputDialog, QMessageBox, QWidget, QHBoxLayout, QSystemTrayIcon, QApplication)
-from PyQt5.QtCore import QThread, Qt, pyqtSignal, QTimer
-from PyQt5.QtGui import QCursor, QPixmap, QIcon
-from ..customwidgets.qt_compat_spinner import CompatibleWaitingSpinner as WaitingSpinner
-import logging
-from playwright._impl._errors import TargetClosedError
 
-from ..guiresources.downloader_for_reddit_gui_auto import Ui_MainWindow
-from ..gui.about_dialog import AboutDialog
-from ..gui.add_reddit_object_dialog import AddRedditObjectDialog
-from ..gui.existing_reddit_object_add_dialog import ExistingRedditObjectAddDialog
-from ..gui.ffmpeg_info_dialog import FfmpegInfoDialog
-from ..gui import message_dialogs
-from ..gui.reddit_object_settings_dialog import RedditObjectSettingsDialog
-from ..gui.update_dialog_gui import UpdateDialog
-from ..gui.database_views.database_dialog import DatabaseDialog
-from ..gui.database_views.database_statistics_dialog import DatabaseStatisticsDialog
-from ..gui.settings.settings_dialog import SettingsDialog
-from ..gui.export_wizard import ExportWizard
-from ..gui.invalid_reddit_object_dialog import InvalidRedditObjectDialog, InvalidObject
-from ..core.download_runner import DownloadRunner
-from ..core.update_runner import UpdateRunner
-from ..core.cli import CLI
+from playwright._impl._errors import TargetClosedError
+from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
+from PyQt5.QtGui import QCursor, QIcon, QPixmap
+from PyQt5.QtWidgets import (
+    QAbstractItemView,
+    QAction,
+    QActionGroup,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QMainWindow,
+    QMenu,
+    QMessageBox,
+    QProgressBar,
+    QSystemTrayIcon,
+    QWidget,
+)
 from sqlalchemy import func
 
-from ..database.models import RedditObject, RedditObjectList, ListAssociation, User, Subreddit
+from ..core.cli import CLI
+from ..core.update_runner import UpdateRunner
+from ..customwidgets.link_cursor_handler import LinkCursorHandler
+from ..customwidgets.qt_compat_spinner import CompatibleWaitingSpinner as WaitingSpinner
 from ..database.filters import RedditObjectFilter
 from ..database.model_manager import ModelManger
-from ..utils import (injector, system_util, imgur_utils, video_merger, general_utils, UpdateChecker)
-from ..viewmodels.reddit_object_list_model import RedditObjectListModel
-from ..viewmodels.output_view_model import OutputViewModel
-from ..viewmodels.hyperlink_delegate import HyperlinkDelegate
-from ..messaging.message import MessageType, MessagePriority, Message
-from ..gui.tryitandsee_mine_download_status_dialog import DownloadStatusDialog  # [mine] feat(gui): download status window
-from ..customwidgets.link_cursor_handler import LinkCursorHandler
+from ..database.models import (
+    ListAssociation,
+    RedditObject,
+    RedditObjectList,
+    Subreddit,
+    User,
+)
+from ..gui import message_dialogs
+from ..gui.about_dialog import AboutDialog
+from ..gui.add_reddit_object_dialog import AddRedditObjectDialog
+from ..gui.database_views.database_dialog import DatabaseDialog
+from ..gui.database_views.database_statistics_dialog import DatabaseStatisticsDialog
+from ..gui.existing_reddit_object_add_dialog import ExistingRedditObjectAddDialog
+from ..gui.export_wizard import ExportWizard
+from ..gui.ffmpeg_info_dialog import FfmpegInfoDialog
+from ..gui.invalid_reddit_object_dialog import InvalidObject, InvalidRedditObjectDialog
+from ..gui.reddit_object_settings_dialog import RedditObjectSettingsDialog
+from ..gui.settings.settings_dialog import SettingsDialog
+from ..gui.tryitandsee_mine_download_status_dialog import (
+    DownloadStatusDialog,  # [mine] feat(gui): download status window
+)
+from ..gui.update_dialog_gui import UpdateDialog
+from ..guiresources.downloader_for_reddit_gui_auto import Ui_MainWindow
+from ..messaging.message import Message, MessagePriority, MessageType
+from ..utils import (
+    UpdateChecker,
+    general_utils,
+    imgur_utils,
+    injector,
+    system_util,
+    video_merger,
+)
 from ..version import __version__
+from ..viewmodels.hyperlink_delegate import HyperlinkDelegate
+from ..viewmodels.output_view_model import OutputViewModel
+from ..viewmodels.reddit_object_list_model import RedditObjectListModel
 
 
 class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
@@ -88,7 +114,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         """
         QMainWindow.__init__(self)
         self.setupUi(self)
-        self.logger = logging.getLogger('DownloaderForReddit.%s' % __name__)
+        self.logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
         self.version = __version__
         self.failed_list = []
         self.last_downloaded_objects = {}
@@ -354,13 +380,11 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         indices = self.user_list_view.selectedIndexes()
         if len(indices) <= 0:
             return None
-        else:
-            return self.user_list_model.data(indices[0], Qt.UserRole)
+        return self.user_list_model.data(indices[0], Qt.UserRole)
 
     def get_selected_users(self):
         indices = self.user_list_view.selectedIndexes()
-        selection_list = [self.user_list_model.data(index, Qt.UserRole) for index in indices]
-        return selection_list
+        return [self.user_list_model.data(index, Qt.UserRole) for index in indices]
 
     def get_selected_user_ids(self):
         return [x.id for x in self.get_selected_users()]
@@ -370,13 +394,11 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         indices = self.subreddit_list_view.selectedIndexes()
         if len(indices) <= 0:
             return None
-        else:
-            return self.subreddit_list_model.data(indices[0], Qt.UserRole)
+        return self.subreddit_list_model.data(indices[0], Qt.UserRole)
 
     def get_selected_subreddits(self):
         indices = self.subreddit_list_view.selectedIndexes()
-        selection_list = [self.subreddit_list_model.data(index, Qt.UserRole) for index in indices]
-        return selection_list
+        return [self.subreddit_list_model.data(index, Qt.UserRole) for index in indices]
 
     def get_selected_subreddit_ids(self):
         return [x.id for x in self.get_selected_subreddits()]
@@ -409,21 +431,21 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         except IndexError:
             download_text = 'Download'
 
-        open_settings = menu.addAction('Settings', lambda: open_settings_command(ros))
+        menu.addAction('Settings', lambda: open_settings_command(ros))
         menu.addSeparator()
-        open_downloads = menu.addAction('Open Download Folder',
+        menu.addAction('Open Download Folder',
                                         lambda: self.open_reddit_object_download_folder(ros[0]))
         export_text = f'Export {ros[0].name}' if len(ros) == 1 else f'Export {len(ros)} {object_type.title()}s'
-        export = menu.addAction(export_text, lambda: self.export_reddit_objects(ros))
+        menu.addAction(export_text, lambda: self.export_reddit_objects(ros))
         menu.addSeparator()
-        open_post_dialog = menu.addAction('Post View',
+        menu.addAction('Post View',
                                              lambda: self.open_selected_reddit_object_dialog(ros[0].id, 'POST'))
-        open_content_dialog = menu.addAction('Content View',
+        menu.addAction('Content View',
                                              lambda: self.open_selected_reddit_object_dialog(ros[0].id, 'CONTENT'))
         menu.addSeparator()
         add_object = menu.addAction(f'Add {object_type.title()}', add_command)
         remove_text = f'Remove {ros[0].name}' if len(ros) == 1 else f'Remove {len(ros)} {object_type.title()}s'
-        remove_object = menu.addAction(remove_text, remove_command)
+        menu.addAction(remove_text, remove_command)
         menu.addSeparator()
         self.move_reddit_object_menu_item(menu, ros, object_type, 'MOVE')
         self.move_reddit_object_menu_item(menu, ros, object_type, 'COPY')
@@ -434,7 +456,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         delete_menu.addAction(f'Delete {object_type.title()} with Files',
                               lambda: self.delete_reddit_objects(ros, delete_files=True))
         menu.addSeparator()
-        download = menu.addAction(download_text, lambda: self.add_to_download(*[x.id for x in ros]))
+        menu.addAction(download_text, lambda: self.add_to_download(*[x.id for x in ros]))
 
         # [mine] feat(gui): "Mark as Followed"/"Mark as Unfollowed" toggle -- active tracks whether
         # the dedicated downloader account follows this user; meaningless for subreddits, which
@@ -460,7 +482,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             follow_toggle = menu.addAction(follow_text, lambda: self.toggle_followed(follow_ro_ids))
         # [mine] feat(gui): "Open in Browser" context menu item for users/subreddits -- opens the
         # profile/subreddit directly in the dedicated account's browser window
-        open_in_browser = menu.addAction('Open in Browser',
+        menu.addAction('Open in Browser',
                                          lambda: self.open_reddit_object_in_browser(ros[0], object_type))
 
         for action in menu.actions():
@@ -723,13 +745,12 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         """
         if self.settings_manager.large_post_update_warning:
             accepted, do_not_show = message_dialogs.optional_question_dialog(
-                self, 'Update Posts?', f'There are {"{:,}".format(count)} posts in this selection to be updated.  It '
+                self, 'Update Posts?', f'There are {f"{count:,}"} posts in this selection to be updated.  It '
                                        f'could take a while to update this many posts.\n\n'
                                        f'Are you sure you want to proceed?')
             self.settings_manager.large_post_update_warning = not do_not_show
             return accepted
-        else:
-            return True
+        return True
 
     def run_update(self, update_runner):
         self.update_check_thread = QThread()
@@ -833,7 +854,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                     text = f'A user list already exists with the name "{list_name}"'
                     message_dialogs.generic_message(self, title='List Name Exists', text=text)
             else:
-                self.logger.warning('Unable to add user list', extra={'invalid_name': list_name}, exc_info=True)
+                self.logger.warning('Unable to add user list', extra={'invalid_name': list_name})
                 message_dialogs.not_valid_name(self)
 
     def get_list_name(self, object_type):
@@ -844,9 +865,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         """
         list_name, ok = QInputDialog.getText(
             self, f'New {object_type.capitalize()} List Dialog', f'Enter the new {object_type.lower()} list:')
-        if ok:
-            if list_name is not None and list_name != '':
-                return list_name
+        if ok and list_name is not None and list_name != '':
+            return list_name
         return None
 
     def remove_user_list(self):
@@ -870,7 +890,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         new_list_name = self.user_lists_combo.currentText()
         self.user_list_model.set_list(new_list_name)
         self.user_list_model.sort_list()
-        self.logger.info('User list changed to: %s' % new_list_name)
+        self.logger.info('User list changed to: %s', new_list_name)
 
     def export_user_list(self):
         wizard = ExportWizard(self.user_list_model.list, RedditObjectList, self.user_list_model.name, parent=self)
@@ -893,8 +913,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                     text = f'A subreddit list already exists with the name "{list_name}"'
                     message_dialogs.generic_message(self, title='List Name Exists', text=text)
             else:
-                self.logger.warning('Unable to add subreddit list', extra={'invalid_name': list_name},
-                                    exc_info=True)
+                self.logger.warning('Unable to add subreddit list', extra={'invalid_name': list_name})
                 message_dialogs.not_valid_name(self)
 
     def remove_subreddit_list(self):
@@ -924,8 +943,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             remove, warn = message_dialogs.remove_list(self, list_type)
             self.settings_manager.remove_reddit_object_list_warning = not warn
             return remove
-        else:
-            return True
+        return True
 
     def change_subreddit_list(self):
         new_list_name = self.subreddit_list_combo.currentText()
@@ -1030,8 +1048,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                 try:
                     ModelManger.delete_reddit_object(reddit_object, delete_files=delete_files)
                 except:
-                    self.logger.error('Failed to delete reddit object', extra={'reddit_object': reddit_object.name},
-                                      exc_info=True)
+                    self.logger.exception('Failed to delete reddit object',
+                                          extra={'reddit_object': reddit_object.name})
             list_model.open_session(list_name=list_name)
 
     def add_subreddit(self):
@@ -1288,7 +1306,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         Changes the progress bar text to show that it is complete and also moves the progress bar value to the maximum
         if for whatever reason it was not already there
         """
-        self.progress_label.setText('Download complete - Downloaded: %s' % self.potential_downloads)
+        self.progress_label.setText(f'Download complete - Downloaded: {self.potential_downloads}')
         if self.progress_bar.value() < self.progress_bar.maximum():
             self.progress_bar.setValue(self.progress_bar.maximum())
 
@@ -1316,8 +1334,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         imgur_utils.check_credits()
         reset_date_time = datetime.fromtimestamp(imgur_utils.credit_reset_time)
         reset_time = general_utils.format_datetime(reset_date_time)
-        dialog_text = "Remaining Credits: {}\n" \
-                      "Reset Time: {}\n".format(imgur_utils.num_credits, reset_time)
+        dialog_text = f"Remaining Credits: {imgur_utils.num_credits}\n" \
+                      f"Reset Time: {reset_time}\n"
         if injector.get_settings_manager().imgur_mashape_key:
             dialog_text += "\nFallback to the commercial API enabled!"
         QMessageBox.information(self, 'Imgur Credits', dialog_text, QMessageBox.Ok)
@@ -1422,7 +1440,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                 self.user_list_model.set_list(list_name)
                 self.user_lists_combo.setCurrentText(list_name)
         except:
-            self.logger.error('Failed to load user list from database', exc_info=True)
+            self.logger.exception('Failed to load user list from database')
 
     def load_subreddit_list(self, session):
         try:
@@ -1436,7 +1454,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                 self.subreddit_list_model.set_list(list_name)
                 self.subreddit_list_combo.setCurrentText(list_name)
         except:
-            self.logger.error('Failed to load subreddit list from database', exc_info=True)
+            self.logger.exception('Failed to load subreddit list from database')
 
     def open_data_directory(self):
         """
@@ -1445,7 +1463,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         try:
             system_util.open_in_system(system_util.get_data_directory())
         except Exception:
-            self.logger.error('Failed to open data directory', exc_info=True)
+            self.logger.exception('Failed to open data directory')
 
     def open_log_file(self):
         """
@@ -1455,7 +1473,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             log_path = os.path.join(system_util.get_data_directory(), 'DownloaderForReddit.log')
             system_util.open_in_system(log_path)
         except Exception:
-            self.logger.error('Failed to open log file', exc_info=True)
+            self.logger.exception('Failed to open log file')
 
     def check_for_updates(self, from_menu):
         """

@@ -24,10 +24,10 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
 from time import time
+
 import requests
 
 from ..utils import injector
-
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +47,9 @@ class ImgurError(Exception):
 def _send_request(url_extension, retries=1):
     global num_credits
     if retries < 0:
-        return
+        return None
     headers = {
-        'Authorization': 'Client-ID {}'.format(injector.settings_manager.imgur_client_id)
+        'Authorization': f'Client-ID {injector.settings_manager.imgur_client_id}'
     }
     if time() > credit_reset_time:
         check_credits()
@@ -75,18 +75,18 @@ def check_credits():
     global num_credits, credit_reset_time
     url = _FREE_ENDPOINT + "credits"
     headers = {
-        'Authorization': 'Client-ID {}'.format(injector.settings_manager.imgur_client_id)
+        'Authorization': f'Client-ID {injector.settings_manager.imgur_client_id}'
     }
     response = requests.get(url, headers=headers, timeout=10)
     if response.status_code != 200:
-        logger.error('Failed to check imgur credits, bad status code', extra={'status_code': response.status_code},
-                     exc_info=True)
+        logger.error('Failed to check imgur credits, bad status code', extra={'status_code': response.status_code})
     else:
         result = response.json()
         credits_data = result['data']
         num_credits = min(credits_data['UserRemaining'], credits_data['ClientRemaining'])
         credit_reset_time = credits_data['UserReset']
         return num_credits
+    return None
 
 
 def get_link(json):
@@ -96,13 +96,12 @@ def get_link(json):
 
 
 def get_album_images(album_id):
-    json = _send_request('album/{}/images'.format(album_id))
+    json = _send_request(f'album/{album_id}/images')
     data = json['data']
-    urls = [get_link(x) for x in data]
-    return urls
+    return [get_link(x) for x in data]
 
 
 def get_single_image(image_id):
-    json = _send_request('image/{}'.format(image_id))
+    json = _send_request(f'image/{image_id}')
     data = json['data']
     return get_link(data)

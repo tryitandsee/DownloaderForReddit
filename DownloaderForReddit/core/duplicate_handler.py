@@ -3,7 +3,7 @@ import os
 from DownloaderForReddit.database import Content
 from DownloaderForReddit.database.model_enums import DuplicateControlMethod
 from DownloaderForReddit.messaging.message import Message
-from DownloaderForReddit.utils import injector, system_util, general_utils
+from DownloaderForReddit.utils import general_utils, injector, system_util
 from DownloaderForReddit.utils.filename_generator import FilenameGenerator
 
 

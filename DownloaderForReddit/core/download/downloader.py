@@ -2,16 +2,18 @@ import hashlib
 import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor
+
 import requests
 
-from DownloaderForReddit.core.runner import Runner, verify_run
-from .multipart_downloader import MultipartDownloader
-from . import HEADERS
 from DownloaderForReddit.core.errors import Error
-from DownloaderForReddit.messaging.message import Message
-from DownloaderForReddit.utils import injector, system_util, general_utils
+from DownloaderForReddit.core.runner import Runner, verify_run
 from DownloaderForReddit.database import Content
+from DownloaderForReddit.messaging.message import Message
+from DownloaderForReddit.utils import general_utils, injector, system_util
+
 from ..duplicate_handler import DuplicateHandler
+from . import HEADERS
+from .multipart_downloader import MultipartDownloader
 
 
 class Downloader(Runner):
@@ -208,11 +210,11 @@ class Downloader(Runner):
             return False
         dup = session.query(Content).filter(
             Content.url == content.url,
-            Content.downloaded == True,  # noqa: E712
+            Content.downloaded == True,
             Content.id != content.id
         ).first()
         if dup is not None:
-            self.logger.info(f'URL duplicate found: {content.url} (previously downloaded as content id {dup.id})')
+            self.logger.info('URL duplicate found: %s (previously downloaded as content id %s)', content.url, dup.id)
         return dup is not None
 
     def is_duplicate_content(self, content: Content) -> bool:
@@ -272,8 +274,7 @@ class Downloader(Runner):
         """
         if self.settings_manager.output_saved_content_full_path:
             return content.get_full_file_path()
-        else:
-            return f'{content.user.name}: {content.title}'
+        return f'{content.user.name}: {content.title}'
 
     def handle_download_stopped(self, content: Content) -> None:
         """
@@ -352,7 +353,7 @@ class Downloader(Runner):
             'save_path': content.get_full_file_path(),
             **kwargs
         }
-        self.logger.error(message, extra=extra, exc_info=True)
+        self.logger.error(message, extra=extra)
 
     def output_error(self, content, message):
         output_append = f'\nPost: {content.post.title}\nUrl: {content.url}\nUser: {content.user}\n' \

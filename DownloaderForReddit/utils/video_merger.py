@@ -23,13 +23,12 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 
-import subprocess
 import logging
+import subprocess
 from distutils.spawn import find_executable
 
 from ..database.models import Content
-from ..utils import injector, system_util, general_utils
-
+from ..utils import general_utils, injector, system_util
 
 logger = logging.getLogger(__name__)
 
@@ -73,13 +72,11 @@ def merge_videos():
                     merged_content = create_merged_content(video_content)
                     merged_content.download_title = general_utils.ensure_content_download_path(merged_content)
 
-                    cmd = 'ffmpeg -i "%s" -i "%s" -c:v copy -c:a aac -strict experimental "%s" -y' % \
-                          (video_content.get_full_file_path(), audio_content.get_full_file_path(),
-                           merged_content.get_full_file_path())
+                    cmd = f'ffmpeg -i "{video_content.get_full_file_path()}" -i "{audio_content.get_full_file_path()}" -c:v copy -c:a aac -strict experimental "{merged_content.get_full_file_path()}" -y'
                     si = subprocess.STARTUPINFO()
                     si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                    CREATE_NO_WINDOW = 0x08000000
-                    subprocess.call(cmd, startupinfo=si, creationflags=CREATE_NO_WINDOW)
+                    create_no_window = 0x08000000
+                    subprocess.call(cmd, startupinfo=si, creationflags=create_no_window)
                     if injector.get_settings_manager().match_file_modified_to_post_date:
                         system_util.set_file_modify_time(merged_content.get_full_file_path(),
                                                          ms.date_modified.timestamp())
@@ -87,8 +84,8 @@ def merge_videos():
                     merged_paths.append(merged_content.get_full_file_path())
                 except:
                     failed_paths.append({'video_id': ms.video_id, 'audio_id': ms.audio_id})
-                    logger.error('Failed to merge video', extra={'video_id': ms.video_id, 'audio_id': ms.audio_id},
-                                 exc_info=True)
+                    logger.exception('Failed to merge video',
+                                     extra={'video_id': ms.video_id, 'audio_id': ms.audio_id})
             if merged_paths or failed_paths:
                 logger.info('Video merger complete',
                             extra={'merged_video_paths': merged_paths, 'failed_video_merges': failed_paths})

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-import sys
 import os
 import subprocess
+import sys
 
 
 class Converter:
@@ -48,7 +48,7 @@ class Converter:
             method()
             print('Conversion successful')
         except AttributeError:
-            print(f'Command not recognized.  Choices are: ')
+            print('Command not recognized.  Choices are: ')
             self.list_methods()
 
     def get_method(self):
@@ -69,7 +69,7 @@ class Converter:
         out_path = self.get_out_path(name, *sub_paths)
         command = f'pyuic5 {in_path} -o {out_path}'
         # print(command)
-        subprocess.run(command)
+        subprocess.run(command, check=True)
         os.chdir(original)
 
     def get_in_path(self, name, *sub_paths):

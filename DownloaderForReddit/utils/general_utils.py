@@ -1,12 +1,10 @@
-import os
 import logging
-from datetime import datetime, date
+import os
+from datetime import date, datetime
 
-from . import injector
-from . import system_util
-from .token_parser import TokenParser
 from ..gui import message_dialogs
-
+from . import injector, system_util
+from .token_parser import TokenParser
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +26,10 @@ def rename_invalid_directory(path):
 
 
 def reformat_invalid_name(path, formatting):
-    path = path[:-1] if path.endswith(os.sep) or path.endswith('/') else path
+    path = path[:-1] if path.endswith((os.sep, '/')) else path
     dir_path, dir_name = os.path.split(path)
     new_name = formatting.replace('%[dir_name]', dir_name)
-    new_path = system_util.join_path(dir_path, new_name)
-    return new_path
+    return system_util.join_path(dir_path, new_name)
 
 
 def get_reddit_object_download_folder(reddit_object):
@@ -69,7 +66,7 @@ def ensure_content_download_path(content):
     try:
         system_util.create_directory(content.directory_path)
     except PermissionError:
-        logger.error('Could not create directory path', extra={'directory_path': content.directory_path}, exc_info=True)
+        logger.exception('Could not create directory path', extra={'directory_path': content.directory_path})
     unique_count = 1
     clean_title = system_util.clean(content.title)
     download_title = clean_title
@@ -94,7 +91,7 @@ def ensure_file_path(file_path: str) -> str:
     try:
         system_util.create_directory(base_path)
     except PermissionError:
-        logger.error('Could not create directory path', extra={'directory_path': base_path}, exc_info=True)
+        logger.exception('Could not create directory path', extra={'directory_path': base_path})
     unique_count = 1
     clean_title = system_util.clean_path(title)
     path = system_util.join_path(base_path, f'{clean_title}{ext}')

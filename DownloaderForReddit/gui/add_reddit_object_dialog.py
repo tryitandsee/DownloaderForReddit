@@ -1,14 +1,15 @@
-import os
 import logging
-from PyQt5.QtWidgets import QDialog, QFileDialog, QApplication
-from PyQt5.QtCore import Qt, pyqtSignal
-from ..customwidgets.qt_compat_spinner import CompatibleWaitingSpinner as WaitingSpinner
+import os
 from threading import Thread
 
-from ..guiresources.add_reddit_object_dialog_auto import Ui_AddRedditObjectDialog
-from ..utils import injector, system_util, reddit_utils
-from ..utils.importers import json_importer, text_importer
+from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtWidgets import QApplication, QDialog, QFileDialog
+
+from ..customwidgets.qt_compat_spinner import CompatibleWaitingSpinner as WaitingSpinner
 from ..database.models import ListAssociation, RedditObject
+from ..guiresources.add_reddit_object_dialog_auto import Ui_AddRedditObjectDialog
+from ..utils import injector, reddit_utils, system_util
+from ..utils.importers import json_importer, text_importer
 from .existing_names_dialog import ExistingNamesDialog
 
 
@@ -93,9 +94,9 @@ class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
         if file_path is not None and file_path != '':
             if os.path.isfile(file_path):
                 return file_path
-            else:
-                self.logger.error('Failed to import file.  File does not exist.', extra={'file_path': file_path})
-                return None
+            self.logger.error('Failed to import file.  File does not exist.', extra={'file_path': file_path})
+            return None
+        return None
 
     def validate_imported_objects(self, imported_objects):
         self.spinner = WaitingSpinner(parent=None, roundness=80.0, opacity=10.0, fade=72.0, radius=10.0,

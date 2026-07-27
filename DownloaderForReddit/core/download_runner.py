@@ -1,26 +1,34 @@
-import platform
 import logging
-from queue import Queue, Empty
-from threading import Thread, Event
+import platform
+from collections import defaultdict, namedtuple
 from datetime import datetime
+from queue import Queue
+from threading import Event, Thread
+
 from playwright.sync_api import Error as PlaywrightError
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
-from collections import defaultdict, namedtuple
 from sqlalchemy import func, or_
 
 from DownloaderForReddit.core.download.downloader import Downloader
+
+from ..database.models import (
+    Content,
+    DownloadSession,
+    Post,
+    RedditObject,
+    Subreddit,
+    User,
+)
+from ..messaging.message import Message
+from ..utils import injector, video_merger
+from ..version import __version__
 from . import const
 from .content_runner import ContentRunner
+from .errors import NON_DOWNLOADABLE
 from .reddit_source import ValidationError
+from .runner import verify_run
 from .submission_filter import SubmissionFilter
 from .submittable_creator import SubmittableCreator
-from .runner import verify_run
-from .errors import NON_DOWNLOADABLE
-from ..database.models import DownloadSession, RedditObject, User, Subreddit, Post, Content
-from ..utils import injector, video_merger
-from ..messaging.message import Message
-from ..version import __version__
-
 
 ExtractionSet = namedtuple('ExtractionSet', 'extraction_type extraction_object significant_id download_session_id')
 
@@ -186,7 +194,7 @@ class DownloadRunner(QObject):
     def handle_failed_connection(self):
         if self.failed_connection_attempts >= 3:
             self.continue_run = False
-            self.logger.error('Failed connection attempts exceeded.  Ending download session', exc_info=True)
+            self.logger.error('Failed connection attempts exceeded.  Ending download session')
             Message.send_critical('Failed connection attempts exceeded.  The download session has been canceled.  '
                                   'Please try the download again later.')
         else:
@@ -197,7 +205,7 @@ class DownloadRunner(QObject):
             self.failed_connection_attempts += 1
 
     def handle_too_many_requests_error(self, reddit_object):
-        self.logger.error('Too many requests error', exc_info=True)
+        self.logger.error('Too many requests error')
         message = (
             f'Reddit rate limit reached.  {reddit_object.object_type.capitalize()} ({reddit_object.name}) could '
             f'not be validated.  Please try again later.\n'
@@ -208,8 +216,7 @@ class DownloadRunner(QObject):
 
     def handle_unknown_error(self, reddit_object):
         self.logger.error('Failed to validate reddit object due to unknown error',
-                          extra={'object_type': reddit_object.object_type, 'reddit_object': reddit_object.name},
-                          exc_info=True)
+                          extra={'object_type': reddit_object.object_type, 'reddit_object': reddit_object.name})
 
     def run_unextracted_posts(self):
         self.logger.debug('Running unextracted posts')
@@ -220,7 +227,7 @@ class DownloadRunner(QObject):
                     .filter(Post.extracted == False) \
                     .filter(Post.retry_attempts <= 3) \
                     .filter(or_(Post.extraction_error == None, Post.extraction_error.notin_(NON_DOWNLOADABLE)))
-        self.logger.debug(f'{post_id_list.count()} unfinished posts to download')
+        self.logger.debug('%s unfinished posts to download', post_id_list.count())
         for post_id, in post_id_list.all():  # comma used to unpack result tuple
             extraction_set = ExtractionSet(extraction_type='POST', extraction_object=post_id, significant_id=None,
                                            download_session_id=self.download_session_id)
@@ -236,7 +243,7 @@ class DownloadRunner(QObject):
                     .filter(Content.downloaded == False) \
                     .filter(Content.retry_attempts <= 3) \
                     .filter(or_(Content.download_error == None, Content.download_error.notin_(NON_DOWNLOADABLE)))
-        self.logger.debug(f'{content_id_list.count()} unfinished content items to download')
+        self.logger.debug('%s unfinished content items to download', content_id_list.count())
         for content in content_id_list.all():
             self.download_queue.put((content.id, self.download_session_id))
         self.logger.debug('Finished undownloaded content')
@@ -364,8 +371,7 @@ class DownloadRunner(QObject):
         try:
             submission = self.reddit_source.get_post(url)
         except PlaywrightError:
-            self.logger.error('Browser navigation failed while fetching single post', extra={'url': url},
-                              exc_info=True)
+            self.logger.exception('Browser navigation failed while fetching single post', extra={'url': url})
             Message.send_error(f'Failed to fetch post: {url}')
             return None
         if submission is None:
@@ -446,23 +452,25 @@ class DownloadRunner(QObject):
     @verify_run
     def get_user_submissions(self, user_id, session=None):
         if session is None:
-            with self.db.get_scoped_session() as session:
-                return self.get_user_submissions(user_id, session=session)
+            with self.db.get_scoped_session() as db_session:
+                return self.get_user_submissions(user_id, session=db_session)
         user = session.query(User).get(user_id)
         user.set_existing()
         self._current_fetch_object = user.name  # [mine] feat(gui): download status window
         Message.send_info(f'Downloading user: {user.name}')  # [mine] GUI progress logging
         self.get_validated_submissions(user, self.reddit_source.validate_and_iter_user_submissions)
+        return None
 
     @verify_run
     def get_subreddit_submissions(self, subreddit_id, session=None):
         if session is None:
-            with self.db.get_scoped_session() as session:
-                return self.get_subreddit_submissions(subreddit_id, session=session)
+            with self.db.get_scoped_session() as db_session:
+                return self.get_subreddit_submissions(subreddit_id, session=db_session)
         subreddit = session.query(Subreddit).get(subreddit_id)
         subreddit.set_existing()
         self._current_fetch_object = subreddit.name  # [mine] feat(gui): download status window
         self.get_validated_submissions(subreddit, self.reddit_source.validate_and_iter_subreddit_submissions)
+        return None
 
     def get_validated_submissions(self, reddit_object, source_method):
         """
@@ -477,8 +485,7 @@ class DownloadRunner(QObject):
                                                      known_ids=known_ids)
         except PlaywrightError:
             extra = {'object_type': reddit_object.object_type, 'reddit_object': reddit_object.name}
-            self.logger.error('Browser navigation failed.  Ending submission extraction',
-                              extra=extra, exc_info=True)
+            self.logger.exception('Browser navigation failed.  Ending submission extraction', extra=extra)
             Message.send_error(f'Failed to extract submissions for: {reddit_object.name}. Please try again shortly.')
             return
         if self.validate_object(result, reddit_object):
@@ -492,8 +499,7 @@ class DownloadRunner(QObject):
 
         for submission in submissions:
             created_epoch = submission.created.timestamp()
-            if created_epoch > date_limit:
-                date_limit = created_epoch
+            date_limit = max(date_limit, created_epoch)
             extraction_set = ExtractionSet(extraction_type='SUBMISSION', extraction_object=submission,
                                            significant_id=reddit_object.id,
                                            download_session_id=self.download_session_id)
@@ -543,7 +549,7 @@ class DownloadRunner(QObject):
             try:
                 raw_submissions = self.reddit_source.iter_home_feed()
             except PlaywrightError:
-                self.logger.error('Browser navigation failed while fetching home feed', exc_info=True)
+                self.logger.exception('Browser navigation failed while fetching home feed')
                 Message.send_error('Failed to fetch home feed. Please try again shortly.')
                 return
 

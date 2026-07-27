@@ -1,25 +1,23 @@
 import logging
 import re
-from typing import Optional
 from queue import Queue
 
 import prawcore.exceptions
+from bs4 import BeautifulSoup, SoupStrainer
 from praw.models import Submission
 from sqlalchemy.orm.session import Session
-from bs4 import BeautifulSoup, SoupStrainer
 
-from .runner import Runner, verify_run
-from .comment_handler import CommentHandler
-from .errors import Error
-from . import const
 from ..database.models import Post
 from ..extractors.base_extractor import BaseExtractor
+from ..extractors.comment_extractor import CommentExtractor
 from ..extractors.direct_extractor import DirectExtractor
 from ..extractors.self_post_extractor import SelfPostExtractor
-from ..extractors.comment_extractor import CommentExtractor
 from ..messaging.message import Message
 from ..utils import injector
-
+from . import const
+from .comment_handler import CommentHandler
+from .errors import Error
+from .runner import Runner, verify_run
 
 # [mine] fix(submission_handler): skip subreddit/post permalinks instead of failing extraction as an
 # unsupported domain. A bare subreddit link has no content. A reddit.com post permalink reaching here
@@ -32,7 +30,7 @@ REDDIT_LINK_RE = re.compile(r'^https?://(\w+\.)?reddit\.com/r/[^/?#]+(/comments/
 
 class SubmissionHandler(Runner):
 
-    def __init__(self, submission: Optional[Submission], post: Post, download_session_id: int, session: Session,
+    def __init__(self, submission: Submission | None, post: Post, download_session_id: int, session: Session,
                  download_queue: Queue, stop_run):
         super().__init__(stop_run)
         self.logger = logging.getLogger(__name__)
@@ -211,7 +209,7 @@ class SubmissionHandler(Runner):
         extra = {'post_title': self.post.title, 'user': self.post.author.name,
                  'subreddit': self.post.subreddit.name, 'url': self.post.url,
                  'date_posted': self.post.date_posted, **kwargs}
-        self.logger.error(message, extra=extra, exc_info=True)
+        self.logger.error(message, extra=extra)
 
     def output_error(self, message, **kwargs):
         message = f'Failed to extract due to: {message}'

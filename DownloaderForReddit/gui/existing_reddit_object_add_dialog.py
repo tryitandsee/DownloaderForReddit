@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QDialog, QPushButton, QLabel, QVBoxLayout, QHBoxLayout
+from PyQt5.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
 
 
 class ExistingRedditObjectAddDialog(QDialog):

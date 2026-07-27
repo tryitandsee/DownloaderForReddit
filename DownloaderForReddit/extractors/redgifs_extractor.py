@@ -1,15 +1,16 @@
 import threading
+from typing import ClassVar
 
 import redgifs
 
-from .base_extractor import BaseExtractor
-from ..core.errors import Error
 from ..core.download import HEADERS
+from ..core.errors import Error
+from .base_extractor import BaseExtractor
 
 
 class RedgifsExtractor(BaseExtractor):
 
-    url_key = ['redgifs']
+    url_key: ClassVar[list[str]] = ['redgifs']
 
     # redgifs.API().login() fetches a brand new temporary token every call (the package never
     # caches one) -- extraction runs on a ThreadPoolExecutor, so every concurrent post extraction

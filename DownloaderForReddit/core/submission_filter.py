@@ -22,7 +22,7 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from ..database.model_enums import NsfwFilter, LimitOperator
+from ..database.model_enums import LimitOperator, NsfwFilter
 
 
 class SubmissionFilter:
@@ -47,10 +47,9 @@ class SubmissionFilter:
         """
         if reddit_object.post_score_limit_operator == LimitOperator.NO_LIMIT:
             return True
-        elif reddit_object.post_score_limit_operator == LimitOperator.LESS_THAN:
+        if reddit_object.post_score_limit_operator == LimitOperator.LESS_THAN:
             return submission.score <= reddit_object.post_score_limit
-        else:
-            return submission.score >= reddit_object.post_score_limit
+        return submission.score >= reddit_object.post_score_limit
 
     def nsfw_filter(self, submission, reddit_object):
         """
@@ -61,10 +60,9 @@ class SubmissionFilter:
         """
         if reddit_object.download_nsfw == NsfwFilter.EXCLUDE:
             return not submission.nsfw
-        elif reddit_object.download_nsfw == NsfwFilter.ONLY:
+        if reddit_object.download_nsfw == NsfwFilter.ONLY:
             return submission.nsfw
-        else:
-            return True
+        return True
 
     def date_filter(self, submission, reddit_object):
         """
@@ -84,5 +82,4 @@ class SubmissionFilter:
         """
         if reddit_object.date_limit is None:
             return reddit_object.absolute_date_limit
-        else:
-            return reddit_object.date_limit
+        return reddit_object.date_limit

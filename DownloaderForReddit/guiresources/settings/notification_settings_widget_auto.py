@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 # Form implementation generated from reading ui file 'Resources\ui_files\settings\notification_settings_widget.ui'
 #
@@ -7,10 +6,10 @@
 # WARNING! All changes made in this file will be lost!
 
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtWidgets
 
 
-class Ui_NotificationSettingsWidget(object):
+class Ui_NotificationSettingsWidget:
     def setupUi(self, NotificationSettingsWidget):
         NotificationSettingsWidget.setObjectName("NotificationSettingsWidget")
         NotificationSettingsWidget.resize(907, 709)

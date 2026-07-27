@@ -1,12 +1,12 @@
 from enum import Enum
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
-from sqlalchemy.orm import relationship
-from sqlalchemy import Enum as EnumColumn
 from uuid import uuid4
+
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
+from sqlalchemy import Enum as EnumColumn
+from sqlalchemy.orm import relationship
 
 from ..database.database_handler import DatabaseHandler
 from ..database.models import RedditObjectList
-
 
 Base = DatabaseHandler.base
 

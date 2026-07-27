@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 # Form implementation generated from reading ui file 'Resources\ui_files\settings\schedule_settings_widget.ui'
 #
@@ -10,7 +9,7 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 
-class Ui_ScheduleSettingsWidget(object):
+class Ui_ScheduleSettingsWidget:
     def setupUi(self, ScheduleSettingsWidget):
         ScheduleSettingsWidget.setObjectName("ScheduleSettingsWidget")
         ScheduleSettingsWidget.resize(906, 673)

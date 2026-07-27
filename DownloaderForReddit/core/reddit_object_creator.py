@@ -1,7 +1,8 @@
 import logging
+
 from sqlalchemy import func
 
-from ..database.models import User, Subreddit, RedditObjectList
+from ..database.models import RedditObjectList, Subreddit, User
 from ..utils import injector, reddit_utils
 
 
@@ -26,8 +27,7 @@ class RedditObjectCreator:
     def create_reddit_object(self, name, list_defaults):
         if self.list_type == 'USER':
             return self.create_user(name, list_defaults)
-        else:
-            return self.create_subreddit(name, list_defaults)
+        return self.create_subreddit(name, list_defaults)
 
     def create_user(self, user_name, list_defaults):
         """
@@ -99,5 +99,4 @@ class RedditObjectCreator:
     def get_default_setup(self, object_type):
         if object_type == 'USER':
             return self.settings_manager.user_download_defaults
-        else:
-            return self.settings_manager.subreddit_download_defaults
+        return self.settings_manager.subreddit_download_defaults

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 # Form implementation generated from reading ui file 'Resources\ui_files\database_views\database_dialog.ui'
 #
@@ -10,7 +9,7 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 
-class Ui_DatabaseDialog(object):
+class Ui_DatabaseDialog:
     def setupUi(self, DatabaseDialog):
         DatabaseDialog.setObjectName("DatabaseDialog")
         DatabaseDialog.resize(1698, 981)

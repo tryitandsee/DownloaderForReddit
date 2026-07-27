@@ -25,22 +25,22 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 
 
 import ctypes
-import sys
 import logging
-from PyQt5 import QtWidgets, QtCore
+import sys
 
-from DownloaderForReddit.gui.downloader_for_reddit_gui import DownloaderForRedditGUI
-from DownloaderForReddit.messaging.message_receiver import MessageReceiver
-from DownloaderForReddit.database.migration import Migrator
-from DownloaderForReddit.core.download_runner import DownloadRunner
-from DownloaderForReddit.utils import injector
-from DownloaderForReddit.local_logging import logger
+from PyQt5 import QtCore, QtWidgets
+
 from DownloaderForReddit.core.cli import CLI
+from DownloaderForReddit.core.download_runner import DownloadRunner
+from DownloaderForReddit.database.migration import Migrator
+from DownloaderForReddit.gui.downloader_for_reddit_gui import DownloaderForRedditGUI
+from DownloaderForReddit.local_logging import logger
+from DownloaderForReddit.messaging.message_receiver import MessageReceiver
+from DownloaderForReddit.utils import injector
 from DownloaderForReddit.version import __version__
 
-
 if sys.platform == 'win32':
-    myappid = 'SomeGuySoftware.DownloaderForReddit.%s' % __version__
+    myappid = f'SomeGuySoftware.DownloaderForReddit.{__version__}'
     AppUserModelID = ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
 
@@ -49,7 +49,7 @@ def log_unhandled_exception(exc_type, value, traceback):
     # own default behavior for an exception escaping a slot) over a single bad GUI action. Calling
     # sys.exit() defeated that purpose by making every uncaught exception, anywhere, fatal --
     # including mid-download, with no relation to closing/exiting the app.
-    logger = logging.getLogger('DownloaderForReddit.%s' % __name__)
+    logger = logging.getLogger(f'DownloaderForReddit.{__name__}')
     logger.critical('Unhandled exception', exc_info=(exc_type, value, traceback))
 
 
