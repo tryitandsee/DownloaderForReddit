@@ -22,15 +22,15 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from pythonjsonlogger import jsonlogger
+from pythonjsonlogger.json import JsonFormatter
 
 
-class JsonStreamFormatter(jsonlogger.JsonFormatter):
+class JsonStreamFormatter(JsonFormatter):
     """
     A custom formatter to display log items each on a new line when logging
     to stream.
 
-    This is basically an exact copy of the jsonlogger.JsonFormatter with the
+    This is basically an exact copy of the JsonFormatter with the
     format method overwritten to not serialize the output to json and to
     display each would be json item on a different line to enhance readability
     in the stream output.

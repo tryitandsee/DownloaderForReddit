@@ -26,13 +26,13 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
-from pythonjsonlogger import jsonlogger
+from pythonjsonlogger.json import JsonFormatter
 
 from ..local_logging.stream_formatter import JsonStreamFormatter
 from ..utils import system_util
 
 
-def make_logger():
+def make_logger() -> logging.Logger:
     logger = logging.getLogger("DownloaderForReddit")
     logger.setLevel(logging.DEBUG)
 
@@ -40,7 +40,7 @@ def make_logger():
         "%(asctime)s: %(levelname)s : %(message)s", datefmt="%Y-%m-%dT%H:%M:%S"
     )
 
-    json_formatter = jsonlogger.JsonFormatter(
+    json_formatter = JsonFormatter(
         fmt="%(levelname) %(asctime) %(filename) %(module) %(name) %(funcName) %(lineno) %(message)",
         datefmt="%Y-%m-%dT%H:%M:%S",
         json_ensure_ascii=True,
@@ -57,3 +57,4 @@ def make_logger():
 
     logger.addHandler(stream_handler)
     logger.addHandler(file_handler)
+    return logger
