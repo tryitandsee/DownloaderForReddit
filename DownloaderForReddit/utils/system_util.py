@@ -61,6 +61,25 @@ def open_in_system(item):
         logger.exception("Failed to open in system", extra={"item_url": item})
 
 
+def reveal_in_file_manager(path):
+    """
+    Opens the system file manager with the supplied file selected, if the platform's file manager
+    supports selecting a specific file. Falls back to opening the containing directory otherwise.
+    :param path: A full path to a file system item to reveal.
+    :type path: str
+    """
+    try:
+        if sys.platform == "win32":
+            normalized = os.path.normpath(path)
+            subprocess.run(f'explorer /select,"{normalized}"')
+        elif sys.platform == "darwin":
+            subprocess.call(["open", "-R", path])
+        else:
+            subprocess.call(["xdg-open", os.path.dirname(path)])
+    except:
+        logger.exception("Failed to reveal in file manager", extra={"item_path": path})
+
+
 def clean_path(path, ends_with_dir=False):
     """
     Cleans a path of all forbidden characters and shortens parts to a system appropriate length if they are too long.

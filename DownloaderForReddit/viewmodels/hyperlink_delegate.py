@@ -1,10 +1,13 @@
+import html
 import threading
 
 from PyQt5.QtCore import QEvent, QModelIndex, Qt
 from PyQt5.QtGui import QTextCharFormat, QTextCursor, QTextDocument
 from PyQt5.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem
 
-from ..utils import injector
+from ..utils import injector, system_util
+
+FILE_ANCHOR_PREFIX = "dfr-file:///"
 
 
 class HyperlinkDelegate(QStyledItemDelegate):
@@ -60,8 +63,8 @@ class HyperlinkDelegate(QStyledItemDelegate):
                  foreground color (if applicable).
         """
         doc = QTextDocument()
-        html = index.data(Qt.DisplayRole)
-        doc.setHtml(html)
+        html_content = index.data(Qt.DisplayRole)
+        doc.setHtml(html_content)
         color = index.data(Qt.ForegroundRole)
 
         if color:
@@ -83,15 +86,23 @@ class HyperlinkDelegate(QStyledItemDelegate):
             and event.button() == Qt.LeftButton
         ):
             doc = QTextDocument()
-            html = index.data(Qt.DisplayRole)
-            doc.setHtml(html)
+            html_content = index.data(Qt.DisplayRole)
+            doc.setHtml(html_content)
             pos = event.pos() - option.rect.topLeft()
             anchor = doc.documentLayout().anchorAt(pos)
             if anchor:
-                threading.Thread(
-                    target=injector.get_reddit_source().open_url,
-                    args=(anchor,),
-                    daemon=True,
-                ).start()
+                if anchor.startswith(FILE_ANCHOR_PREFIX):
+                    path = html.unescape(anchor[len(FILE_ANCHOR_PREFIX) :])
+                    threading.Thread(
+                        target=system_util.reveal_in_file_manager,
+                        args=(path,),
+                        daemon=True,
+                    ).start()
+                else:
+                    threading.Thread(
+                        target=injector.get_reddit_source().open_url,
+                        args=(anchor,),
+                        daemon=True,
+                    ).start()
                 return True
         return False

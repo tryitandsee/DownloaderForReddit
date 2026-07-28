@@ -1,4 +1,5 @@
 import hashlib
+import html
 import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -324,7 +325,8 @@ class Downloader(Runner):
             Otherwise, returns a formatted string containing the username and the title of the content.
         """
         if self.settings_manager.output_saved_content_full_path:
-            return content.get_full_file_path()
+            path = content.get_full_file_path()
+            return f'<a href="dfr-file:///{html.escape(path, quote=True)}">{path}</a>'
         return f"{content.user.name}: {content.title}"
 
     def handle_download_stopped(self, content: Content) -> None:
