@@ -38,19 +38,6 @@
         </widget>
        </item>
        <item>
-        <widget class="QCheckBox" name="lock_settings_checkbox">
-         <property name="toolTip">
-          <string>When checked, the settings in this window will not be overwritten due to changes in the main settings window</string>
-         </property>
-         <property name="layoutDirection">
-          <enum>Qt::LeftToRight</enum>
-         </property>
-         <property name="text">
-          <string>Lock Settings</string>
-         </property>
-        </widget>
-       </item>
-       <item>
         <widget class="QCheckBox" name="enable_download_checkbox">
          <property name="text">
           <string>Download Enabled</string>
@@ -90,134 +77,6 @@
           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
          </property>
         </widget>
-       </item>
-       <item row="3" column="0">
-        <widget class="QLabel" name="label_7">
-         <property name="text">
-          <string>Post Limit:</string>
-         </property>
-        </widget>
-       </item>
-       <item row="3" column="1">
-        <layout class="QHBoxLayout" name="horizontalLayout_3">
-         <item>
-          <widget class="QSpinBox" name="post_limit_spinbox">
-           <property name="maximum">
-            <number>1000</number>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QToolButton" name="post_limit_max_button">
-           <property name="text">
-            <string>Max</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item row="4" column="0">
-        <widget class="QLabel" name="label_11">
-         <property name="text">
-          <string>Score Limit Eval:</string>
-         </property>
-        </widget>
-       </item>
-       <item row="4" column="1">
-        <widget class="QComboBox" name="score_limit_operator_combo"/>
-       </item>
-       <item row="5" column="0">
-        <widget class="QLabel" name="label_9">
-         <property name="text">
-          <string>Score Limit:</string>
-         </property>
-        </widget>
-       </item>
-       <item row="5" column="1">
-        <widget class="QSpinBox" name="score_limit_spinbox">
-         <property name="maximum">
-          <number>10000000</number>
-         </property>
-        </widget>
-       </item>
-       <item row="7" column="0">
-        <widget class="QCheckBox" name="limit_date_checkbox">
-         <property name="layoutDirection">
-          <enum>Qt::LeftToRight</enum>
-         </property>
-         <property name="text">
-          <string>Limit by Date</string>
-         </property>
-        </widget>
-       </item>
-       <item row="8" column="0">
-        <widget class="QRadioButton" name="absolute_date_limit_radio">
-         <property name="text">
-          <string>Last Post Date:</string>
-         </property>
-        </widget>
-       </item>
-       <item row="8" column="1">
-        <widget class="QLabel" name="absolute_date_limit_label">
-         <property name="text">
-          <string>Absolute date limit</string>
-         </property>
-        </widget>
-       </item>
-       <item row="9" column="0">
-        <widget class="QRadioButton" name="custom_date_limit_radio">
-         <property name="text">
-          <string>Custom Date Limit:</string>
-         </property>
-        </widget>
-       </item>
-       <item row="9" column="1">
-        <widget class="QDateTimeEdit" name="custom_date_limit_edit">
-         <property name="dateTime">
-          <datetime>
-           <hour>14</hour>
-           <minute>43</minute>
-           <second>53</second>
-           <year>2005</year>
-           <month>6</month>
-           <day>23</day>
-          </datetime>
-         </property>
-         <property name="minimumDateTime">
-          <datetime>
-           <hour>12</hour>
-           <minute>0</minute>
-           <second>0</second>
-           <year>2005</year>
-           <month>6</month>
-           <day>1</day>
-          </datetime>
-         </property>
-        </widget>
-       </item>
-       <item row="10" column="1">
-        <layout class="QHBoxLayout" name="horizontalLayout_10">
-         <item>
-          <widget class="QRadioButton" name="update_custom_date_limit_radio">
-           <property name="toolTip">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The custom date limit will be overridden upon the first download to the date of the latest extracted post&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-           </property>
-           <property name="text">
-            <string>Update custom limit </string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QRadioButton" name="do_not_update_custom_date_limit_radio">
-           <property name="toolTip">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;a name=&quot;inside&quot;/&gt;The custom date limit will not be overridden. This will result in slightly longer download times for repeat downloads.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-           </property>
-           <property name="text">
-            <string>Keep custom limit</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
        </item>
        <item row="14" column="0">
         <widget class="QLabel" name="label_30">
@@ -309,15 +168,67 @@
        <item row="20" column="1">
         <widget class="QComboBox" name="nsfw_filter_combo"/>
        </item>
-       <item row="21" column="0">
-        <widget class="QLabel" name="label_16">
+       <item row="22" column="0">
+        <widget class="QLabel" name="post_download_naming_label">
          <property name="text">
-          <string>Sort Posts By:</string>
+          <string>Download Naming:</string>
          </property>
         </widget>
        </item>
-       <item row="21" column="1">
-        <widget class="QComboBox" name="post_sort_combo"/>
+       <item row="22" column="1">
+        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <property name="spacing">
+          <number>2</number>
+         </property>
+         <item>
+          <widget class="QLineEdit" name="post_download_naming_line_edit">
+           <property name="placeholderText">
+            <string>----</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="post_download_naming_available_tokens_button">
+           <property name="toolTip">
+            <string>See available tokens</string>
+           </property>
+           <property name="text">
+            <string>...</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="23" column="0">
+        <widget class="QLabel" name="post_save_structure_label">
+         <property name="text">
+          <string>Save Path Structure:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="23" column="1">
+        <layout class="QHBoxLayout" name="horizontalLayout_5">
+         <property name="spacing">
+          <number>2</number>
+         </property>
+         <item>
+          <widget class="QLineEdit" name="post_save_path_structure_line_edit">
+           <property name="placeholderText">
+            <string>----</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="post_save_structure_available_tokens_button">
+           <property name="toolTip">
+            <string>See available tokens</string>
+           </property>
+           <property name="text">
+            <string>...</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
        <item row="11" column="0" colspan="2">
         <widget class="QGroupBox" name="duplicate_controls_groupbox">
@@ -413,6 +324,110 @@
                </font>
               </property>
              </widget>
+            </item>
+            <item row="3" column="0">
+             <widget class="QLabel" name="duplicate_naming_method_label">
+              <property name="font">
+               <font>
+                <weight>50</weight>
+                <bold>false</bold>
+               </font>
+              </property>
+              <property name="toolTip">
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;When the duplicate control method is MOVE, this pattern will be used to rename duplicates. (Match to download naming to keep the original post name)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              </property>
+              <property name="text">
+               <string>Duplicate Naming Method:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <layout class="QHBoxLayout" name="duplicate_naming_method_layout">
+              <property name="spacing">
+               <number>2</number>
+              </property>
+              <item>
+               <widget class="QLineEdit" name="duplicate_naming_line_edit">
+                <property name="font">
+                 <font>
+                  <weight>50</weight>
+                  <bold>false</bold>
+                 </font>
+                </property>
+                <property name="placeholderText">
+                 <string>----</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QToolButton" name="duplicate_naming_available_tokens_button">
+                <property name="font">
+                 <font>
+                  <weight>50</weight>
+                  <bold>false</bold>
+                 </font>
+                </property>
+                <property name="toolTip">
+                 <string>See available tokens</string>
+                </property>
+                <property name="text">
+                 <string>...</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="4" column="0">
+             <widget class="QLabel" name="duplicate_save_structure_label">
+              <property name="font">
+               <font>
+                <weight>50</weight>
+                <bold>false</bold>
+               </font>
+              </property>
+              <property name="toolTip">
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;When the duplicate control method is MOVE, this pattern will be used to structure the path the duplicates are moved to.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              </property>
+              <property name="text">
+               <string>Duplicate Path Structure</string>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="1">
+             <layout class="QHBoxLayout" name="duplicate_save_structure_layout">
+              <property name="spacing">
+               <number>2</number>
+              </property>
+              <item>
+               <widget class="QLineEdit" name="duplicate_save_structure_line_edit">
+                <property name="font">
+                 <font>
+                  <weight>50</weight>
+                  <bold>false</bold>
+                 </font>
+                </property>
+                <property name="placeholderText">
+                 <string>----</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QToolButton" name="duplicate_save_structure_available_tokens_button">
+                <property name="font">
+                 <font>
+                  <weight>50</weight>
+                  <bold>false</bold>
+                 </font>
+                </property>
+                <property name="toolTip">
+                 <string>See available tokens</string>
+                </property>
+                <property name="text">
+                 <string>...</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
             </item>
            </layout>
           </item>
@@ -575,16 +590,6 @@
        <item row="9" column="1">
         <widget class="QComboBox" name="comment_score_operator_combo"/>
        </item>
-       <item row="10" column="0">
-        <widget class="QLabel" name="label_18">
-         <property name="text">
-          <string>Sort Comments By:</string>
-         </property>
-        </widget>
-       </item>
-       <item row="10" column="1">
-        <widget class="QComboBox" name="comment_sort_combo"/>
-       </item>
        <item row="13" column="0">
         <widget class="QLabel" name="label_2">
          <property name="text">
@@ -594,6 +599,62 @@
        </item>
        <item row="13" column="1">
         <widget class="QComboBox" name="comment_file_format_combo"/>
+       </item>
+       <item row="14" column="0">
+        <widget class="QLabel" name="comment_download_naming_label">
+         <property name="text">
+          <string>Download Naming:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="14" column="1">
+        <layout class="QHBoxLayout" name="horizontalLayout_6">
+         <item>
+          <widget class="QLineEdit" name="comment_download_naming_line_edit">
+           <property name="placeholderText">
+            <string>----</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="comment_download_naming_available_tokens_button">
+           <property name="toolTip">
+            <string>See available tokens</string>
+           </property>
+           <property name="text">
+            <string>...</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="15" column="0">
+        <widget class="QLabel" name="comment_save_structure_label">
+         <property name="text">
+          <string>Save Path Structure:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="15" column="1">
+        <layout class="QHBoxLayout" name="horizontalLayout_7">
+         <item>
+          <widget class="QLineEdit" name="comment_save_path_structure_line_edit">
+           <property name="placeholderText">
+            <string>----</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="comment_save_structure_available_tokens_button">
+           <property name="toolTip">
+            <string>See available tokens</string>
+           </property>
+           <property name="text">
+            <string>...</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
       </layout>
      </item>

@@ -83,10 +83,6 @@ class SettingsManager:
         # region Download Defaults
 
         default_user_download_dict = {
-            "lock_settings": False,
-            "post_limit": 25,
-            "post_score_limit_operator": LimitOperator.NO_LIMIT,
-            "post_score_limit": 1000,
             "avoid_duplicates": True,  # Url duplicates
             "hash_duplicates": False,  # MD5 hashed duplicates
             "duplicate_control_method": DuplicateControlMethod.DELETE,
@@ -108,9 +104,6 @@ class SettingsManager:
             "comment_reply_limit": 100,
             "comment_score_limit": 1000,
             "comment_score_limit_operator": LimitOperator.NO_LIMIT,
-            "comment_sort_method": CommentSortMethod.NEW,
-            "date_limit": None,
-            "post_sort_method": PostSortMethod.NEW,
             "post_download_naming_method": "%[title]",
             "comment_naming_method": "%[author_name]-comment",
             "post_save_structure": "%[author_name]",
@@ -118,10 +111,6 @@ class SettingsManager:
         }
 
         default_subreddit_download_dict = {
-            "lock_settings": False,
-            "post_limit": 25,
-            "post_score_limit_operator": LimitOperator.NO_LIMIT,
-            "post_score_limit": 1000,
             "avoid_duplicates": True,  # Url duplicates
             "hash_duplicates": False,  # MD5 hashed duplicates
             "duplicate_control_method": DuplicateControlMethod.DELETE,
@@ -143,9 +132,6 @@ class SettingsManager:
             "comment_reply_limit": 100,
             "comment_score_limit": 1000,
             "comment_score_limit_operator": LimitOperator.NO_LIMIT,
-            "comment_sort_method": CommentSortMethod.NEW,
-            "date_limit": None,
-            "post_sort_method": PostSortMethod.NEW,
             "post_download_naming_method": "%[title]",
             "comment_naming_method": "%[author_name]-comment",
             "post_save_structure": "%[subreddit_name]",
@@ -200,11 +186,7 @@ class SettingsManager:
         default_tooltip_display_dict = {
             "name": True,
             "download_enabled": True,
-            "lock_settings": False,
             "last_download_date": False,
-            "date_limit": True,
-            "absolute_date_limit": False,
-            "post_limit": False,
             "download_naming_method": False,
             "subreddit_save_method": False,
             "download_videos": False,
@@ -325,20 +307,6 @@ class SettingsManager:
         self.order_list_desc = self.get("main_window_gui", "order_list_desc", False)
         self.download_radio_state = self.get(
             "main_window_gui", "download_radio_state", "USER"
-        )
-        # endregion
-
-        # region Reddit Object Settings Dialog
-        ro_settings_geom = {"width": 773, "height": 877, "x": 0, "y": 0}
-        self.reddit_object_settings_dialog_geom = self.get(
-            "reddit_object_settings_dialog",
-            "reddit_object_settings_dialog_geom",
-            ro_settings_geom,
-        )
-        self.reddit_object_settings_dialog_splitter_state = self.get(
-            "reddit_object_settings_dialog",
-            "reddit_object_settings_dialog_splitter_state",
-            [181, 565],
         )
         # endregion
 

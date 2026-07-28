@@ -1,6 +1,6 @@
 from praw.models import Comment
 
-from ..database.model_enums import CommentDownload, LimitOperator
+from ..database.model_enums import CommentDownload
 from ..database.models import RedditObject
 
 
@@ -38,10 +38,3 @@ class CommentFilter:
                 != CommentDownload.DO_NOT_DOWNLOAD
             )
         return reddit_object.download_comment_content == CommentDownload.DOWNLOAD
-
-    def filter_score_limit(self, comment: Comment, reddit_object: RedditObject):
-        if reddit_object.comment_score_limit_operator == LimitOperator.NO_LIMIT:
-            return True
-        if reddit_object.comment_score_limit_operator == LimitOperator.LESS_THAN:
-            return comment.score <= reddit_object.comment_score_limit
-        return comment.score >= reddit_object.comment_score_limit

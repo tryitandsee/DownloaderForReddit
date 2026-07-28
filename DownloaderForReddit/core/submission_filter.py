@@ -22,7 +22,7 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from ..database.model_enums import LimitOperator, NsfwFilter
+from ..database.model_enums import NsfwFilter
 
 
 class SubmissionFilter:
@@ -34,24 +34,7 @@ class SubmissionFilter:
         :param reddit_object: The reddit object to which the submission belongs.
         :return: True or False depending on if the submission passed the filter criteria.
         """
-        return (
-            self.score_filter(submission, reddit_object)
-            and self.nsfw_filter(submission, reddit_object)
-            and self.date_filter(submission, reddit_object)
-        )
-
-    def score_filter(self, submission, reddit_object):
-        """
-        Test the submission to see if it is greater or less than the global settings submission score limit.
-        :param submission: A SubmissionData item to be tested.
-        :param reddit_object: The reddit object which the post is being extracted for.
-        :return: True if the submissions score limit is meets the global settings criteria, False if it does not.
-        """
-        if reddit_object.post_score_limit_operator == LimitOperator.NO_LIMIT:
-            return True
-        if reddit_object.post_score_limit_operator == LimitOperator.LESS_THAN:
-            return submission.score <= reddit_object.post_score_limit
-        return submission.score >= reddit_object.post_score_limit
+        return self.nsfw_filter(submission, reddit_object)
 
     def nsfw_filter(self, submission, reddit_object):
         """
@@ -65,23 +48,3 @@ class SubmissionFilter:
         if reddit_object.download_nsfw == NsfwFilter.ONLY:
             return submission.nsfw
         return True
-
-    def date_filter(self, submission, reddit_object):
-        """
-        Tests the submission date to see if it was submitted after the reddit objects individual date limit setting.
-        :param submission: A SubmissionData item to be tested.
-        :param reddit_object: A reddit object (User or Subreddit) which holds the date limit criteria to be tested.
-        :return: True if the submission meets the reddit objects date criteria, False if it does not.
-        """
-        date_limit = self.get_date_limit(reddit_object)
-        return submission.created.timestamp() > date_limit.timestamp()
-
-    @staticmethod
-    def get_date_limit(reddit_object):
-        """
-        Returns the reddit objects date_limit or custom_date_limit attribute depending on the what the custom date
-        limit is.
-        """
-        if reddit_object.date_limit is None:
-            return reddit_object.absolute_date_limit
-        return reddit_object.date_limit

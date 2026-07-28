@@ -35,10 +35,6 @@ class Ui_ObjectSettingsWidget:
         self.label.setFont(font)
         self.label.setObjectName("label")
         self.core_settings_vbox.addWidget(self.label)
-        self.lock_settings_checkbox = QtWidgets.QCheckBox(ObjectSettingsWidget)
-        self.lock_settings_checkbox.setLayoutDirection(QtCore.Qt.LeftToRight)
-        self.lock_settings_checkbox.setObjectName("lock_settings_checkbox")
-        self.core_settings_vbox.addWidget(self.lock_settings_checkbox)
         self.enable_download_checkbox = QtWidgets.QCheckBox(ObjectSettingsWidget)
         self.enable_download_checkbox.setObjectName("enable_download_checkbox")
         self.core_settings_vbox.addWidget(self.enable_download_checkbox)
@@ -68,95 +64,6 @@ class Ui_ObjectSettingsWidget:
         self.label_19.setObjectName("label_19")
         self.post_download_form.setWidget(
             1, QtWidgets.QFormLayout.SpanningRole, self.label_19
-        )
-        self.label_7 = QtWidgets.QLabel(ObjectSettingsWidget)
-        self.label_7.setObjectName("label_7")
-        self.post_download_form.setWidget(
-            3, QtWidgets.QFormLayout.LabelRole, self.label_7
-        )
-        self.horizontalLayout_3 = QtWidgets.QHBoxLayout()
-        self.horizontalLayout_3.setObjectName("horizontalLayout_3")
-        self.post_limit_spinbox = QtWidgets.QSpinBox(ObjectSettingsWidget)
-        self.post_limit_spinbox.setMaximum(1000)
-        self.post_limit_spinbox.setObjectName("post_limit_spinbox")
-        self.horizontalLayout_3.addWidget(self.post_limit_spinbox)
-        self.post_limit_max_button = QtWidgets.QToolButton(ObjectSettingsWidget)
-        self.post_limit_max_button.setObjectName("post_limit_max_button")
-        self.horizontalLayout_3.addWidget(self.post_limit_max_button)
-        self.post_download_form.setLayout(
-            3, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_3
-        )
-        self.label_11 = QtWidgets.QLabel(ObjectSettingsWidget)
-        self.label_11.setObjectName("label_11")
-        self.post_download_form.setWidget(
-            4, QtWidgets.QFormLayout.LabelRole, self.label_11
-        )
-        self.score_limit_operator_combo = QtWidgets.QComboBox(ObjectSettingsWidget)
-        self.score_limit_operator_combo.setObjectName("score_limit_operator_combo")
-        self.post_download_form.setWidget(
-            4, QtWidgets.QFormLayout.FieldRole, self.score_limit_operator_combo
-        )
-        self.label_9 = QtWidgets.QLabel(ObjectSettingsWidget)
-        self.label_9.setObjectName("label_9")
-        self.post_download_form.setWidget(
-            5, QtWidgets.QFormLayout.LabelRole, self.label_9
-        )
-        self.score_limit_spinbox = QtWidgets.QSpinBox(ObjectSettingsWidget)
-        self.score_limit_spinbox.setMaximum(10000000)
-        self.score_limit_spinbox.setObjectName("score_limit_spinbox")
-        self.post_download_form.setWidget(
-            5, QtWidgets.QFormLayout.FieldRole, self.score_limit_spinbox
-        )
-        self.limit_date_checkbox = QtWidgets.QCheckBox(ObjectSettingsWidget)
-        self.limit_date_checkbox.setLayoutDirection(QtCore.Qt.LeftToRight)
-        self.limit_date_checkbox.setObjectName("limit_date_checkbox")
-        self.post_download_form.setWidget(
-            7, QtWidgets.QFormLayout.LabelRole, self.limit_date_checkbox
-        )
-        self.absolute_date_limit_radio = QtWidgets.QRadioButton(ObjectSettingsWidget)
-        self.absolute_date_limit_radio.setObjectName("absolute_date_limit_radio")
-        self.post_download_form.setWidget(
-            8, QtWidgets.QFormLayout.LabelRole, self.absolute_date_limit_radio
-        )
-        self.absolute_date_limit_label = QtWidgets.QLabel(ObjectSettingsWidget)
-        self.absolute_date_limit_label.setObjectName("absolute_date_limit_label")
-        self.post_download_form.setWidget(
-            8, QtWidgets.QFormLayout.FieldRole, self.absolute_date_limit_label
-        )
-        self.custom_date_limit_radio = QtWidgets.QRadioButton(ObjectSettingsWidget)
-        self.custom_date_limit_radio.setObjectName("custom_date_limit_radio")
-        self.post_download_form.setWidget(
-            9, QtWidgets.QFormLayout.LabelRole, self.custom_date_limit_radio
-        )
-        self.custom_date_limit_edit = QtWidgets.QDateTimeEdit(ObjectSettingsWidget)
-        self.custom_date_limit_edit.setDateTime(
-            QtCore.QDateTime(QtCore.QDate(2005, 6, 23), QtCore.QTime(14, 43, 53))
-        )
-        self.custom_date_limit_edit.setMinimumDateTime(
-            QtCore.QDateTime(QtCore.QDate(2005, 6, 1), QtCore.QTime(12, 0, 0))
-        )
-        self.custom_date_limit_edit.setObjectName("custom_date_limit_edit")
-        self.post_download_form.setWidget(
-            9, QtWidgets.QFormLayout.FieldRole, self.custom_date_limit_edit
-        )
-        self.horizontalLayout_10 = QtWidgets.QHBoxLayout()
-        self.horizontalLayout_10.setObjectName("horizontalLayout_10")
-        self.update_custom_date_limit_radio = QtWidgets.QRadioButton(
-            ObjectSettingsWidget
-        )
-        self.update_custom_date_limit_radio.setObjectName(
-            "update_custom_date_limit_radio"
-        )
-        self.horizontalLayout_10.addWidget(self.update_custom_date_limit_radio)
-        self.do_not_update_custom_date_limit_radio = QtWidgets.QRadioButton(
-            ObjectSettingsWidget
-        )
-        self.do_not_update_custom_date_limit_radio.setObjectName(
-            "do_not_update_custom_date_limit_radio"
-        )
-        self.horizontalLayout_10.addWidget(self.do_not_update_custom_date_limit_radio)
-        self.post_download_form.setLayout(
-            10, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_10
         )
         self.label_30 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_30.setObjectName("label_30")
@@ -241,15 +148,57 @@ class Ui_ObjectSettingsWidget:
         self.post_download_form.setWidget(
             20, QtWidgets.QFormLayout.FieldRole, self.nsfw_filter_combo
         )
-        self.label_16 = QtWidgets.QLabel(ObjectSettingsWidget)
-        self.label_16.setObjectName("label_16")
+        self.post_download_naming_label = QtWidgets.QLabel(ObjectSettingsWidget)
+        self.post_download_naming_label.setObjectName("post_download_naming_label")
         self.post_download_form.setWidget(
-            21, QtWidgets.QFormLayout.LabelRole, self.label_16
+            22, QtWidgets.QFormLayout.LabelRole, self.post_download_naming_label
         )
-        self.post_sort_combo = QtWidgets.QComboBox(ObjectSettingsWidget)
-        self.post_sort_combo.setObjectName("post_sort_combo")
+        self.horizontalLayout_2 = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_2.setSpacing(2)
+        self.horizontalLayout_2.setObjectName("horizontalLayout_2")
+        self.post_download_naming_line_edit = QtWidgets.QLineEdit(ObjectSettingsWidget)
+        self.post_download_naming_line_edit.setObjectName(
+            "post_download_naming_line_edit"
+        )
+        self.horizontalLayout_2.addWidget(self.post_download_naming_line_edit)
+        self.post_download_naming_available_tokens_button = QtWidgets.QToolButton(
+            ObjectSettingsWidget
+        )
+        self.post_download_naming_available_tokens_button.setObjectName(
+            "post_download_naming_available_tokens_button"
+        )
+        self.horizontalLayout_2.addWidget(
+            self.post_download_naming_available_tokens_button
+        )
+        self.post_download_form.setLayout(
+            22, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_2
+        )
+        self.post_save_structure_label = QtWidgets.QLabel(ObjectSettingsWidget)
+        self.post_save_structure_label.setObjectName("post_save_structure_label")
         self.post_download_form.setWidget(
-            21, QtWidgets.QFormLayout.FieldRole, self.post_sort_combo
+            23, QtWidgets.QFormLayout.LabelRole, self.post_save_structure_label
+        )
+        self.horizontalLayout_5 = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_5.setSpacing(2)
+        self.horizontalLayout_5.setObjectName("horizontalLayout_5")
+        self.post_save_path_structure_line_edit = QtWidgets.QLineEdit(
+            ObjectSettingsWidget
+        )
+        self.post_save_path_structure_line_edit.setObjectName(
+            "post_save_path_structure_line_edit"
+        )
+        self.horizontalLayout_5.addWidget(self.post_save_path_structure_line_edit)
+        self.post_save_structure_available_tokens_button = QtWidgets.QToolButton(
+            ObjectSettingsWidget
+        )
+        self.post_save_structure_available_tokens_button.setObjectName(
+            "post_save_structure_available_tokens_button"
+        )
+        self.horizontalLayout_5.addWidget(
+            self.post_save_structure_available_tokens_button
+        )
+        self.post_download_form.setLayout(
+            23, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_5
         )
         self.duplicate_controls_groupbox = QtWidgets.QGroupBox(ObjectSettingsWidget)
         font = QtGui.QFont()
@@ -325,6 +274,96 @@ class Ui_ObjectSettingsWidget:
         )
         self.duplicate_controls_layout.setWidget(
             2, QtWidgets.QFormLayout.FieldRole, self.duplicate_control_method_combo
+        )
+        self.duplicate_naming_method_label = QtWidgets.QLabel(
+            self.duplicate_controls_groupbox
+        )
+        font = QtGui.QFont()
+        font.setBold(False)
+        font.setWeight(50)
+        self.duplicate_naming_method_label.setFont(font)
+        self.duplicate_naming_method_label.setObjectName(
+            "duplicate_naming_method_label"
+        )
+        self.duplicate_controls_layout.setWidget(
+            3, QtWidgets.QFormLayout.LabelRole, self.duplicate_naming_method_label
+        )
+        self.duplicate_naming_method_layout = QtWidgets.QHBoxLayout()
+        self.duplicate_naming_method_layout.setSpacing(2)
+        self.duplicate_naming_method_layout.setObjectName(
+            "duplicate_naming_method_layout"
+        )
+        self.duplicate_naming_line_edit = QtWidgets.QLineEdit(
+            self.duplicate_controls_groupbox
+        )
+        font = QtGui.QFont()
+        font.setBold(False)
+        font.setWeight(50)
+        self.duplicate_naming_line_edit.setFont(font)
+        self.duplicate_naming_line_edit.setObjectName("duplicate_naming_line_edit")
+        self.duplicate_naming_method_layout.addWidget(self.duplicate_naming_line_edit)
+        self.duplicate_naming_available_tokens_button = QtWidgets.QToolButton(
+            self.duplicate_controls_groupbox
+        )
+        font = QtGui.QFont()
+        font.setBold(False)
+        font.setWeight(50)
+        self.duplicate_naming_available_tokens_button.setFont(font)
+        self.duplicate_naming_available_tokens_button.setObjectName(
+            "duplicate_naming_available_tokens_button"
+        )
+        self.duplicate_naming_method_layout.addWidget(
+            self.duplicate_naming_available_tokens_button
+        )
+        self.duplicate_controls_layout.setLayout(
+            3, QtWidgets.QFormLayout.FieldRole, self.duplicate_naming_method_layout
+        )
+        self.duplicate_save_structure_label = QtWidgets.QLabel(
+            self.duplicate_controls_groupbox
+        )
+        font = QtGui.QFont()
+        font.setBold(False)
+        font.setWeight(50)
+        self.duplicate_save_structure_label.setFont(font)
+        self.duplicate_save_structure_label.setObjectName(
+            "duplicate_save_structure_label"
+        )
+        self.duplicate_controls_layout.setWidget(
+            4, QtWidgets.QFormLayout.LabelRole, self.duplicate_save_structure_label
+        )
+        self.duplicate_save_structure_layout = QtWidgets.QHBoxLayout()
+        self.duplicate_save_structure_layout.setSpacing(2)
+        self.duplicate_save_structure_layout.setObjectName(
+            "duplicate_save_structure_layout"
+        )
+        self.duplicate_save_structure_line_edit = QtWidgets.QLineEdit(
+            self.duplicate_controls_groupbox
+        )
+        font = QtGui.QFont()
+        font.setBold(False)
+        font.setWeight(50)
+        self.duplicate_save_structure_line_edit.setFont(font)
+        self.duplicate_save_structure_line_edit.setObjectName(
+            "duplicate_save_structure_line_edit"
+        )
+        self.duplicate_save_structure_layout.addWidget(
+            self.duplicate_save_structure_line_edit
+        )
+        self.duplicate_save_structure_available_tokens_button = QtWidgets.QToolButton(
+            self.duplicate_controls_groupbox
+        )
+        font = QtGui.QFont()
+        font.setBold(False)
+        font.setWeight(50)
+        self.duplicate_save_structure_available_tokens_button.setFont(font)
+        self.duplicate_save_structure_available_tokens_button.setObjectName(
+            "duplicate_save_structure_available_tokens_button"
+        )
+        self.duplicate_save_structure_layout.addWidget(
+            self.duplicate_save_structure_available_tokens_button
+        )
+        self.duplicate_controls_layout.setLayout(
+            4, QtWidgets.QFormLayout.FieldRole, self.duplicate_save_structure_layout
         )
         self.verticalLayout_3.addLayout(self.duplicate_controls_layout)
         self.post_download_form.setWidget(
@@ -451,16 +490,6 @@ class Ui_ObjectSettingsWidget:
         self.comment_download_form.setWidget(
             9, QtWidgets.QFormLayout.FieldRole, self.comment_score_operator_combo
         )
-        self.label_18 = QtWidgets.QLabel(ObjectSettingsWidget)
-        self.label_18.setObjectName("label_18")
-        self.comment_download_form.setWidget(
-            10, QtWidgets.QFormLayout.LabelRole, self.label_18
-        )
-        self.comment_sort_combo = QtWidgets.QComboBox(ObjectSettingsWidget)
-        self.comment_sort_combo.setObjectName("comment_sort_combo")
-        self.comment_download_form.setWidget(
-            10, QtWidgets.QFormLayout.FieldRole, self.comment_sort_combo
-        )
         self.label_2 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_2.setObjectName("label_2")
         self.comment_download_form.setWidget(
@@ -470,6 +499,60 @@ class Ui_ObjectSettingsWidget:
         self.comment_file_format_combo.setObjectName("comment_file_format_combo")
         self.comment_download_form.setWidget(
             13, QtWidgets.QFormLayout.FieldRole, self.comment_file_format_combo
+        )
+        self.comment_download_naming_label = QtWidgets.QLabel(ObjectSettingsWidget)
+        self.comment_download_naming_label.setObjectName(
+            "comment_download_naming_label"
+        )
+        self.comment_download_form.setWidget(
+            14, QtWidgets.QFormLayout.LabelRole, self.comment_download_naming_label
+        )
+        self.horizontalLayout_6 = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_6.setObjectName("horizontalLayout_6")
+        self.comment_download_naming_line_edit = QtWidgets.QLineEdit(
+            ObjectSettingsWidget
+        )
+        self.comment_download_naming_line_edit.setObjectName(
+            "comment_download_naming_line_edit"
+        )
+        self.horizontalLayout_6.addWidget(self.comment_download_naming_line_edit)
+        self.comment_download_naming_available_tokens_button = QtWidgets.QToolButton(
+            ObjectSettingsWidget
+        )
+        self.comment_download_naming_available_tokens_button.setObjectName(
+            "comment_download_naming_available_tokens_button"
+        )
+        self.horizontalLayout_6.addWidget(
+            self.comment_download_naming_available_tokens_button
+        )
+        self.comment_download_form.setLayout(
+            14, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_6
+        )
+        self.comment_save_structure_label = QtWidgets.QLabel(ObjectSettingsWidget)
+        self.comment_save_structure_label.setObjectName("comment_save_structure_label")
+        self.comment_download_form.setWidget(
+            15, QtWidgets.QFormLayout.LabelRole, self.comment_save_structure_label
+        )
+        self.horizontalLayout_7 = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_7.setObjectName("horizontalLayout_7")
+        self.comment_save_path_structure_line_edit = QtWidgets.QLineEdit(
+            ObjectSettingsWidget
+        )
+        self.comment_save_path_structure_line_edit.setObjectName(
+            "comment_save_path_structure_line_edit"
+        )
+        self.horizontalLayout_7.addWidget(self.comment_save_path_structure_line_edit)
+        self.comment_save_structure_available_tokens_button = QtWidgets.QToolButton(
+            ObjectSettingsWidget
+        )
+        self.comment_save_structure_available_tokens_button.setObjectName(
+            "comment_save_structure_available_tokens_button"
+        )
+        self.horizontalLayout_7.addWidget(
+            self.comment_save_structure_available_tokens_button
+        )
+        self.comment_download_form.setLayout(
+            15, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_7
         )
         self.verticalLayout.addLayout(self.comment_download_form)
         self.verticalLayout_2.addLayout(self.verticalLayout)
@@ -483,54 +566,11 @@ class Ui_ObjectSettingsWidget:
             _translate("ObjectSettingsWidget", "Settings")
         )
         self.label.setText(_translate("ObjectSettingsWidget", "Core Settings:"))
-        self.lock_settings_checkbox.setToolTip(
-            _translate(
-                "ObjectSettingsWidget",
-                "When checked, the settings in this window will not be overwritten due to changes in the main settings window",
-            )
-        )
-        self.lock_settings_checkbox.setText(
-            _translate("ObjectSettingsWidget", "Lock Settings")
-        )
         self.enable_download_checkbox.setText(
             _translate("ObjectSettingsWidget", "Download Enabled")
         )
         self.label_19.setText(
             _translate("ObjectSettingsWidget", "Post Download Settings:")
-        )
-        self.label_7.setText(_translate("ObjectSettingsWidget", "Post Limit:"))
-        self.post_limit_max_button.setText(_translate("ObjectSettingsWidget", "Max"))
-        self.label_11.setText(_translate("ObjectSettingsWidget", "Score Limit Eval:"))
-        self.label_9.setText(_translate("ObjectSettingsWidget", "Score Limit:"))
-        self.limit_date_checkbox.setText(
-            _translate("ObjectSettingsWidget", "Limit by Date")
-        )
-        self.absolute_date_limit_radio.setText(
-            _translate("ObjectSettingsWidget", "Last Post Date:")
-        )
-        self.absolute_date_limit_label.setText(
-            _translate("ObjectSettingsWidget", "Absolute date limit")
-        )
-        self.custom_date_limit_radio.setText(
-            _translate("ObjectSettingsWidget", "Custom Date Limit:")
-        )
-        self.update_custom_date_limit_radio.setToolTip(
-            _translate(
-                "ObjectSettingsWidget",
-                "<html><head/><body><p>The custom date limit will be overridden upon the first download to the date of the latest extracted post</p></body></html>",
-            )
-        )
-        self.update_custom_date_limit_radio.setText(
-            _translate("ObjectSettingsWidget", "Update custom limit ")
-        )
-        self.do_not_update_custom_date_limit_radio.setToolTip(
-            _translate(
-                "ObjectSettingsWidget",
-                '<html><head/><body><p><a name="inside"/>The custom date limit will not be overridden. This will result in slightly longer download times for repeat downloads.</p></body></html>',
-            )
-        )
-        self.do_not_update_custom_date_limit_radio.setText(
-            _translate("ObjectSettingsWidget", "Keep custom limit")
         )
         self.label_30.setText(
             _translate("ObjectSettingsWidget", "Extract Self Post Content:")
@@ -545,7 +585,30 @@ class Ui_ObjectSettingsWidget:
         self.label_14.setText(_translate("ObjectSettingsWidget", "Download Images:"))
         self.label_29.setText(_translate("ObjectSettingsWidget", "Download Gifs:"))
         self.label_28.setText(_translate("ObjectSettingsWidget", "NSFW Filter:"))
-        self.label_16.setText(_translate("ObjectSettingsWidget", "Sort Posts By:"))
+        self.post_download_naming_label.setText(
+            _translate("ObjectSettingsWidget", "Download Naming:")
+        )
+        self.post_download_naming_line_edit.setPlaceholderText(
+            _translate("ObjectSettingsWidget", "----")
+        )
+        self.post_download_naming_available_tokens_button.setToolTip(
+            _translate("ObjectSettingsWidget", "See available tokens")
+        )
+        self.post_download_naming_available_tokens_button.setText(
+            _translate("ObjectSettingsWidget", "...")
+        )
+        self.post_save_structure_label.setText(
+            _translate("ObjectSettingsWidget", "Save Path Structure:")
+        )
+        self.post_save_path_structure_line_edit.setPlaceholderText(
+            _translate("ObjectSettingsWidget", "----")
+        )
+        self.post_save_structure_available_tokens_button.setToolTip(
+            _translate("ObjectSettingsWidget", "See available tokens")
+        )
+        self.post_save_structure_available_tokens_button.setText(
+            _translate("ObjectSettingsWidget", "...")
+        )
         self.duplicate_controls_groupbox.setTitle(
             _translate("ObjectSettingsWidget", "Duplicate Controls")
         )
@@ -588,6 +651,42 @@ class Ui_ObjectSettingsWidget:
         self.duplicate_control_method_combo_label.setText(
             _translate("ObjectSettingsWidget", "Duplicate Control Method:")
         )
+        self.duplicate_naming_method_label.setToolTip(
+            _translate(
+                "ObjectSettingsWidget",
+                "<html><head/><body><p>When the duplicate control method is MOVE, this pattern will be used to rename duplicates. (Match to download naming to keep the original post name)</p></body></html>",
+            )
+        )
+        self.duplicate_naming_method_label.setText(
+            _translate("ObjectSettingsWidget", "Duplicate Naming Method:")
+        )
+        self.duplicate_naming_line_edit.setPlaceholderText(
+            _translate("ObjectSettingsWidget", "----")
+        )
+        self.duplicate_naming_available_tokens_button.setToolTip(
+            _translate("ObjectSettingsWidget", "See available tokens")
+        )
+        self.duplicate_naming_available_tokens_button.setText(
+            _translate("ObjectSettingsWidget", "...")
+        )
+        self.duplicate_save_structure_label.setToolTip(
+            _translate(
+                "ObjectSettingsWidget",
+                "<html><head/><body><p>When the duplicate control method is MOVE, this pattern will be used to structure the path the duplicates are moved to.</p></body></html>",
+            )
+        )
+        self.duplicate_save_structure_label.setText(
+            _translate("ObjectSettingsWidget", "Duplicate Path Structure")
+        )
+        self.duplicate_save_structure_line_edit.setPlaceholderText(
+            _translate("ObjectSettingsWidget", "----")
+        )
+        self.duplicate_save_structure_available_tokens_button.setToolTip(
+            _translate("ObjectSettingsWidget", "See available tokens")
+        )
+        self.duplicate_save_structure_available_tokens_button.setText(
+            _translate("ObjectSettingsWidget", "...")
+        )
         self.label_20.setText(
             _translate("ObjectSettingsWidget", "Comment Download Settings:")
         )
@@ -608,16 +707,28 @@ class Ui_ObjectSettingsWidget:
         self.comment_reply_max_button.setText(_translate("ObjectSettingsWidget", "Max"))
         self.label_24.setText(_translate("ObjectSettingsWidget", "Score Limit:"))
         self.label_25.setText(_translate("ObjectSettingsWidget", "Score Limit Eval:"))
-        self.label_18.setText(_translate("ObjectSettingsWidget", "Sort Comments By:"))
         self.label_2.setText(_translate("ObjectSettingsWidget", "Comment File Format:"))
-
-
-if __name__ == "__main__":
-    import sys
-
-    app = QtWidgets.QApplication(sys.argv)
-    ObjectSettingsWidget = QtWidgets.QWidget()
-    ui = Ui_ObjectSettingsWidget()
-    ui.setupUi(ObjectSettingsWidget)
-    ObjectSettingsWidget.show()
-    sys.exit(app.exec_())
+        self.comment_download_naming_label.setText(
+            _translate("ObjectSettingsWidget", "Download Naming:")
+        )
+        self.comment_download_naming_line_edit.setPlaceholderText(
+            _translate("ObjectSettingsWidget", "----")
+        )
+        self.comment_download_naming_available_tokens_button.setToolTip(
+            _translate("ObjectSettingsWidget", "See available tokens")
+        )
+        self.comment_download_naming_available_tokens_button.setText(
+            _translate("ObjectSettingsWidget", "...")
+        )
+        self.comment_save_structure_label.setText(
+            _translate("ObjectSettingsWidget", "Save Path Structure:")
+        )
+        self.comment_save_path_structure_line_edit.setPlaceholderText(
+            _translate("ObjectSettingsWidget", "----")
+        )
+        self.comment_save_structure_available_tokens_button.setToolTip(
+            _translate("ObjectSettingsWidget", "See available tokens")
+        )
+        self.comment_save_structure_available_tokens_button.setText(
+            _translate("ObjectSettingsWidget", "...")
+        )

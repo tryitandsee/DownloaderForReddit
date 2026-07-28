@@ -28,10 +28,8 @@ from datetime import datetime
 
 from DownloaderForReddit.database.model_enums import (
     CommentDownload,
-    CommentSortMethod,
     LimitOperator,
     NsfwFilter,
-    PostSortMethod,
 )
 from DownloaderForReddit.database.models import Subreddit, User
 
@@ -43,17 +41,12 @@ logger = logging.getLogger(f"DownloaderForReddit.{__name__}")
 EXPELLED_KEYS = ["lists", "posts", "content", "comments"]
 TYPE_MAP = {
     "date_created": lambda x: datetime.strptime(x, "%m/%d/%Y %I:%M %p"),
-    "post_score_limit_operator": lambda x: LimitOperator(x),
-    "post_sort_method": lambda x: PostSortMethod(x),
     "download_nsfw": lambda x: NsfwFilter(x),
     "extract_comments": lambda x: CommentDownload(x),
     "download_comments": lambda x: CommentDownload(x),
     "download_comment_content": lambda x: CommentDownload(x),
     "comment_score_limit_operator": lambda x: LimitOperator(x),
-    "comment_sort_method": lambda x: CommentSortMethod(x),
     "date_added": lambda x: datetime.strptime(x, "%m/%d/%Y %I:%M %p"),
-    "absolute_date_limit": lambda x: datetime.strptime(x, "%m/%d/%Y %I:%M %p"),
-    "date_limit": lambda x: datetime.strptime(x, "%m/%d/%Y %I:%M %p"),
 }
 
 

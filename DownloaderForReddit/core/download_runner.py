@@ -377,8 +377,7 @@ class DownloadRunner(QObject):
 
     def run_batch(self, prepared_submissions):
         # Shared by single_submission_urls and submissions: validate everything first, only create
-        # a DownloadSession if at least one survives (no run_download(), so this never touches
-        # set_date_limit).
+        # a DownloadSession if at least one survives.
         extraction_sets = [es for es in prepared_submissions if es is not None]
         if not extraction_sets:
             # Nothing was queued, so the pool's idle state hasn't actually changed -- but the GUI
@@ -634,13 +633,7 @@ class DownloadRunner(QObject):
             self.queue_submissions(reddit_object, submissions)
 
     def queue_submissions(self, reddit_object, submissions):
-        date_limit = 0
-        if not submissions:
-            return
-
         for submission in submissions:
-            created_epoch = submission.created.timestamp()
-            date_limit = max(date_limit, created_epoch)
             extraction_set = ExtractionSet(
                 extraction_type="SUBMISSION",
                 extraction_object=submission,
@@ -648,19 +641,10 @@ class DownloadRunner(QObject):
                 download_session_id=self.download_session_id,
             )
             self.submission_queue.put(extraction_set)
-        if date_limit > 0:
-            reddit_object.set_date_limit(
-                date_limit
-            )  # date limit modified after submissions are extracted
 
     def filter_submissions(self, reddit_object, raw_submissions):
         submissions = []
         for submission in raw_submissions:
-            if not self.submission_filter.date_filter(submission, reddit_object):
-                # Don't assume raw_submissions is strictly newest-first -- a repost/crosspost can
-                # leave an older post ahead of a genuinely new one. Skip it rather than break, so
-                # one out-of-order old post can't silently discard every newer submission after it.
-                continue
             if (
                 not self.filter_subreddits
                 or submission.subreddit in self.validated_subreddits

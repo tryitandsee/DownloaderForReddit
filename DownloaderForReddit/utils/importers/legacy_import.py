@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 
 from DownloaderForReddit.database.model_enums import NsfwFilter
 from DownloaderForReddit.database.models import Subreddit, User
@@ -30,14 +29,10 @@ def make_reddit_object(data):
 def get_ro_kwargs(data):
     return {
         "name": data["name"],
-        "post_limit": data["post_limit"],
         "avoid_duplicates": data["avoid_duplicates"],
         "download_videos": data["download_videos"],
         "download_images": data["download_images"],
         "download_nsfw": convert_download_nsfw(data["nsfw_filter"]),
-        "absolute_date_limit": get_date_limit(data["date_limit_epoch"]),
-        "date_limit": get_date_limit(data["custom_date_limit_epoch"]),
-        "lock_settings": data["do_not_edit"],
         "download_enabled": data["download_enabled"],
     }
 
@@ -48,10 +43,3 @@ def convert_download_nsfw(nsfw):
     if nsfw == "EXCLUDE":
         return NsfwFilter.EXCLUDE
     return NsfwFilter.ONLY
-
-
-def get_date_limit(date_limit):
-    try:
-        return datetime.fromtimestamp(date_limit)
-    except:
-        return None

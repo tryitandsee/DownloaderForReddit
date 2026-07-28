@@ -70,7 +70,6 @@ from ..gui.existing_reddit_object_add_dialog import ExistingRedditObjectAddDialo
 from ..gui.export_wizard import ExportWizard
 from ..gui.ffmpeg_info_dialog import FfmpegInfoDialog
 from ..gui.invalid_reddit_object_dialog import InvalidObject, InvalidRedditObjectDialog
-from ..gui.reddit_object_settings_dialog import RedditObjectSettingsDialog
 from ..gui.settings.settings_dialog import SettingsDialog
 from ..gui.tryitandsee_mine_download_status_dialog import (
     DownloadStatusDialog,  # [mine] feat(gui): download status window
@@ -546,12 +545,10 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
         if object_type == "USER":
             ros = self.get_selected_users()
-            open_settings_command = self.user_settings
             add_command = self.add_user
             remove_command = self.remove_user
         else:
             ros = self.get_selected_subreddits()
-            open_settings_command = self.subreddit_settings
             add_command = self.add_subreddit
             remove_command = self.remove_subreddit
 
@@ -564,8 +561,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         except IndexError:
             download_text = "Download"
 
-        menu.addAction("Settings", lambda: open_settings_command(ros))
-        menu.addSeparator()
         menu.addAction(
             "Open Download Folder",
             lambda: self.open_reddit_object_download_folder(ros[0]),
@@ -611,6 +606,24 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             download_text, lambda: self.add_to_download(*[x.id for x in ros])
         )
 
+        try:
+            enabled = ros[0].download_enabled
+        except IndexError:
+            enabled = False
+        disable_enable_download_option = True
+        if all(x.download_enabled == enabled for x in ros):
+            enabled_text = "Disable Download" if enabled else "Enable Download"
+            if len(ros) > 0:
+                disable_enable_download_option = False
+        else:
+            enabled_text = "Differing Download Enabled States"
+        # ids captured now, not inside the lambda -- see follow_toggle below for why
+        enable_download_ro_ids = [x.id for x in ros]
+        enable_download_toggle = menu.addAction(
+            enabled_text,
+            lambda: self.toggle_download_enabled(enable_download_ro_ids),
+        )
+
         # [mine] feat(gui): "Mark as Followed"/"Mark as Unfollowed" toggle -- active tracks whether
         # the dedicated downloader account follows this user; meaningless for subreddits, which
         # are never followed.
@@ -645,10 +658,22 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         for action in menu.actions():
             if action != add_object:
                 action.setDisabled(len(ros) <= 0)
+        enable_download_toggle.setDisabled(disable_enable_download_option)
         if follow_toggle is not None:
             follow_toggle.setDisabled(disable_follow_toggle_option)
 
         menu.exec_(QCursor.pos())
+
+    def toggle_download_enabled(self, ro_ids):
+        # ro_ids, not RedditObject instances -- see toggle_followed for why.
+        with self.db_handler.get_scoped_session() as session:
+            for ro_id in ro_ids:
+                ro = session.query(RedditObject).get(ro_id)
+                if ro is None:
+                    continue
+                ro.download_enabled = not ro.download_enabled
+            session.commit()
+        self.refresh_list_models()
 
     # [mine] feat(gui): pure bookkeeping toggle -- doesn't verify against reddit, just records
     # that you followed/unfollowed the user yourself
@@ -827,44 +852,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         menu.exec_(QCursor.pos())
 
     # endregion
-
-    def user_settings(self, users):
-        """
-        Opens the RedditObjectSettingsDialog and sets the supplied user as the selected user to display the settings
-        for.  The current user list is also taken by the dialog and the names shown in the additional objects list.
-        :param users: A list of users that is to be set as the currently selected users list in the settings dialog.
-        """
-        if users is None:
-            users = [self.user_list_model.reddit_objects[0]]
-        id_list = [x.id for x in users]
-        dialog = RedditObjectSettingsDialog(
-            "USER",
-            self.user_list_model.list.name,
-            selected_object_ids=id_list,
-            parent=self,
-        )
-        dialog.download_signal.connect(
-            lambda download_ids: self.add_to_download(*download_ids)
-        )
-        dialog.show()
-        dialog.exec_()
-
-    def subreddit_settings(self, subreddits):
-        """Operates the same as the user_settings function"""
-        if subreddits is None:
-            subreddits = [self.subreddit_list_model.reddit_objects[0]]
-        id_list = [x.id for x in subreddits]
-        dialog = RedditObjectSettingsDialog(
-            "SUBREDDIT",
-            self.subreddit_list_model.list.name,
-            selected_object_ids=id_list,
-            parent=self,
-        )
-        dialog.download_signal.connect(
-            lambda download_ids: self.add_to_download(*download_ids)
-        )
-        dialog.show()
-        dialog.exec_()
 
     def user_list_settings(self):
         try:

@@ -26,10 +26,8 @@ class Converter:
             "filter_input",
             "filter_widget",
             "main_window",
-            "object_info",
             "object_settings",
             "quick_filter_settings",
-            "reddit_object_dialog",
             "schedule_settings",
             "settings",
             "update_dialog",
@@ -93,10 +91,6 @@ class Converter:
         name = "downloader_for_reddit_gui"
         self.convert(name)
 
-    def reddit_object_dialog(self):
-        name = "reddit_object_settings_dialog"
-        self.convert(name)
-
     def update_dialog(self):
         name = "update_dialog"
         self.convert(name)
@@ -152,10 +146,6 @@ class Converter:
     def settings(self):
         name = "settings_dialog"
         self.convert(name, "settings")
-
-    def object_info(self):
-        name = "object_info_widget"
-        self.convert(name, "widgets")
 
     def object_settings(self):
         name = "object_settings_widget"

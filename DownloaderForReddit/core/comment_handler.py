@@ -14,7 +14,7 @@ class CommentHandler(Runner):
         self.submission = submission
         self.post = post
         self.significant_ro = self.post.significant_reddit_object
-        self.sort_order = self.get_sort_order()
+        self.sort_order = "new"
         self.download_session_id = download_session_id
         self.session = session
 
@@ -24,12 +24,6 @@ class CommentHandler(Runner):
 
         self.working_comments = {}
         self.depth = 0
-
-    def get_sort_order(self):
-        sort_method = self.significant_ro.comment_sort_method
-        if sort_method.value == 6:
-            return "q&a"
-        return sort_method.name.lower()
 
     def run(self):
         if self.session is not None:
@@ -71,9 +65,7 @@ class CommentHandler(Runner):
 
     @verify_run
     def handle_found_comment(self, praw_comment, session, parent_id=None):
-        if self.comment_filter.filter_extraction(
-            praw_comment, self.significant_ro
-        ) and self.comment_filter.filter_score_limit(praw_comment, self.significant_ro):
+        if self.comment_filter.filter_extraction(praw_comment, self.significant_ro):
             comment = SubmittableCreator.create_comment(
                 praw_comment,
                 self.post,

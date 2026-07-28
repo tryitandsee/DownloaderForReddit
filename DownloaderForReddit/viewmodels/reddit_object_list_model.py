@@ -355,11 +355,7 @@ class RedditObjectListModel(QAbstractListModel):
         tooltip_dict = {
             "name": f"Name: {reddit_object.name}",
             "download_enabled": f"Download Enabled: {reddit_object.download_enabled}",
-            "lock_settings": f"Settings Locked: {reddit_object.lock_settings}",
             "last_download_date": f"Last Download: {reddit_object.last_download}",
-            "date_limit": f"Date Limit: {reddit_object.date_limit}",
-            "absolute_date_limit": f"Absolute Date Limit: {reddit_object.absolute_date_limit}",
-            "post_limit": f"Post Limit: {reddit_object.post_limit}",
             "download_naming_method": f"Name Downloads By: {reddit_object.post_download_naming_method}",
             "subreddit_save_method": f"Subreddit Save Method: {reddit_object.post_save_structure}",
             "download_images": f"Download Images: {reddit_object.download_images}",
