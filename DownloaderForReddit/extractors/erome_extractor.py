@@ -76,7 +76,10 @@ class EromeExtractor(BaseExtractor):
         pass
 
     def extract_album(self):
-        soup = BeautifulSoup(self.get_text(self.url), "html.parser")
+        text = self.get_text(self.url)
+        if text is None:
+            return
+        soup = BeautifulSoup(text, "html.parser")
         album = soup.find_all(class_filter("media-group"))
         urls = [get_content(x) for x in album]
         count = 0

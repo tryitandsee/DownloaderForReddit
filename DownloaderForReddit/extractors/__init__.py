@@ -34,5 +34,4 @@ from .imgur_extractor import ImgurExtractor
 from .reddit_uploads_extractor import RedditUploadsExtractor
 from .reddit_video_extractor import RedditVideoExtractor
 from .redgifs_extractor import RedgifsExtractor
-from .vidble_extractor import VidbleExtractor
 from .generic_video_extractor import GenericVideoExtractor
