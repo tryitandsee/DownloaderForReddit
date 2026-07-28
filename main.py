@@ -26,6 +26,7 @@ import ctypes
 import logging
 import sys
 
+from playwright.sync_api import Error as PlaywrightError
 from PyQt5 import QtCore, QtWidgets
 
 from DownloaderForReddit.core.cli import CLI
@@ -73,7 +74,18 @@ def main():
 
     app = QtWidgets.QApplication(sys.argv)
 
-    injector.get_reddit_source()
+    try:
+        injector.get_reddit_source()
+    except PlaywrightError as e:
+        if "Opening in existing browser session" in str(e):
+            QtWidgets.QMessageBox.critical(
+                None,
+                "Downloader for Reddit",
+                "Only one instance of Downloader for Reddit is allowed at a time.\n\n"
+                "Please close the other instance (or its browser window) and try again.",
+            )
+            sys.exit(1)
+        raise
 
     queue = injector.get_message_queue()
     message_thread = QtCore.QThread()
@@ -94,6 +106,7 @@ def main():
     receiver.text_output.connect(window.handle_message)
     receiver.non_text_output.connect(window.handle_progress)
     receiver.content_output.connect(window.handle_content_found)
+    receiver.follow_state_output.connect(window.handle_follow_state_changed)
 
     receiver.moveToThread(message_thread)
     message_thread.started.connect(receiver.run)

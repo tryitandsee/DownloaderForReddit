@@ -7,6 +7,7 @@ class MessageReceiver(QObject):
     text_output = pyqtSignal(object)
     non_text_output = pyqtSignal(object)
     content_output = pyqtSignal(object)
+    follow_state_output = pyqtSignal(object)
 
     finished = pyqtSignal()
 
@@ -29,6 +30,8 @@ class MessageReceiver(QObject):
                 try:
                     if message.message_type == MessageType.CONTENT_FOUND:
                         self.content_output.emit(message)
+                    elif message.message_type == MessageType.FOLLOW_STATE_CHANGED:
+                        self.follow_state_output.emit(message)
                     elif message.message is None:
                         self.non_text_output.emit(message)
                     else:

@@ -4,6 +4,7 @@ disabled this app's client_id and locked app registration behind manual review.
 """
 
 import html
+import json
 import logging
 import re
 import threading
@@ -20,12 +21,13 @@ from urllib.parse import urljoin, urlsplit, urlunsplit
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page, sync_playwright
 
+from ..messaging.message import FollowStatePayload, Message
+
 PROFILE_DIR = Path(__file__).resolve().parent.parent.parent / "browser_profile"
 REDDIT_BASE_URL = "https://www.reddit.com"
 
 # GraphQL operation fired when the dedicated account follows/unfollows a user by clicking
-# reddit's own follow button -- see PLAN_follow_status_sync.md. Detection only for now (a
-# rate-limited/failed call logs a warning); the DB write path isn't built yet.
+# reddit's own follow button -- see PLAN_follow_status_sync.md.
 FOLLOW_STATE_OPERATION = "UpdateProfileFollowState"
 
 # The request's accountId (a t2_ fullname) doesn't tell us a username, and RedditObject stores
@@ -341,6 +343,17 @@ class BrowserRedditSource:
         post_data = buffer.decode("utf-8", errors="replace") if buffer else ""
         if FOLLOW_STATE_OPERATION not in post_data:
             return
+        try:
+            state = json.loads(post_data)["variables"]["input"]["state"]
+        except (json.JSONDecodeError, KeyError, TypeError):
+            logger.warning(
+                "Failed to parse follow-state request body", extra={"post_data": post_data}
+            )
+            return
+        if state not in ("FOLLOWED", "NONE"):
+            logger.warning("Unrecognized follow-state value", extra={"state": state})
+            return
+        followed = state == "FOLLOWED"
         # Gate to the target's own profile page -- see _PROFILE_URL_RE's comment. Checked before
         # the expensive response.json() read since frame.url is a cheap, already-local read.
         match = _PROFILE_URL_RE.match(request.frame.url)
@@ -365,11 +378,12 @@ class BrowserRedditSource:
                 extra={"username": username, "errors": errors},
             )
             return
-        # Success path: DB write not implemented yet (see PLAN_follow_status_sync.md) --
-        # logging at debug for now so a successful call is at least visible during testing.
         logger.debug(
             "Follow-state request succeeded",
-            extra={"username": username, "body": body},
+            extra={"username": username, "followed": followed},
+        )
+        Message.send_follow_state_changed(
+            FollowStatePayload(username=username, followed=followed)
         )
 
     @contextmanager

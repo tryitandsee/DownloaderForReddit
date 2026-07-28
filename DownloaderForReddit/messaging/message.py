@@ -13,6 +13,7 @@ class MessageType(Enum):
     ACTUAL_COUNT = 5
 
     CONTENT_FOUND = 6
+    FOLLOW_STATE_CHANGED = 7
 
 
 @dataclass
@@ -22,6 +23,12 @@ class ContentFoundPayload:
     subreddit: str
     permalink: str  # comments page, not the content url -- always browsable in the same shape
     is_new: bool
+
+
+@dataclass
+class FollowStatePayload:
+    username: str
+    followed: bool
 
 
 class MessagePriority(Enum):
@@ -41,7 +48,7 @@ class Message:
         message_type: MessageType,
         message: str | None = None,
         priority: MessagePriority = MessagePriority.INFO,
-        payload: ContentFoundPayload | None = None,
+        payload: ContentFoundPayload | FollowStatePayload | None = None,
     ):
         self.message_type = message_type
         self.message = message
@@ -58,7 +65,7 @@ class Message:
         message_type: MessageType,
         message: str | None = None,
         priority: MessagePriority = MessagePriority.INFO,
-        payload: ContentFoundPayload | None = None,
+        payload: ContentFoundPayload | FollowStatePayload | None = None,
     ) -> None:
         m = cls(message_type, message, priority, payload)
         cls.message_queue.put(m)
@@ -90,6 +97,10 @@ class Message:
     @classmethod
     def send_content_found(cls, payload: ContentFoundPayload) -> None:
         cls.send(MessageType.CONTENT_FOUND, payload=payload)
+
+    @classmethod
+    def send_follow_state_changed(cls, payload: FollowStatePayload) -> None:
+        cls.send(MessageType.FOLLOW_STATE_CHANGED, payload=payload)
 
     @classmethod
     def send_extraction_error(cls, message: str):

@@ -1067,6 +1067,26 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         if self.content_feed_store.add(message.payload):
             self.content_feed_panel.add_entry(message.payload)
 
+    # [mine] feat(gui): GUI-thread write for BrowserRedditSource's follow-state detection --
+    # must not write active directly from the response-handler thread (see
+    # PLAN_follow_status_sync.md's "Known pitfall" section), hence routing through the Message
+    # queue like content_found instead of writing straight to the DB from core.
+    def handle_follow_state_changed(self, message):
+        payload = message.payload
+        with self.db_handler.get_scoped_session() as session:
+            ro = (
+                session.query(User)
+                .filter(User.name == payload.username)
+                .one_or_none()
+            )
+            if ro is None:
+                return
+            if payload.followed:
+                ro.set_active()
+            else:
+                ro.set_inactive()
+        self.user_list_model.refresh_session()
+
     def handle_progress(self, message):
         """
         Handles non-text style messages that it receives from the message receiver.  Decides what to update on the main
