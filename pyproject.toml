@@ -4,7 +4,7 @@ version = "3.17.1"
 description = "A GUI application with some advanced features that downloads user posted content from reddit, either via a list of users or subreddits."
 authors = [{ name = "Kyle Hickey", email = "kyle.hickey222@gmail.com" }]
 license = "GPL-3.0-only"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "beautifulsoup4",
     "praw",

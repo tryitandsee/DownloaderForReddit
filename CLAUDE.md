@@ -8,6 +8,18 @@ This started as a personal fork of an active upstream project, but no longer tra
 
 Do not commit untracked files, idiot
 
+Default to ONE commit for a session's work. Only split into multiple commits when explicitly told to.
+
+One commit per session. Do not split unless told to split.
+
+If you're about to make a second commit for this session's work and nobody asked for a split, stop — you're wrong.
+
+The number of commits for a session's work is one, unless the user explicitly says otherwise.
+
+Different concern, different layer, different risk level, a bug found mid-task — none of these are a reason for a second commit. Only an explicit instruction to split is.
+
+Squash it. All of it. One commit.
+
 When logging or displaying a submission/content item, order fields as: user/subreddit, reddit_id, url.
 
 ## Architecture

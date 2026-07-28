@@ -3,6 +3,7 @@ from PyQt5.QtCore import Qt
 from DownloaderForReddit.guiresources.settings.notification_settings_widget_auto import (
     Ui_NotificationSettingsWidget,
 )
+from DownloaderForReddit.utils.updater_checker import DO_NOT_NOTIFY_LEVEL
 
 from .abstract_settings_widget import AbstractSettingsWidget
 
@@ -14,7 +15,7 @@ class NotificationSettingsWidget(AbstractSettingsWidget, Ui_NotificationSettings
             0: "All Releases",
             1: "Minor Release",
             2: "Major Release",
-            3: "Do Not Notify",
+            DO_NOT_NOTIFY_LEVEL: "Do Not Notify",
         }
         for key, value in level_map.items():
             self.update_level_combo.addItem(value, key)

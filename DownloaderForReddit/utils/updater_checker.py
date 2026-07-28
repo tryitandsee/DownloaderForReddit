@@ -31,6 +31,8 @@ from PyQt5.QtCore import QObject, pyqtSignal
 from .. import version
 from . import injector
 
+DO_NOT_NOTIFY_LEVEL = 3
+
 
 class UpdateChecker(QObject):
     update_available_signal = pyqtSignal(str)

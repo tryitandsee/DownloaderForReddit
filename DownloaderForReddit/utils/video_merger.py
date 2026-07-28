@@ -23,15 +23,15 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import logging
+import shutil
 import subprocess
-from distutils.spawn import find_executable
 
 from ..database.models import Content
 from ..utils import general_utils, injector, system_util
 
 logger = logging.getLogger(__name__)
 
-ffmpeg_valid = find_executable("ffmpeg") is not None
+ffmpeg_valid = shutil.which("ffmpeg") is not None
 
 
 # A list of MergeSet's containing the path of the video and audio files that are to be merged.

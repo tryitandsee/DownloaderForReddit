@@ -86,6 +86,7 @@ from ..utils import (
     system_util,
     video_merger,
 )
+from ..utils.updater_checker import DO_NOT_NOTIFY_LEVEL
 from ..version import __version__
 from ..viewmodels.hyperlink_delegate import HyperlinkDelegate
 from ..viewmodels.output_view_model import OutputViewModel
@@ -446,7 +447,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.setup_system_tray_icon()
 
         self.check_ffmpeg()
-        self.check_for_updates(False)
+        if self.settings_manager.update_notification_level != DO_NOT_NOTIFY_LEVEL:
+            self.check_for_updates(False)
 
         # Ambient extraction: the browser pushes newly-seen posts to the app directly via a
         # Playwright binding (see reddit_source.py's injected script + pump loop) instead of
