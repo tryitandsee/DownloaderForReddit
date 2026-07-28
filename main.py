@@ -90,7 +90,6 @@ def main():
     queue = injector.get_message_queue()
     message_thread = QtCore.QThread()
     receiver = MessageReceiver(queue)
-    scheduler = injector.get_scheduler()
 
     # Standing download runner: owns the extraction/download thread pool for the process
     # lifetime. Explicit downloads and ambient extraction both queue work onto this one instance
@@ -101,7 +100,7 @@ def main():
     download_thread.started.connect(download_runner.start_pool)
     download_thread.start()
 
-    window = DownloaderForRedditGUI(queue, receiver, scheduler, download_runner)
+    window = DownloaderForRedditGUI(queue, receiver, download_runner)
 
     receiver.text_output.connect(window.handle_message)
     receiver.non_text_output.connect(window.handle_progress)
@@ -114,16 +113,6 @@ def main():
     receiver.finished.connect(receiver.deleteLater)
     message_thread.finished.connect(message_thread.deleteLater)
     message_thread.start()
-
-    schedule_thread = QtCore.QThread()
-    scheduler.moveToThread(schedule_thread)
-    scheduler.run_task.connect(window.run_scheduled_download)
-    scheduler.countdown.connect(window.update_scheduled_download)
-    scheduler.finished.connect(schedule_thread.quit)
-    scheduler.finished.connect(scheduler.deleteLater)
-    schedule_thread.finished.connect(schedule_thread.deleteLater)
-    schedule_thread.started.connect(scheduler.run)
-    schedule_thread.start()
 
     window.show()
     sys.exit(app.exec_())

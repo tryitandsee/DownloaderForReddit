@@ -28,7 +28,6 @@ class Converter:
             "main_window",
             "object_settings",
             "quick_filter_settings",
-            "schedule_settings",
             "settings",
             "update_dialog",
             "invalid_dialog",
@@ -137,10 +136,6 @@ class Converter:
 
     def quick_filter_settings(self):
         name = "quick_filter_settings_widget"
-        self.convert(name, "settings")
-
-    def schedule_settings(self):
-        name = "schedule_settings_widget"
         self.convert(name, "settings")
 
     def settings(self):

@@ -41,8 +41,7 @@ users/subreddits. This allows you to fine tune what is downloaded from where on 
 ![Settings Window](https://imgur.com/cpfzx0n.png)
 
 The settings dialog is robust and lets you fine tune many aspects of the application such as download parameters,
-display settings, and notifications.  Through this dialog you can also schedule downloads to run at a particular time
-interval or run at certain times on certain days.
+display settings, and notifications.
 
 <br>
 <br>

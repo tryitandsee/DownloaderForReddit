@@ -1,8 +1,7 @@
 ### Entry point & wiring (`main.py`)
 
-Bootstraps three things before showing the window:
+Bootstraps two things before showing the window:
 - **MessageReceiver** — runs in its own `QThread`, drains a global `Queue` and emits `text_output` / `non_text_output` signals consumed by the main window
-- **Scheduler** — runs in its own `QThread`, fires `run_task` signals on a cron-like schedule
 - **DownloaderForRedditGUI** — the main `QMainWindow`
 
 Global singletons (settings, database, message queue) are lazily initialised via `DownloaderForReddit/utils/injector.py` and accessed from anywhere with `injector.get_*()`.

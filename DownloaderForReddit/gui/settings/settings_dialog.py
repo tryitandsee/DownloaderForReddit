@@ -14,7 +14,6 @@ from .imgur_settings_widget import ImgurSettingsWidget
 from .notification_settings_widget import NotificationSettingsWidget
 from .output_settings_widget import OutputSettingsWidget
 from .quick_filter_settings_widget import QuickFilterSettingsWidget
-from .schedule_settings_widget import ScheduleSettingsWidget
 from .supported_video_settings_widget import SupportedVideoSettingsWidget
 
 
@@ -38,7 +37,6 @@ class SettingsDialog(QDialog, Ui_SettingsDialog):
             "Display": DisplaySettingsWidget(main_window=self.parent),
             "Output": OutputSettingsWidget(main_window=self.parent),
             "Imgur": ImgurSettingsWidget(),
-            "Scheduled Downloads": ScheduleSettingsWidget(),
             "Video Sites": SupportedVideoSettingsWidget(),
             "Database View": DatabaseSettingsWidget(),
             "Quick Filters": QuickFilterSettingsWidget(),

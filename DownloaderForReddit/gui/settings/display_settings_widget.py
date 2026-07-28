@@ -111,11 +111,6 @@ class DisplaySettingsWidget(AbstractSettingsWidget, Ui_DispalySettingsWidget):
             )
         )
 
-        for value in self.settings.countdown_view_choices:
-            self.schedule_countdown_combo.addItem(
-                value.replace("_", " ").title(), value
-            )
-
         self.choose_new_color_button.clicked.connect(self.choose_new_color)
         self.choose_disabled_color_button.clicked.connect(self.choose_disabled_color)
         self.choose_inactive_color_button.clicked.connect(self.choose_inactive_color)
@@ -123,11 +118,6 @@ class DisplaySettingsWidget(AbstractSettingsWidget, Ui_DispalySettingsWidget):
 
     def load_settings(self):
         self.short_title_length_spin_box.setValue(self.settings.short_title_char_length)
-        self.schedule_countdown_combo.setCurrentIndex(
-            self.settings.countdown_view_choices.index(
-                self.settings.show_schedule_countdown
-            )
-        )
         self.scroll_to_last_added_checkbox.setChecked(
             self.settings.scroll_to_last_added
         )
@@ -242,9 +232,6 @@ class DisplaySettingsWidget(AbstractSettingsWidget, Ui_DispalySettingsWidget):
 
     def apply_settings(self):
         self.settings.short_title_char_length = self.short_title_length_spin_box.value()
-        show_countdown = self.schedule_countdown_combo.currentData(Qt.UserRole)
-        self.settings.show_schedule_countdown = show_countdown
-        self.main_window.schedule_widget.setVisible(show_countdown == "SHOW")
         self.settings.scroll_to_last_added = (
             self.scroll_to_last_added_checkbox.isChecked()
         )

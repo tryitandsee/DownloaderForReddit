@@ -101,7 +101,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     # rather than trying to convert them to QVariants.
     ambient_matches_found = pyqtSignal(object)
 
-    def __init__(self, queue, receiver, scheduler, download_runner):
+    def __init__(self, queue, receiver, download_runner):
         """
         The main GUI window that all interaction is done through.
 
@@ -174,7 +174,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
         self.queue = queue
         self.receiver = receiver
-        self.scheduler = scheduler
         self.download_runner = download_runner
 
         self.output_view_model = OutputViewModel()
@@ -415,11 +414,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.subreddit_list_combo.setContextMenuPolicy(Qt.CustomContextMenu)
         self.subreddit_list_combo.customContextMenuRequested.connect(
             self.subreddit_list_combo_context_menu
-        )
-
-        self.schedule_widget.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.schedule_widget.customContextMenuRequested.connect(
-            self.schedule_context_menu
         )
 
         self.output_list_view.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -833,14 +827,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.user_list_model.refresh_session()
         self.subreddit_list_model.refresh_session()
 
-    def schedule_context_menu(self):
-        menu = QMenu()
-        menu.addAction(
-            "Schedule Settings",
-            lambda: self.open_settings_dialog(open_display="Schedule"),
-        )
-        menu.exec_(QCursor.pos())
-
     def output_context_menu(self):
         menu = QMenu()
         menu.addAction(
@@ -944,37 +930,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             run_undownloaded=True,
             undownloaded_id_list=id_list,
         )
-
-    def run_scheduled_download(self, id_tuple):
-        if not self.running:
-            user_list_id, subreddit_list_id = id_tuple
-            user_id_list = None
-            sub_id_list = None
-            run_unextracted = (
-                self.settings_manager.finish_incomplete_extractions_at_session_start
-            )
-            run_undownloaded = (
-                self.settings_manager.finish_incomplete_downloads_at_session_start
-            )
-            with self.db_handler.get_scoped_session() as session:
-                if user_list_id is not None:
-                    user_id_list = (
-                        session.query(RedditObjectList)
-                        .get(user_list_id)
-                        .get_reddit_object_id_list()
-                    )
-                if subreddit_list_id is not None:
-                    sub_id_list = (
-                        session.query(RedditObjectList)
-                        .get(subreddit_list_id)
-                        .get_reddit_object_id_list()
-                    )
-                self.run(
-                    user_id_list,
-                    sub_id_list,
-                    run_unextracted=run_unextracted,
-                    run_undownloaded=run_undownloaded,
-                )
 
     def run(self, user_id_list, sub_id_list, reddit_object_id_list=None, **kwargs):
         if not self.running:
@@ -1143,18 +1098,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     def update_progress(self):
         self.progress += 1
         self.progress_bar.setValue(self.progress)
-
-    def update_scheduled_download(self, countdown):
-        if (
-            countdown is not None
-            and self.settings_manager.show_schedule_countdown != "DO_NOT_SHOW"
-        ):
-            self.schedule_widget.setVisible(True)
-            self.schedule_label.setText(countdown)
-        else:
-            self.schedule_label.setText("No Download Scheduled")
-            if self.settings_manager.show_schedule_countdown != "SHOW":
-                self.schedule_widget.setVisible(False)
 
     def add_user_list(self, *, list_name=None):
         if list_name is None:
@@ -1811,11 +1754,10 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     def close(self):
         self.receiver.stop_run()
-        self.scheduler.stop_run()
         self.download_runner.stop_pool()
         # download_runner's own QThread (dispatches start_batch calls) -- quit()/wait() are called
-        # directly here, not via a queued signal, so this can't deadlock the way message_thread/
-        # schedule_thread would if their quit went through a cross-thread queued connection.
+        # directly here, not via a queued signal, so this can't deadlock the way message_thread
+        # would if its quit went through a cross-thread queued connection.
         self.download_runner.thread().quit()
         self.download_runner.thread().wait()
         self.run_timer.stop()

@@ -167,38 +167,6 @@ class Ui_MainWindow:
         self.line.setFrameShadow(QtWidgets.QFrame.Sunken)
         self.line.setObjectName("line")
         self.verticalLayout_3.addWidget(self.line)
-        self.schedule_widget = QtWidgets.QWidget(self.layoutWidget2)
-        sizePolicy = QtWidgets.QSizePolicy(
-            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Minimum
-        )
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(
-            self.schedule_widget.sizePolicy().hasHeightForWidth()
-        )
-        self.schedule_widget.setSizePolicy(sizePolicy)
-        self.schedule_widget.setMaximumSize(QtCore.QSize(16777215, 18))
-        self.schedule_widget.setObjectName("schedule_widget")
-        self.horizontalLayout_8 = QtWidgets.QHBoxLayout(self.schedule_widget)
-        self.horizontalLayout_8.setContentsMargins(-1, 0, -1, 0)
-        self.horizontalLayout_8.setSpacing(15)
-        self.horizontalLayout_8.setObjectName("horizontalLayout_8")
-        self.label_3 = QtWidgets.QLabel(self.schedule_widget)
-        self.label_3.setObjectName("label_3")
-        self.horizontalLayout_8.addWidget(self.label_3)
-        self.schedule_label = QtWidgets.QLabel(self.schedule_widget)
-        sizePolicy = QtWidgets.QSizePolicy(
-            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred
-        )
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(
-            self.schedule_label.sizePolicy().hasHeightForWidth()
-        )
-        self.schedule_label.setSizePolicy(sizePolicy)
-        self.schedule_label.setObjectName("schedule_label")
-        self.horizontalLayout_8.addWidget(self.schedule_label)
-        self.verticalLayout_3.addWidget(self.schedule_widget)
         self.output_list_view = QtWidgets.QListView(self.layoutWidget2)
         self.output_list_view.setStyleSheet(
             "QListView {\n"
@@ -516,8 +484,6 @@ class Ui_MainWindow:
         self.constain_to_sub_list_radio.setText(
             _translate("MainWindow", "Constrain Users To Subreddit List")
         )
-        self.label_3.setText(_translate("MainWindow", "Download Scheduled:"))
-        self.schedule_label.setText(_translate("MainWindow", "00:00:00"))
         self.file_menu.setTitle(_translate("MainWindow", "File"))
         self.lists_menu.setTitle(_translate("MainWindow", "Lists"))
         self.help_menu.setTitle(_translate("MainWindow", "Help"))

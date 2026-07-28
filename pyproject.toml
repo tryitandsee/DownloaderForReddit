@@ -15,7 +15,6 @@ dependencies = [
     "SQLAlchemy==1.3.*",
     "toml",
     "alembic==1.4.*",
-    "schedule==1.1.*",
     "pyqtspinner==2.*",
     "redgifs",
     "yt-dlp",

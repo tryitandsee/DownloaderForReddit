@@ -203,10 +203,6 @@ class SettingsManager:
         self.main_window_tooltip_display_dict = self.get(
             "display", "main_window_tooltip_display_dict", default_tooltip_display_dict
         )
-        self.countdown_view_choices = ["DO_NOT_SHOW", "ONLY_WHEN_ACTIVE", "SHOW"]
-        self.show_schedule_countdown = self.get(
-            "display", "show_schedule_countdown", "ONLY_WHEN_ACTIVE"
-        )
         self.scroll_to_last_added = self.get("display", "scroll_to_last_added", True)
         self.colorize_new_reddit_objects = self.get(
             "display", "colorize_new_reddit_objects", True

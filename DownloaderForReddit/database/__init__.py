@@ -2,9 +2,6 @@
 from sqlalchemy import event
 
 from ..messaging.message import Message, MessageType
-from ..scheduling.tasks import (
-    DownloadTask,  # import here so the database table is created along with the others
-)
 from .models import Comment, Content, Post
 
 

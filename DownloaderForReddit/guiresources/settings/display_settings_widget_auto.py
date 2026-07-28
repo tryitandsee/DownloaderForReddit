@@ -35,31 +35,23 @@ class Ui_DispalySettingsWidget:
         self.formLayout.setLayout(
             0, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout
         )
-        self.label_2 = QtWidgets.QLabel(DispalySettingsWidget)
-        self.label_2.setObjectName("label_2")
-        self.formLayout.setWidget(1, QtWidgets.QFormLayout.LabelRole, self.label_2)
-        self.schedule_countdown_combo = QtWidgets.QComboBox(DispalySettingsWidget)
-        self.schedule_countdown_combo.setObjectName("schedule_countdown_combo")
-        self.formLayout.setWidget(
-            1, QtWidgets.QFormLayout.FieldRole, self.schedule_countdown_combo
-        )
         self.label_3 = QtWidgets.QLabel(DispalySettingsWidget)
         self.label_3.setObjectName("label_3")
-        self.formLayout.setWidget(2, QtWidgets.QFormLayout.LabelRole, self.label_3)
+        self.formLayout.setWidget(1, QtWidgets.QFormLayout.LabelRole, self.label_3)
         self.scroll_to_last_added_checkbox = QtWidgets.QCheckBox(DispalySettingsWidget)
         self.scroll_to_last_added_checkbox.setText("")
         self.scroll_to_last_added_checkbox.setObjectName(
             "scroll_to_last_added_checkbox"
         )
         self.formLayout.setWidget(
-            2, QtWidgets.QFormLayout.FieldRole, self.scroll_to_last_added_checkbox
+            1, QtWidgets.QFormLayout.FieldRole, self.scroll_to_last_added_checkbox
         )
         self.label_4 = QtWidgets.QLabel(DispalySettingsWidget)
         self.label_4.setObjectName("label_4")
-        self.formLayout.setWidget(3, QtWidgets.QFormLayout.LabelRole, self.label_4)
+        self.formLayout.setWidget(2, QtWidgets.QFormLayout.LabelRole, self.label_4)
         self.label_5 = QtWidgets.QLabel(DispalySettingsWidget)
         self.label_5.setObjectName("label_5")
-        self.formLayout.setWidget(4, QtWidgets.QFormLayout.LabelRole, self.label_5)
+        self.formLayout.setWidget(3, QtWidgets.QFormLayout.LabelRole, self.label_5)
         self.horizontalLayout_2 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_2.setSpacing(20)
         self.horizontalLayout_2.setObjectName("horizontalLayout_2")
@@ -80,7 +72,7 @@ class Ui_DispalySettingsWidget:
         )
         self.horizontalLayout_2.addItem(spacerItem1)
         self.formLayout.setLayout(
-            3, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_2
+            2, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_2
         )
         self.horizontalLayout_3 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_3.setSpacing(20)
@@ -102,11 +94,11 @@ class Ui_DispalySettingsWidget:
         )
         self.horizontalLayout_3.addItem(spacerItem2)
         self.formLayout.setLayout(
-            4, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_3
+            3, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_3
         )
         self.label_6 = QtWidgets.QLabel(DispalySettingsWidget)
         self.label_6.setObjectName("label_6")
-        self.formLayout.setWidget(5, QtWidgets.QFormLayout.LabelRole, self.label_6)
+        self.formLayout.setWidget(4, QtWidgets.QFormLayout.LabelRole, self.label_6)
         self.horizontalLayout_4 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_4.setSpacing(20)
         self.horizontalLayout_4.setObjectName("horizontalLayout_4")
@@ -127,7 +119,7 @@ class Ui_DispalySettingsWidget:
         )
         self.horizontalLayout_4.addItem(spacerItem3)
         self.formLayout.setLayout(
-            5, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_4
+            4, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_4
         )
         self.verticalLayout.addLayout(self.formLayout)
         self.line_3 = QtWidgets.QFrame(DispalySettingsWidget)
@@ -214,9 +206,6 @@ class Ui_DispalySettingsWidget:
         )
         self.label.setText(
             _translate("DispalySettingsWidget", "Short title char length:")
-        )
-        self.label_2.setText(
-            _translate("DispalySettingsWidget", "Display Schedule Countdown:")
         )
         self.label_3.setToolTip(
             _translate(
