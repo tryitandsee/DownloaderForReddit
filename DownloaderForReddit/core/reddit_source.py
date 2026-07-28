@@ -23,6 +23,19 @@ from playwright.sync_api import Page, sync_playwright
 PROFILE_DIR = Path(__file__).resolve().parent.parent.parent / "browser_profile"
 REDDIT_BASE_URL = "https://www.reddit.com"
 
+# GraphQL operation fired when the dedicated account follows/unfollows a user by clicking
+# reddit's own follow button -- see PLAN_follow_status_sync.md. Detection only for now (a
+# rate-limited/failed call logs a warning); the DB write path isn't built yet.
+FOLLOW_STATE_OPERATION = "UpdateProfileFollowState"
+
+# The request's accountId (a t2_ fullname) doesn't tell us a username, and RedditObject stores
+# no fullname -- so the target username is instead read off the page the click happened on. The
+# follow button also exists elsewhere in the SPA (e.g. a "similar users" widget could appear
+# alongside a profile and follow a *different* user than the page owner, in which case this
+# regex would silently attribute the click to the wrong user) -- gating strictly to the target's
+# own profile page keeps that mismatch out of scope rather than trying to detect it.
+_PROFILE_URL_RE = re.compile(r"^https://www\.reddit\.com/user/([^/?]+)/?")
+
 # How long each pump iteration blocks the Playwright worker thread waiting for CDP messages.
 # Bounds ambient-push latency (a post can wait up to this long for the pump to notice it) and
 # the worst case an explicit-download task queued behind a pump iteration has to wait.
@@ -314,6 +327,51 @@ class BrowserRedditSource:
             callback = self._on_posts_found
         callback(posts)
 
+    def _handle_follow_state_response(self, response) -> None:
+        # Confirmed empirically (PLAN_follow_status_sync.md): reading the response body directly
+        # in this handler works, no executor hop needed, and delivery is immediate with no pump
+        # loop involved -- unlike __dfrPostsFound, this isn't routed through a binding at all.
+        request = response.request
+        if request.method != "POST":
+            return
+        # post_data decodes the raw body as strict utf-8 and raises on any request with a
+        # non-utf8 body (unrelated background requests hit this) -- read the buffer and decode
+        # leniently instead, same fix as Tools/probe_follow_response.py.
+        buffer = request.post_data_buffer
+        post_data = buffer.decode("utf-8", errors="replace") if buffer else ""
+        if FOLLOW_STATE_OPERATION not in post_data:
+            return
+        # Gate to the target's own profile page -- see _PROFILE_URL_RE's comment. Checked before
+        # the expensive response.json() read since frame.url is a cheap, already-local read.
+        match = _PROFILE_URL_RE.match(request.frame.url)
+        if match is None:
+            logger.debug(
+                "Follow-state request seen outside a profile page, ignoring",
+                extra={"frame_url": request.frame.url},
+            )
+            return
+        username = match.group(1)
+        try:
+            body = response.json()
+        except PlaywrightError:
+            logger.warning(
+                "Failed to read follow-state response body", exc_info=True
+            )
+            return
+        errors = body.get("errors")
+        if errors:
+            logger.warning(
+                "Follow/unfollow request failed",
+                extra={"username": username, "errors": errors},
+            )
+            return
+        # Success path: DB write not implemented yet (see PLAN_follow_status_sync.md) --
+        # logging at debug for now so a successful call is at least visible during testing.
+        logger.debug(
+            "Follow-state request succeeded",
+            extra={"username": username, "body": body},
+        )
+
     @contextmanager
     def _suppressed_ambient(self):
         # Explicit navigation reuses the ambient-facing page, so its own primer push must be
@@ -345,6 +403,7 @@ class BrowserRedditSource:
         # closes with them -- null it out so the next call relaunches instead of raising into
         # an explicit download.
         self._context.on("close", lambda _: setattr(self, "_context", None))
+        self._context.on("response", self._handle_follow_state_response)
         self._context.expose_function("__dfrPostsFound", self._handle_posts_found)
         self._context.add_init_script(_INJECTED_SCRIPT)
         self._page = (

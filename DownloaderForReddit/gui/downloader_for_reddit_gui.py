@@ -231,6 +231,23 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.export_subreddit_list_menu_item.triggered.connect(
             self.export_subreddit_list
         )
+
+        # [mine] feat(gui): mass follow-status bookkeeping for the current user list -- see
+        # mark_list_followed/toggle_list_followed
+        self.lists_menu.addSeparator()
+        self._mark_list_followed_action = QAction("Mark All As Followed", self)
+        self._mark_list_followed_action.triggered.connect(
+            lambda: self.mark_list_followed(True)
+        )
+        self.lists_menu.addAction(self._mark_list_followed_action)
+        self._mark_list_unfollowed_action = QAction("Mark All As Unfollowed", self)
+        self._mark_list_unfollowed_action.triggered.connect(
+            lambda: self.mark_list_followed(False)
+        )
+        self.lists_menu.addAction(self._mark_list_unfollowed_action)
+        self._toggle_list_followed_action = QAction("Toggle Followed Status", self)
+        self._toggle_list_followed_action.triggered.connect(self.toggle_list_followed)
+        self.lists_menu.addAction(self._toggle_list_followed_action)
         # endregion
 
         # region Database Menu
@@ -605,7 +622,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                 followed = False
             disable_follow_toggle_option = True
             if all(x.active == followed for x in ros):
-                follow_text = "Mark as Followed" if followed else "Mark as Unfollowed"
+                follow_text = "Mark as Unfollowed" if followed else "Mark as Followed"
                 if len(ros) > 0:
                     disable_follow_toggle_option = False
             else:
@@ -732,6 +749,46 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         settings = menu.addAction("List Settings", self.user_list_settings)
         settings.setDisabled(self.user_lists_combo.currentText() == "")
         menu.exec_(QCursor.pos())
+
+    # [mine] feat(gui): mass follow-status bookkeeping for an entire user list -- same pure
+    # bookkeeping as toggle_followed, just applied to every row in the current list instead of
+    # requiring one context-menu click per user. Reads from list.reddit_objects (the full
+    # association), not the view model's reddit_objects -- the latter is whatever's currently
+    # displayed and can be a search-filtered subset (see RedditObjectListModel.search_list),
+    # which would make "Mark All" silently skip rows a search happened to hide.
+    def mark_list_followed(self, followed):
+        # AttributeError if no list is selected -- self.user_list_model.list.reddit_objects
+        # raises on a None list, same guard pattern as user_list_settings/subreddit_list_settings.
+        try:
+            ro_ids = [x.id for x in self.user_list_model.list.reddit_objects]
+        except AttributeError:
+            return
+        with self.db_handler.get_scoped_session() as session:
+            for ro_id in ro_ids:
+                ro = session.query(RedditObject).get(ro_id)
+                if ro is None:
+                    continue
+                if followed:
+                    ro.set_active()
+                else:
+                    ro.set_inactive()
+        self.user_list_model.refresh_session()
+
+    def toggle_list_followed(self):
+        try:
+            ro_ids = [x.id for x in self.user_list_model.list.reddit_objects]
+        except AttributeError:
+            return
+        with self.db_handler.get_scoped_session() as session:
+            for ro_id in ro_ids:
+                ro = session.query(RedditObject).get(ro_id)
+                if ro is None:
+                    continue
+                if ro.active:
+                    ro.set_inactive()
+                else:
+                    ro.set_active()
+        self.user_list_model.refresh_session()
 
     def subreddit_list_combo_context_menu(self):
         menu = QMenu()
