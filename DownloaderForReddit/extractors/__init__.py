@@ -1,4 +1,4 @@
-# ruff: noqa: N999
+# ruff: noqa: N999, I001
 """
 Downloader for Reddit takes a list of reddit users and subreddits and downloads content posted to reddit either by the
 users or on the subreddits.
@@ -24,12 +24,15 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 # Import each extractor class in the Extractors package so that BaseExtractor.__subclasses__() will pick up the
-# extractor class to be used in the Extractor.assign_extractor method.
+# extractor class to be used in the Extractor.assign_extractor method. GenericVideoExtractor matches URLs against a
+# ~1000-entry list of short yt-dlp site keys via substring containment, which can coincidentally match URLs meant
+# for a dedicated extractor (e.g. a redgifs slug containing a 2-letter key like "dw"). It must be imported last so
+# assign_extractor's first-match-wins iteration always prefers a dedicated extractor when one applies.
 from .erome_extractor import EromeExtractor
-from .generic_video_extractor import GenericVideoExtractor
 from .gfycat_extractor import GfycatExtractor
 from .imgur_extractor import ImgurExtractor
 from .reddit_uploads_extractor import RedditUploadsExtractor
 from .reddit_video_extractor import RedditVideoExtractor
 from .redgifs_extractor import RedgifsExtractor
 from .vidble_extractor import VidbleExtractor
+from .generic_video_extractor import GenericVideoExtractor

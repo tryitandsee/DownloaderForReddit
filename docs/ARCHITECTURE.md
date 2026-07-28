@@ -14,7 +14,13 @@ A download session creates a `DownloadRunner` (`core/download_runner.py`) which 
 1. **Extractor thread** — runs `ContentRunner` (`core/content_runner.py`), pulls from a `submission_queue`, calls extractors, and pushes `Content` IDs into `download_queue`
 2. **Downloader thread** — runs `Downloader` (`core/download/downloader.py`), pulls from `download_queue`, submits to a `ThreadPoolExecutor` (default 4 threads)
 
-The two queues use sentinel values (`None` to stop, `'HOLD'`/`'RELEASE_HOLD'` to pause) rather than thread events.
+`submission_queue` uses `None` as a stop sentinel. There's no queue-level pause; a rate limit instead cancels the current `DownloadSession` outright (see Rate limiting, below).
+
+### Rate limiting
+
+`BrowserRedditSource` (`core/reddit_source.py`) registers a `context.on("response", ...)` listener alongside its existing follow-state listener, watching every response in the shared browser context for an HTTP 429. On the first 429 it sets a `threading.Event` and calls back into `DownloadRunner` (via `set_on_rate_limited`, mirroring `set_on_posts_found`), which emits a `rate_limited` `pyqtSignal` to hop onto its own thread. `DownloadRunner.handle_rate_limited` messages the user and cancels the open session via `stop_download(hard_stop=True)`.
+
+Independently, every navigation-triggering method on `BrowserRedditSource` (`_collect`, `_validate`, `_validate_and_collect`, `_get_post_impl`, `_get_gallery_media_metadata_impl`) checks the event first and raises `RateLimitedError` instead of navigating -- this covers callers `DownloadRunner`'s own per-object loops don't gate, e.g. an extractor fetching gallery metadata from `ContentRunner`'s thread pool for an already-queued, ambient-triggered post. There's no auto-resume/cooldown timer -- the event is cleared at the top of the next user-initiated `start_batch`, so starting another download is the resume signal.
 
 ### Extractor system
 

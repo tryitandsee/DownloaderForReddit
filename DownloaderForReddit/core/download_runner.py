@@ -25,7 +25,7 @@ from ..version import __version__
 from . import const
 from .content_runner import ContentRunner
 from .errors import NON_DOWNLOADABLE
-from .reddit_source import ValidationError
+from .reddit_source import RateLimitedError, ValidationError
 from .runner import verify_run
 from .submission_filter import SubmissionFilter
 from .submittable_creator import SubmittableCreator
@@ -55,6 +55,10 @@ class DownloadRunner(QObject):
     request_download = pyqtSignal(
         object
     )  # GUI/ambient emit a params dict; queued onto this runner's thread
+    # Emitted from BrowserRedditSource's response listener, which runs on Playwright's own
+    # thread -- emit() is the thread-safe hand-off onto this runner's own thread, same pattern as
+    # request_download.
+    rate_limited = pyqtSignal()
 
     def __init__(self):
         super().__init__()
@@ -110,6 +114,8 @@ class DownloadRunner(QObject):
         self._current_fetch_object = None
 
         self.request_download.connect(self.start_batch)
+        self.rate_limited.connect(self.handle_rate_limited)
+        self.reddit_source.set_on_rate_limited(self.rate_limited.emit)
 
     def start_pool(self):
         """Creates the extractor/downloader and their worker threads. Called once, at app start."""
@@ -252,6 +258,19 @@ class DownloadRunner(QObject):
             )
             self.failed_connection_attempts += 1
 
+    def handle_rate_limited(self):
+        """Connected to rate_limited, emitted the moment reddit returns an HTTP 429 anywhere
+        (bulk downloads, ambient-triggered extraction, gallery metadata fetches). Cancels the open
+        session immediately rather than letting queued work keep hitting a rate-limited endpoint.
+        There's no auto-resume/cooldown -- clear_rate_limit() runs at the top of the next
+        user-initiated start_batch, so starting another download is the resume signal."""
+        self.logger.error("Reddit rate limit (429) reached, pausing downloads")
+        Message.send_critical(
+            "Reddit rate limit reached (HTTP 429). Downloading has been paused.\n"
+            "Please wait a few minutes before starting another download."
+        )
+        self.stop_download(hard_stop=True)
+
     def handle_too_many_requests_error(self, reddit_object):
         self.logger.error("Too many requests error")
         message = (
@@ -333,6 +352,9 @@ class DownloadRunner(QObject):
                        unextracted_id_list, run_undownloaded, undownloaded_id_list, run_new,
                        single_submission_urls, submissions.
         """
+        # A new user-initiated batch is the resume signal -- there's no automatic cooldown/resume.
+        self.reddit_source.clear_rate_limit()
+
         self.user_id_list = params.get("user_id_list")
         self.subreddit_id_list = params.get("subreddit_id_list")
         self.reddit_object_id_list = params.get("reddit_object_id_list")
@@ -453,6 +475,9 @@ class DownloadRunner(QObject):
     def prepare_single_submission(self, url):
         try:
             submission = self.reddit_source.get_post(url)
+        except RateLimitedError:
+            # handle_rate_limited already messaged the user and cancelled the session.
+            return None
         except PlaywrightError:
             self.logger.exception(
                 "Browser navigation failed while fetching single post",
@@ -616,6 +641,9 @@ class DownloadRunner(QObject):
         """
         try:
             result, raw_submissions = source_method(reddit_object.name)
+        except RateLimitedError:
+            # handle_rate_limited already messaged the user and cancelled the session.
+            return
         except PlaywrightError:
             extra = {
                 "object_type": reddit_object.object_type,
@@ -679,6 +707,9 @@ class DownloadRunner(QObject):
             Message.send_info("Downloading home feed")
             try:
                 raw_submissions = self.reddit_source.iter_home_feed()
+            except RateLimitedError:
+                # handle_rate_limited already messaged the user and cancelled the session.
+                return
             except PlaywrightError:
                 self.logger.exception(
                     "Browser navigation failed while fetching home feed"

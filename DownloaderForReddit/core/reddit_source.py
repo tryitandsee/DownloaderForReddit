@@ -110,6 +110,11 @@ _INJECTED_SCRIPT = """
 _EXTRACT_POSTS_EXPR = "window.__dfrExtractPosts ? window.__dfrExtractPosts() : []"
 
 
+class RateLimitedError(Exception):
+    """Raised instead of navigating once reddit has returned an HTTP 429 -- see
+    BrowserRedditSource._handle_response and _check_not_rate_limited."""
+
+
 class ValidationError(Enum):
     NOT_FOUND = "not_found"
     FORBIDDEN = "forbidden"
@@ -285,6 +290,8 @@ class BrowserRedditSource:
         self._context = None
         self._page = None
         self._on_posts_found: Callable[[list[SubmissionData]], None] | None = None
+        self._on_rate_limited: Callable[[], None] | None = None
+        self._rate_limited = threading.Event()
         # BrowserRedditSource.start() (called from injector.get_reddit_source()) navigates the
         # initial page and fires the injected script's primer scan before the GUI exists to
         # register a consumer via set_on_posts_found -- buffer anything that arrives before then
@@ -306,6 +313,39 @@ class BrowserRedditSource:
             self._pending_posts = []
         if pending:
             callback(pending)
+
+    def set_on_rate_limited(self, callback: Callable[[], None]):
+        """Registered by DownloadRunner to be notified the moment reddit returns a 429, so the
+        active download session can be cancelled immediately rather than continuing to hammer a
+        rate-limited endpoint. See _handle_response."""
+        self._on_rate_limited = callback
+
+    def is_rate_limited(self) -> bool:
+        return self._rate_limited.is_set()
+
+    def clear_rate_limit(self):
+        """Called at the start of a new user-initiated download batch -- there's no automatic
+        cooldown/resume, the next download the user starts is the resume signal."""
+        self._rate_limited.clear()
+
+    def _check_not_rate_limited(self) -> None:
+        if self._rate_limited.is_set():
+            raise RateLimitedError("Reddit rate limit (429) reached")
+
+    def _handle_response(self, response) -> None:
+        # Fired for every response in the context (context.on("response", ...)), not just
+        # navigations -- catches a 429 regardless of which call triggered it, including gallery
+        # metadata fetches and ambient-triggered extraction that never go through DownloadRunner's
+        # own per-object loop. Only care about the transition to rate-limited; once set, later 429s
+        # are redundant until clear_rate_limit() runs.
+        if response.status == 429 and not self._rate_limited.is_set():
+            self._rate_limited.set()
+            logger.warning(
+                "Reddit rate limit (429) reached, pausing downloads",
+                extra={"url": response.url},
+            )
+            if self._on_rate_limited is not None:
+                self._on_rate_limited()
 
     def _handle_posts_found(self, raw_posts: list[dict]) -> None:
         # Invoked via the __dfrPostsFound binding, which may run on the Playwright worker
@@ -418,6 +458,7 @@ class BrowserRedditSource:
         # an explicit download.
         self._context.on("close", lambda _: setattr(self, "_context", None))
         self._context.on("response", self._handle_follow_state_response)
+        self._context.on("response", self._handle_response)
         self._context.expose_function("__dfrPostsFound", self._handle_posts_found)
         self._context.add_init_script(_INJECTED_SCRIPT)
         self._page = (
@@ -472,6 +513,7 @@ class BrowserRedditSource:
         return self._page
 
     def _collect(self, url: str) -> list[SubmissionData]:
+        self._check_not_rate_limited()
         page = self._get_page()
         with self._suppressed_ambient():
             page.goto(url)
@@ -500,6 +542,7 @@ class BrowserRedditSource:
         return self._executor.submit(self._validate, url).result()
 
     def _validate(self, url: str) -> ValidationResult:
+        self._check_not_rate_limited()
         page = self._get_page()
         with self._suppressed_ambient():
             try:
@@ -551,6 +594,7 @@ class BrowserRedditSource:
         # A single navigation serves both validation and the submissions scrape -- the submitted/new
         # listing page shows the same 404/private/suspended copy as the plain profile page, so there's
         # no need to visit the profile page first just to check it exists.
+        self._check_not_rate_limited()
         page = self._get_page()
         with self._suppressed_ambient():
             try:
@@ -579,6 +623,7 @@ class BrowserRedditSource:
         # www.reddit.com's permalink page renders it, same as the listing pages. Normalize the
         # domain before navigating.
         url = _normalize_reddit_url(url)
+        self._check_not_rate_limited()
         page = self._get_page()
         with self._suppressed_ambient():
             try:
@@ -617,6 +662,7 @@ class BrowserRedditSource:
             _normalize_reddit_url(urljoin(REDDIT_BASE_URL, permalink)).rstrip("/")
             + ".json"
         )
+        self._check_not_rate_limited()
         page = self._get_page()
         try:
             data = page.evaluate(
