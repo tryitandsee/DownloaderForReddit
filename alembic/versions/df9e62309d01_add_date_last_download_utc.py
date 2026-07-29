@@ -5,6 +5,7 @@ Revises: b838ef3372ca
 Create Date: 2026-07-28 22:52:55.452940
 
 """
+
 import sqlalchemy as sa
 
 from alembic import op
@@ -18,7 +19,8 @@ depends_on = None
 
 def upgrade():
     op.add_column(
-        "reddit_object", sa.Column("date_last_download_utc", sa.DateTime(), nullable=True)
+        "reddit_object",
+        sa.Column("date_last_download_utc", sa.DateTime(), nullable=True),
     )
 
 

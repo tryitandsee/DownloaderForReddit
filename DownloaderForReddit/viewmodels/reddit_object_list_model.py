@@ -460,7 +460,9 @@ class RedditObjectListModel(QAbstractTableModel):
                     if field == "date_last_download_utc":
                         return getattr(reddit_object, f"{field}_display")
                     if field == "expected_new":
-                        return f"{self.expected_new_cache.get(reddit_object.id, 0.0):,.1f}"
+                        return (
+                            f"{self.expected_new_cache.get(reddit_object.id, 0.0):,.1f}"
+                        )
                     return getattr(reddit_object, field)
                 if role == Qt.ForegroundRole:
                     if (

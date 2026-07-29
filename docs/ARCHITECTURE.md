@@ -13,13 +13,15 @@ A download session creates a `DownloadRunner` (`core/download_runner.py`) which 
 1. **Extractor thread** — runs `ContentRunner` (`core/content_runner.py`), pulls from a `submission_queue`, calls extractors, and pushes `Content` IDs into `download_queue`
 2. **Downloader thread** — runs `Downloader` (`core/download/downloader.py`), pulls from `download_queue`, submits to a `ThreadPoolExecutor` (default 4 threads)
 
+Users and subreddits are one flow, not two: both are scraped by `BrowserRedditSource._collect_listing`/`_validate_and_collect_listing`, which scroll the listing until Reddit's pagination ceiling or a post older than the object's `date_last_download_utc` checkpoint, and both set that checkpoint (`DownloadRunner.get_user_submissions`/`get_subreddit_submissions`) only when the scan confirmed coverage rather than hitting the scroll safety cap. Ambient browsing is the one place the two still differ: both coverage signals there (the known-post streak and Reddit's end-of-feed marker) are profile-page-only, so a subreddit's checkpoint only ever advances from an explicit download. The one path that deliberately does not scroll is the home feed (`iter_home_feed` → `_collect`), which has no checkpoint and would otherwise run to the ceiling every time.
+
 `submission_queue` uses `None` as a stop sentinel. There's no queue-level pause; a rate limit instead cancels the current `DownloadSession` outright (see Rate limiting, below).
 
 ### Rate limiting
 
 `BrowserRedditSource` (`core/reddit_source.py`) registers a `context.on("response", ...)` listener alongside its existing follow-state listener, watching every response in the shared browser context for an HTTP 429. On the first 429 it sets a `threading.Event` and calls back into `DownloadRunner` (via `set_on_rate_limited`, mirroring `set_on_posts_found`), which emits a `rate_limited` `pyqtSignal` to hop onto its own thread. `DownloadRunner.handle_rate_limited` messages the user and cancels the open session via `stop_download(hard_stop=True)`.
 
-Independently, every navigation-triggering method on `BrowserRedditSource` (`_collect`, `_validate`, `_validate_and_collect`, `_get_post_impl`, `_get_gallery_media_metadata_impl`) checks the event first and raises `RateLimitedError` instead of navigating -- this covers callers `DownloadRunner`'s own per-object loops don't gate, e.g. an extractor fetching gallery metadata from `ContentRunner`'s thread pool for an already-queued, ambient-triggered post. There's no auto-resume/cooldown timer -- the event is cleared at the top of the next user-initiated `start_batch`, so starting another download is the resume signal.
+Independently, every navigation-triggering method on `BrowserRedditSource` (`_collect`, `_collect_listing`, `_validate`, `_validate_and_collect_listing`, `_get_post_impl`, `_get_gallery_media_metadata_impl`) checks the event first and raises `RateLimitedError` instead of navigating, as does every iteration of `_scroll_and_collect` — a scroll can run dozens of lazy-load fetches and has to abort mid-scan, not just at its start -- this covers callers `DownloadRunner`'s own per-object loops don't gate, e.g. an extractor fetching gallery metadata from `ContentRunner`'s thread pool for an already-queued, ambient-triggered post. There's no auto-resume/cooldown timer -- the event is cleared at the top of the next user-initiated `start_batch`, so starting another download is the resume signal.
 
 ### Extractor system
 
@@ -37,6 +39,8 @@ action = QAction("My Item", self)
 action.triggered.connect(self.my_handler)
 self.help_menu.addAction(action)
 ```
+
+The user and subreddit lists share one `QTabWidget` (`object_tab_widget`) in the main window's splitter rather than sitting side by side, and both are `QTableView`s backed by the same `RedditObjectListModel` (Name / Last Download / Last Checked / Expected, sortable by header click). The visible tab *is* the download target — the Download button downloads whichever list is showing, replacing the old Users/Subreddits radio buttons, and header-click sorting replaced the View menu's "Sort Lists By"/"Sort Order" submenus, so that menu is gone entirely. The third radio's mode (constrain users to the subreddit list) survives as `CONSTRAIN_USERS_TO_SUBREDDIT_LIST` in `gui/downloader_for_reddit_gui.py`, a module-level flag with no GUI, the same stub pattern as `download_runner.FORCE_DOWNLOAD`.
 
 New dialogs: pure-Python `QWidget` or `QDialog` subclasses work fine without a `.ui` file. Use `show()` for non-modal, `exec_()` for modal.
 

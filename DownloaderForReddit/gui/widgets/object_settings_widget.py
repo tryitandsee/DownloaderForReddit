@@ -265,7 +265,7 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
         try:
             self.sync_checkbox(self.enable_download_checkbox, "download_enabled")
             visibility = True
-        except (AttributeError, TypeError):
+        except AttributeError, TypeError:
             visibility = False
         self.enable_download_checkbox.setVisible(visibility)
 

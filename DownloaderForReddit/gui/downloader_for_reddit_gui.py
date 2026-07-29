@@ -34,7 +34,6 @@ from PyQt5.QtGui import QCursor, QIcon, QPixmap
 from PyQt5.QtWidgets import (
     QAbstractItemView,
     QAction,
-    QActionGroup,
     QHBoxLayout,
     QHeaderView,
     QInputDialog,
@@ -53,7 +52,6 @@ from ..core.cli import CLI
 from ..core.update_runner import UpdateRunner
 from ..customwidgets.link_cursor_handler import LinkCursorHandler
 from ..customwidgets.qt_compat_spinner import CompatibleWaitingSpinner as WaitingSpinner
-from ..database.filters import RedditObjectFilter
 from ..database.model_manager import ModelManger
 from ..database.models import (
     ListAssociation,
@@ -102,6 +100,17 @@ from ..viewmodels.reddit_object_list_model import RedditObjectListModel
 # run this long is far more likely to mean organic browsing has genuinely scrolled past the
 # newest unseen content into already-covered territory.
 _AMBIENT_KNOWN_STREAK_THRESHOLD = 6
+
+# Tab order in object_tab_widget, which is also the download target selector -- the "Download"
+# button downloads whichever list is on the visible tab.
+USER_TAB_INDEX = 0
+SUBREDDIT_TAB_INDEX = 1
+
+# [mine] TODO: stub for a future "constrain users to subreddit list" GUI toggle -- was a radio
+# button, removed along with the rest of the target radios when the lists became tabs. The
+# download path it feeds (download_user_list_constrained) is untouched and still reachable from
+# the Download menu. Same pattern as download_runner.FORCE_DOWNLOAD.
+CONSTRAIN_USERS_TO_SUBREDDIT_LIST = False
 
 
 class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
@@ -163,7 +172,11 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.resize(geom["width"], geom["height"])
         if geom["x"] != 0 and geom["y"] != 0:
             self.move(geom["x"], geom["y"])
-        self.horz_splitter.setSizes(self.settings_manager.horizontal_splitter_state)
+        # A saved state from before the user/subreddit lists became tabs has one size per pane for
+        # three panes, and applying its first two entries leaves the output pane a sliver.
+        splitter_state = self.settings_manager.horizontal_splitter_state
+        if len(splitter_state) == self.horz_splitter.count():
+            self.horz_splitter.setSizes(splitter_state)
 
         # [mine] feat(gui): download status panel embedded at the bottom of the main window
         self.download_status_panel = DownloadStatusDialog(lambda: download_runner)
@@ -179,12 +192,14 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.output_list_view.setMaximumHeight(200)
         self.verticalLayout_4.addWidget(self.output_list_view)
 
-        if self.settings_manager.download_radio_state == "USER":
-            self.download_users_radio.setChecked(True)
-        elif self.settings_manager.download_radio_state == "SUBREDDIT":
-            self.download_subreddits_radio.setChecked(True)
-        else:
-            self.constain_to_sub_list_radio.setChecked(True)
+        # Without document mode the tab pane paints Windows' white tab-page background, which
+        # reads as harsh next to every other panel's window gray.
+        self.object_tab_widget.setDocumentMode(True)
+        self.object_tab_widget.setCurrentIndex(
+            SUBREDDIT_TAB_INDEX
+            if self.settings_manager.download_radio_state == "SUBREDDIT"
+            else USER_TAB_INDEX
+        )
         # endregion
 
         self.queue = queue
@@ -210,26 +225,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.open_data_directory_menu_item.triggered.connect(self.open_data_directory)
         self.minimize_to_tray_menu_item.triggered.connect(self.minimize_to_tray)
         self.exit_menu_item.triggered.connect(self.close)
-        # endregion
-
-        # region View Menu
-        self.setup_list_sort_menu()
-
-        self.list_view_order_group = QActionGroup(self)
-        self.list_view_order_group.addAction(self.sort_list_ascending_menu_item)
-        self.list_view_order_group.addAction(self.sort_list_descending_menu_item)
-        self.sort_list_ascending_menu_item.triggered.connect(
-            lambda: self.set_list_order(desc=False)
-        )
-        self.sort_list_descending_menu_item.triggered.connect(
-            lambda: self.set_list_order(desc=True)
-        )
-        self.sort_list_ascending_menu_item.setChecked(
-            not self.settings_manager.order_list_desc
-        )
-        self.sort_list_descending_menu_item.setChecked(
-            self.settings_manager.order_list_desc
-        )
         # endregion
 
         # region Lists Menu
@@ -341,7 +336,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             lambda x: self.scroll_to_new(x, "USER")
         )
         self.user_list_model.count_change.connect(
-            lambda x: self.user_count_label.setText(str(x))
+            lambda x: self.object_tab_widget.setTabText(USER_TAB_INDEX, f"Users ({x})")
         )
         self.user_list_view.setModel(self.user_list_model)
         self.user_list_view.sortByColumn(0, Qt.AscendingOrder)
@@ -358,16 +353,21 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             lambda x: self.scroll_to_new(x, "SUBREDDIT")
         )
         self.subreddit_list_model.count_change.connect(
-            lambda x: self.subreddit_count_label.setText(str(x))
+            lambda x: self.object_tab_widget.setTabText(
+                SUBREDDIT_TAB_INDEX, f"Subreddits ({x})"
+            )
         )
         self.subreddit_list_view.setModel(self.subreddit_list_model)
+        self.subreddit_list_view.sortByColumn(0, Qt.AscendingOrder)
 
-        # Only the user list is a QTableView; subreddit_list_view is a QListView, which renders
-        # column 0 alone and so has no header to configure.
-        user_header = self.user_list_view.horizontalHeader()
-        user_header.setSectionResizeMode(0, QHeaderView.Stretch)
-        for column in range(1, self.user_list_model.columnCount()):
-            user_header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
+        for view, model in (
+            (self.user_list_view, self.user_list_model),
+            (self.subreddit_list_view, self.subreddit_list_model),
+        ):
+            header = view.horizontalHeader()
+            header.setSectionResizeMode(0, QHeaderView.Stretch)
+            for column in range(1, model.columnCount()):
+                header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
 
         self.setup_expected_new_refresh_button()
 
@@ -399,10 +399,10 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
         self.ambient_matches_found.connect(self.start_ambient_download)
 
+        # No Remove button: removal lives in the list's context menu, where it can act on the
+        # actual selection.
         self.add_user_button.clicked.connect(self.add_user)
-        self.remove_user_button.clicked.connect(self.remove_user)
         self.add_subreddit_button.clicked.connect(self.add_subreddit)
-        self.remove_subreddit_button.clicked.connect(self.remove_subreddit)
 
         self.user_lists_combo.activated.connect(self.change_user_list)
         self.subreddit_list_combo.activated.connect(self.change_subreddit_list)
@@ -503,26 +503,14 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         RedditObjectListModel.refresh_expected_new_cache for why they must not be recomputed on
         the pool_idle path. This button is the only way to update them after the initial load.
         """
-        self.refresh_expected_new_button = QPushButton("Refresh")
-        self.refresh_expected_new_button.setToolTip("Recalculate Expected new posts")
-        self.refresh_expected_new_button.clicked.connect(
-            self.refresh_expected_new_scores
-        )
-        self.horizontalLayout_4.addWidget(self.refresh_expected_new_button)
-
-    def refresh_expected_new_scores(self):
-        self.user_list_model.refresh_expected_new()
-
-    def setup_list_sort_menu(self):
-        list_view_group = QActionGroup(self)
-        for field in RedditObjectFilter.get_order_fields():
-            text = field.replace("_", " ").title()
-            item = self.list_sort_menu_item.addAction(
-                text, lambda value=field: self.set_list_order(order_by=value)
-            )
-            list_view_group.addAction(item)
-            item.setCheckable(True)
-            item.setChecked(field == self.settings_manager.list_order_method)
+        for layout, model in (
+            (self.horizontalLayout_4, self.user_list_model),
+            (self.horizontalLayout_5, self.subreddit_list_model),
+        ):
+            button = QPushButton("Refresh")
+            button.setToolTip("Recalculate Expected new posts")
+            button.clicked.connect(model.refresh_expected_new)
+            layout.addWidget(button)
 
     def scroll_output(self):
         """
@@ -559,13 +547,13 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     def get_selected_single_subreddit(self):
         """See get_selected_single_user"""
-        indices = self.subreddit_list_view.selectedIndexes()
+        indices = self.subreddit_list_view.selectionModel().selectedRows()
         if len(indices) <= 0:
             return None
         return self.subreddit_list_model.data(indices[0], Qt.UserRole)
 
     def get_selected_subreddits(self):
-        indices = self.subreddit_list_view.selectedIndexes()
+        indices = self.subreddit_list_view.selectionModel().selectedRows()
         return [self.subreddit_list_model.data(index, Qt.UserRole) for index in indices]
 
     def get_selected_subreddit_ids(self):
@@ -931,12 +919,12 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             "run_unextracted": run_unextracted,
             "run_undownloaded": run_undownloaded,
         }
-        if self.download_users_radio.isChecked():
-            self.download_user_list(**kwargs)
-        elif self.download_subreddits_radio.isChecked():
+        if self.object_tab_widget.currentIndex() == SUBREDDIT_TAB_INDEX:
             self.download_subreddit_list(**kwargs)
-        else:
+        elif CONSTRAIN_USERS_TO_SUBREDDIT_LIST:
             self.download_user_list_constrained(**kwargs)
+        else:
+            self.download_user_list(**kwargs)
 
     def download_user_list(self, **kwargs):
         user_id_list = self.user_list_model.get_id_list()
@@ -1063,11 +1051,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     def handle_follow_state_changed(self, message):
         payload = message.payload
         with self.db_handler.get_scoped_session() as session:
-            ro = (
-                session.query(User)
-                .filter(User.name == payload.username)
-                .one_or_none()
-            )
+            ro = session.query(User).filter(User.name == payload.username).one_or_none()
             if ro is None:
                 return
             if payload.followed:
@@ -1331,7 +1315,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                 self.settings_manager.remove_reddit_object_warning = not warn
             if remove:
                 list_model.remove_reddit_objects(*reddit_objects)
-        except (KeyError, AttributeError):
+        except KeyError, AttributeError:
             self.logger.warning(
                 "Remove reddit object failed: No object selected", exc_info=True
             )
@@ -1876,15 +1860,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             "Attempt was made to open user manual.  User manual has been removed for beta version."
         )
 
-    def set_list_order(self, order_by=None, desc=None):
-        """Applies the sort and order function to each list model"""
-        if order_by is not None:
-            self.settings_manager.list_order_method = order_by
-        if desc is not None:
-            self.settings_manager.order_list_desc = desc
-        self.user_list_model.sort_list()
-        self.subreddit_list_model.sort_list()
-
     def closeEvent(self, event):
         """
         As absolutely ridiculous as this is, for some reason if this close event is not set, PyQt outputs a QThread
@@ -1921,12 +1896,11 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             self.subreddit_list_combo.currentText()
         )
 
-        if self.download_users_radio.isChecked():
-            self.settings_manager.download_radio_state = "USER"
-        elif self.download_subreddits_radio.isChecked():
-            self.settings_manager.download_radio_state = "SUBREDDIT"
-        else:
-            self.settings_manager.download_radio_state = "CONSTRAIN"
+        self.settings_manager.download_radio_state = (
+            "SUBREDDIT"
+            if self.object_tab_widget.currentIndex() == SUBREDDIT_TAB_INDEX
+            else "USER"
+        )
 
     def load_state(self):
         """

@@ -1627,7 +1627,7 @@ class DatabaseStatisticsDialog(QDialog):
     def format_number(self, number):
         try:
             return f"{number:,}"
-        except (TypeError, AttributeError):
+        except TypeError, AttributeError:
             return None
 
     def format_date_string(self, date_string):

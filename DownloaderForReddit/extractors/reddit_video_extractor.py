@@ -70,7 +70,7 @@ class RedditVideoExtractor(BaseExtractor):
         """
         try:
             self.url = self.host_vid.media["reddit_video"]["fallback_url"]
-        except (AttributeError, TypeError):
+        except AttributeError, TypeError:
             self.url = self.host_vid.url
         if self.url is not None:
             self.get_audio_url()

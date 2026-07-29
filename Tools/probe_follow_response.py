@@ -75,7 +75,9 @@ def main():
             # The window is already closed by this point (that's what we just waited for) --
             # closing an already-gone context raises internally on some Playwright versions.
             # Harmless for a one-shot probe script; just don't let it end in a scary traceback.
-            print(f"context.close() raised (harmless, already closed): {type(e).__name__}: {e}")
+            print(
+                f"context.close() raised (harmless, already closed): {type(e).__name__}: {e}"
+            )
 
 
 if __name__ == "__main__":

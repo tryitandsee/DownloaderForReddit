@@ -1473,7 +1473,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
                     self.comment_tree_view.selectedIndexes()
                 )
                 self.handle_comment_text_browser()
-            except (IndexError, AttributeError):
+            except IndexError, AttributeError:
                 self.current_comment = []
                 self.comment_text_browser.setVisible(False)
                 self.comment_text_browser.clear()

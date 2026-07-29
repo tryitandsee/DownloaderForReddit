@@ -659,9 +659,22 @@ class DownloadRunner(QObject):
         self._current_fetch_object = (
             subreddit.name
         )  # [mine] feat(gui): download status window
-        self.get_validated_submissions(
-            subreddit, self.reddit_source.validate_and_iter_subreddit_submissions
-        )
+        Message.send_info(
+            f"Downloading subreddit: {subreddit.name}"
+        )  # [mine] GUI progress logging
+        coverage = {"confirmed": False}
+
+        def source_method(name):
+            result, submissions, coverage["confirmed"] = (
+                self.reddit_source.validate_and_iter_subreddit_submissions(
+                    name, subreddit.date_last_download_utc
+                )
+            )
+            return result, submissions
+
+        self.get_validated_submissions(subreddit, source_method)
+        if coverage["confirmed"]:
+            subreddit.set_date_last_download_utc()
         return None
 
     def get_validated_submissions(self, reddit_object, source_method):

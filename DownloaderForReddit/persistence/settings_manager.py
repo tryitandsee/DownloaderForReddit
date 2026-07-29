@@ -295,7 +295,7 @@ class SettingsManager:
             "main_window_gui", "main_window_geom", main_window_geom
         )
         self.horizontal_splitter_state = self.get(
-            "main_window_gui", "horizontal_splitter_state", [228, 258, 624]
+            "main_window_gui", "horizontal_splitter_state", [486, 624]
         )
         self.list_order_method = self.get(
             "main_window_gui", "list_order_method", "name"

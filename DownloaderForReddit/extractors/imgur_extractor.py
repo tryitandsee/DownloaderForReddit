@@ -101,7 +101,7 @@ class ImgurExtractor(BaseExtractor):
                 extension = "mp4"
             url = f"{domain}/{image_id}.{extension}"
             self.make_content(url, extension, media_id=image_id)
-        except (AttributeError, NameError, TypeError):
+        except AttributeError, NameError, TypeError:
             message = "Unrecognized extension"
             self.handle_failed_extract(
                 error=Error.UNRECOGNIZED_EXTENSION,

@@ -22,7 +22,9 @@ class ContentFoundPayload:
     reddit_id: str
     author: str
     subreddit: str
-    permalink: str  # comments page, not the content url -- always browsable in the same shape
+    permalink: (
+        str  # comments page, not the content url -- always browsable in the same shape
+    )
     is_new: bool
 
 
@@ -59,7 +61,10 @@ class Message:
         message_type: MessageType,
         message: str | None = None,
         priority: MessagePriority = MessagePriority.INFO,
-        payload: ContentFoundPayload | FollowStatePayload | ContentSkippedPayload | None = None,
+        payload: ContentFoundPayload
+        | FollowStatePayload
+        | ContentSkippedPayload
+        | None = None,
     ):
         self.message_type = message_type
         self.message = message
@@ -76,7 +81,10 @@ class Message:
         message_type: MessageType,
         message: str | None = None,
         priority: MessagePriority = MessagePriority.INFO,
-        payload: ContentFoundPayload | FollowStatePayload | ContentSkippedPayload | None = None,
+        payload: ContentFoundPayload
+        | FollowStatePayload
+        | ContentSkippedPayload
+        | None = None,
     ) -> None:
         m = cls(message_type, message, priority, payload)
         cls.message_queue.put(m)

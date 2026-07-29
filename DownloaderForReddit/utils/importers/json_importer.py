@@ -98,5 +98,5 @@ def _clean_ro_element(ro_element):
     for key, value in ro_element.items():
         try:
             ro_element[key] = TYPE_MAP[key](value)
-        except (KeyError, TypeError):
+        except KeyError, TypeError:
             pass

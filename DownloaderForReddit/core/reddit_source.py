@@ -181,7 +181,9 @@ class RedditSource(Protocol):
         self, name: str, since: datetime | None = None
     ) -> tuple[list[SubmissionData], bool]: ...
 
-    def iter_subreddit_submissions(self, name: str) -> list[SubmissionData]: ...
+    def iter_subreddit_submissions(
+        self, name: str, since: datetime | None = None
+    ) -> tuple[list[SubmissionData], bool]: ...
 
     def iter_home_feed(self) -> list[SubmissionData]: ...  # following-only aggregation
 
@@ -192,8 +194,8 @@ class RedditSource(Protocol):
     ) -> tuple[ValidationResult, list[SubmissionData], bool]: ...
 
     def validate_and_iter_subreddit_submissions(
-        self, name: str
-    ) -> tuple[ValidationResult, list[SubmissionData]]: ...
+        self, name: str, since: datetime | None = None
+    ) -> tuple[ValidationResult, list[SubmissionData], bool]: ...
 
     def get_post(self, url: str) -> SubmissionData | None: ...
 
@@ -258,7 +260,7 @@ def _parse_post(raw: dict) -> SubmissionData | None:
             permalink=permalink,
             post_type=post_type,
         )
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         logger.warning(
             "Failed to parse shreddit-post attributes", extra={"raw_id": raw_id}
         )
@@ -452,9 +454,10 @@ class BrowserRedditSource:
             return
         try:
             state = json.loads(post_data)["variables"]["input"]["state"]
-        except (json.JSONDecodeError, KeyError, TypeError):
+        except json.JSONDecodeError, KeyError, TypeError:
             logger.warning(
-                "Failed to parse follow-state request body", extra={"post_data": post_data}
+                "Failed to parse follow-state request body",
+                extra={"post_data": post_data},
             )
             return
         if state not in ("FOLLOWED", "NONE"):
@@ -474,9 +477,7 @@ class BrowserRedditSource:
         try:
             body = response.json()
         except PlaywrightError:
-            logger.warning(
-                "Failed to read follow-state response body", exc_info=True
-            )
+            logger.warning("Failed to read follow-state response body", exc_info=True)
             return
         errors = body.get("errors")
         if errors:
@@ -556,9 +557,7 @@ class BrowserRedditSource:
         self._context.expose_binding("__dfrPostsFound", self._handle_posts_found)
         self._context.add_init_script(_INJECTED_SCRIPT)
         self._page = (
-            self._context.pages[0]
-            if self._context.pages
-            else self._context.new_page()
+            self._context.pages[0] if self._context.pages else self._context.new_page()
         )
 
     def _pump_loop(self):
@@ -618,10 +617,9 @@ class BrowserRedditSource:
         self, page: Page, since: datetime | None
     ) -> tuple[list[SubmissionData], bool]:
         """
-        Scrolls an endless-scroll shreddit listing page (generic to any such page, not coupled to
-        user listings specifically -- subreddit listings share the same shape and could reuse this
-        later), collecting posts until either Reddit stops loading more (its own pagination
-        ceiling) or a post at or before `since` is reached (already covered by a prior confirmed
+        Scrolls an endless-scroll shreddit listing page (user and subreddit listings share the
+        same shape and both come through here), collecting posts until either Reddit stops loading
+        more (its own pagination ceiling) or a post at or before `since` is reached (already covered by a prior confirmed
         scan). `since` is naive UTC (see RedditObject.date_last_download_utc); posts' `created` is
         timezone-aware, so it's normalized to naive UTC before comparing. Returns the deduped posts
         seen and whether coverage was confirmed -- False only if the iteration safety cap was hit
@@ -653,7 +651,7 @@ class BrowserRedditSource:
                 return list(collected.values()), True
         return list(collected.values()), False
 
-    def _collect_user(
+    def _collect_listing(
         self, url: str, since: datetime | None
     ) -> tuple[list[SubmissionData], bool]:
         self._check_not_rate_limited()
@@ -667,11 +665,13 @@ class BrowserRedditSource:
         self, name: str, since: datetime | None = None
     ) -> tuple[list[SubmissionData], bool]:
         url = f"https://www.reddit.com/user/{name}/submitted/?sort=new"
-        return self._executor.submit(self._collect_user, url, since).result()
+        return self._executor.submit(self._collect_listing, url, since).result()
 
-    def iter_subreddit_submissions(self, name: str) -> list[SubmissionData]:
+    def iter_subreddit_submissions(
+        self, name: str, since: datetime | None = None
+    ) -> tuple[list[SubmissionData], bool]:
         url = f"https://www.reddit.com/r/{name}/new/"
-        return self._executor.submit(self._collect, url).result()
+        return self._executor.submit(self._collect_listing, url, since).result()
 
     def iter_home_feed(self) -> list[SubmissionData]:
         return self._executor.submit(
@@ -726,44 +726,23 @@ class BrowserRedditSource:
     ) -> tuple[ValidationResult, list[SubmissionData], bool]:
         url = f"https://www.reddit.com/user/{name}/submitted/?sort=new"
         return self._executor.submit(
-            self._validate_and_collect_user, url, since
+            self._validate_and_collect_listing, url, since
         ).result()
 
     def validate_and_iter_subreddit_submissions(
-        self, name: str
-    ) -> tuple[ValidationResult, list[SubmissionData]]:
+        self, name: str, since: datetime | None = None
+    ) -> tuple[ValidationResult, list[SubmissionData], bool]:
         url = f"https://www.reddit.com/r/{name}/new/"
-        return self._executor.submit(self._validate_and_collect, url).result()
+        return self._executor.submit(
+            self._validate_and_collect_listing, url, since
+        ).result()
 
-    def _validate_and_collect(
-        self, url: str
-    ) -> tuple[ValidationResult, list[SubmissionData]]:
-        # A single navigation serves both validation and the submissions scrape -- the submitted/new
-        # listing page shows the same 404/private/suspended copy as the plain profile page, so there's
-        # no need to visit the profile page first just to check it exists.
-        self._check_not_rate_limited()
-        page = self._get_page()
-        with self._suppressed_ambient():
-            try:
-                page.goto(url)
-            except PlaywrightError:
-                logger.warning(
-                    "Navigation failed during validation",
-                    extra={"url": url},
-                    exc_info=True,
-                )
-                return ValidationResult(
-                    valid=False, error=ValidationError.CONNECTION_ERROR
-                ), []
-            page.wait_for_timeout(2000)
-            validation = self._check_validity(page)
-            if not validation.valid:
-                return validation, []
-            return validation, _read_posts(page)
-
-    def _validate_and_collect_user(
+    def _validate_and_collect_listing(
         self, url: str, since: datetime | None
     ) -> tuple[ValidationResult, list[SubmissionData], bool]:
+        # A single navigation serves both validation and the submissions scrape -- the listing page
+        # shows the same 404/private/suspended copy as the plain profile page, so there's no need to
+        # visit the profile page first just to check it exists.
         self._check_not_rate_limited()
         page = self._get_page()
         with self._suppressed_ambient():
@@ -854,7 +833,7 @@ class BrowserRedditSource:
             return None
         try:
             url = post["preview"]["images"][0]["variants"]["mp4"]["source"]["url"]
-        except (KeyError, IndexError, TypeError):
+        except KeyError, IndexError, TypeError:
             return None
         return html.unescape(url)
 
@@ -880,7 +859,7 @@ class BrowserRedditSource:
             return None
         try:
             return data[0]["data"]["children"][0]["data"]
-        except (KeyError, IndexError, TypeError):
+        except KeyError, IndexError, TypeError:
             logger.warning("Unexpected post json shape", extra={"url": url})
             return None
 
