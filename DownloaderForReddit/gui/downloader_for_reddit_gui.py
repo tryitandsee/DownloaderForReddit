@@ -349,6 +349,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.user_list_view.horizontalHeader().setSectionResizeMode(
             1, QHeaderView.ResizeToContents
         )
+        self.user_list_view.horizontalHeader().setSectionResizeMode(
+            2, QHeaderView.ResizeToContents
+        )
         self.user_list_view.sortByColumn(0, Qt.AscendingOrder)
         self.subreddit_list_model = RedditObjectListModel("SUBREDDIT")
         self.subreddit_list_model.starting_add.connect(self.start_spinner)

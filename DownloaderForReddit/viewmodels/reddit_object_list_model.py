@@ -14,7 +14,13 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from ..core.reddit_object_creator import RedditObjectCreator
 from ..database.filters import RedditObjectFilter
-from ..database.models import ListAssociation, RedditObject, RedditObjectList
+from ..database.models import (
+    Content,
+    ListAssociation,
+    Post,
+    RedditObject,
+    RedditObjectList,
+)
 from ..messaging.message import Message
 from ..utils import injector
 
@@ -27,8 +33,8 @@ class RedditObjectListModel(QAbstractTableModel):
     new_object_in_list = pyqtSignal(int)
     count_change = pyqtSignal(int)
 
-    columns = ("name", "date_last_download_utc")
-    column_headers = ("Name", "Last Download")
+    columns = ("name", "last_download", "date_last_download_utc")
+    column_headers = ("Name", "Last Download", "Last Checked")
 
     def __init__(self, list_type):
         """
@@ -52,6 +58,7 @@ class RedditObjectListModel(QAbstractTableModel):
         self.sort_column = None
         self.sort_desc = False
         self.search_term = ""
+        self.last_download_cache = {}
 
     @property
     def name(self):
@@ -127,6 +134,7 @@ class RedditObjectListModel(QAbstractTableModel):
                     order_by=order,
                     desc=desc,
                 ).all()
+                self.refresh_last_download_cache()
                 self.apply_column_sort()
             finally:
                 self.endResetModel()
@@ -136,12 +144,39 @@ class RedditObjectListModel(QAbstractTableModel):
             # AttributeError indicates that no list is set for this view model
             pass
 
+    def refresh_last_download_cache(self):
+        """
+        RedditObject.last_download is a per-row correlated query -- calling it once per row
+        during table paint/sort (rather than its original one-off tooltip usage) is an N+1 query
+        storm that also corrupts the shared session's transaction state under PyQt5's GUI event
+        loop. Fetch every row's last download date in a single grouped query instead.
+        """
+        self.last_download_cache = {}
+        ids = self.get_id_list(download_enabled=False)
+        if not ids:
+            return
+        rows = (
+            self.session.query(
+                Post.significant_reddit_object_id, func.max(Content.download_date)
+            )
+            .join(Content)
+            .filter(Post.significant_reddit_object_id.in_(ids))
+            .group_by(Post.significant_reddit_object_id)
+            .all()
+        )
+        self.last_download_cache = dict(rows)
+
     def apply_column_sort(self):
         if self.sort_column is None or self.reddit_objects is None:
             return
         field = self.columns[self.sort_column]
         if field == "name":
             key = lambda ro: ro.name.lower()
+        elif field == "last_download":
+            key = lambda ro: (
+                self.last_download_cache.get(ro.id) is not None,
+                self.last_download_cache.get(ro.id),
+            )
         else:
             key = lambda ro: (getattr(ro, field) is not None, getattr(ro, field))
         self.reddit_objects.sort(key=key, reverse=self.sort_desc)
@@ -333,9 +368,14 @@ class RedditObjectListModel(QAbstractTableModel):
             try:
                 if role == Qt.DisplayRole or role == Qt.EditRole:
                     field = self.columns[index.column()]
+                    reddit_object = self.reddit_objects[row]
+                    if field == "last_download":
+                        return reddit_object.get_display_datetime(
+                            self.last_download_cache.get(reddit_object.id)
+                        )
                     if field == "date_last_download_utc":
-                        return self.reddit_objects[row].date_last_download_utc_display
-                    return getattr(self.reddit_objects[row], field)
+                        return getattr(reddit_object, f"{field}_display")
+                    return getattr(reddit_object, field)
                 if role == Qt.ForegroundRole:
                     if (
                         not self.reddit_objects[row].download_enabled
