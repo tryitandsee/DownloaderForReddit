@@ -108,7 +108,7 @@ class ContentFeedPanel(QWidget):
         ):
             if keyword in lowered:
                 return word
-        first_word = reason.split()[0] if reason else "skip"
+        first_word = reason.split(maxsplit=1)[0] if reason else "skip"
         return html.escape("".join(c for c in first_word if c.isalnum()).lower() or "skip")
 
     def clear(self):

@@ -1,7 +1,7 @@
 import logging
 
 from PyQt5.QtCore import (
-    QAbstractListModel,
+    QAbstractTableModel,
     QModelIndex,
     QObject,
     Qt,
@@ -19,13 +19,16 @@ from ..messaging.message import Message
 from ..utils import injector
 
 
-class RedditObjectListModel(QAbstractListModel):
+class RedditObjectListModel(QAbstractTableModel):
     starting_add = pyqtSignal(object)
     finished_add = pyqtSignal()
     reddit_object_added = pyqtSignal(int)
     existing_object_added = pyqtSignal(tuple)
     new_object_in_list = pyqtSignal(int)
     count_change = pyqtSignal(int)
+
+    columns = ("name", "date_last_download_utc")
+    column_headers = ("Name", "Last Download")
 
     def __init__(self, list_type):
         """
@@ -45,6 +48,10 @@ class RedditObjectListModel(QAbstractListModel):
         self.validation_thread = None
         self.validating = False
         self.last_added = None
+
+        self.sort_column = None
+        self.sort_desc = False
+        self.search_term = ""
 
     @property
     def name(self):
@@ -110,42 +117,55 @@ class RedditObjectListModel(QAbstractListModel):
             order = self.settings_manager.list_order_method
             desc = self.settings_manager.order_list_desc
             f = RedditObjectFilter()
-            self.reddit_objects = f.filter(
-                self.session, query=self.list.reddit_objects, order_by=order, desc=desc
-            ).all()
-            self.refresh()
+            filters = (("name", "like", self.search_term),) if self.search_term else ()
+            self.beginResetModel()
+            try:
+                self.reddit_objects = f.filter(
+                    self.session,
+                    *filters,
+                    query=self.list.reddit_objects,
+                    order_by=order,
+                    desc=desc,
+                ).all()
+                self.apply_column_sort()
+            finally:
+                self.endResetModel()
             self.check_last_added()
             self.send_count_change()
         except AttributeError:
             # AttributeError indicates that no list is set for this view model
             pass
 
+    def apply_column_sort(self):
+        if self.sort_column is None or self.reddit_objects is None:
+            return
+        field = self.columns[self.sort_column]
+        if field == "name":
+            key = lambda ro: ro.name.lower()
+        else:
+            key = lambda ro: (getattr(ro, field) is not None, getattr(ro, field))
+        self.reddit_objects.sort(key=key, reverse=self.sort_desc)
+
+    def sort(self, column, order=Qt.AscendingOrder):
+        self.sort_column = column
+        self.sort_desc = order == Qt.DescendingOrder
+        self.apply_column_sort()
+        self.refresh()
+
     def check_last_added(self):
         if self.last_added is not None:
-            self.new_object_in_list.emit(self.reddit_objects.index(self.last_added))
+            try:
+                index = self.reddit_objects.index(self.last_added)
+            except ValueError:
+                # Not in the current (possibly search-filtered) results -- leave last_added set
+                # so a later sort_list() call (e.g. once the search is cleared) can still find it.
+                return
+            self.new_object_in_list.emit(index)
             self.last_added = None
 
     def search_list(self, term):
-        try:
-            f = RedditObjectFilter()
-            if term is not None and term != "":
-                self.reddit_objects = f.filter(
-                    self.session,
-                    ("name", "like", term),
-                    query=self.list.reddit_objects,
-                    order_by=self.settings_manager.list_order_method,
-                    desc=self.settings_manager.order_list_desc,
-                ).all()
-            else:
-                self.reddit_objects = f.filter(
-                    self.session,
-                    query=self.list.reddit_objects,
-                    order_by=self.settings_manager.list_order_method,
-                    desc=self.settings_manager.order_list_desc,
-                ).all()
-            self.refresh()
-        except AttributeError:
-            pass
+        self.search_term = term or ""
+        self.sort_list()
 
     def check_name(self, name):
         """
@@ -292,6 +312,14 @@ class RedditObjectListModel(QAbstractListModel):
         except AttributeError:
             return 0
 
+    def columnCount(self, parent=QModelIndex(), *args, **kwargs):
+        return len(self.columns)
+
+    def headerData(self, section, orientation, role=Qt.DisplayRole):
+        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+            return self.column_headers[section]
+        return None
+
     def send_count_change(self):
         """
         Emits the 'count_change' signal with the correct row count.
@@ -304,7 +332,10 @@ class RedditObjectListModel(QAbstractListModel):
         if index.isValid():
             try:
                 if role == Qt.DisplayRole or role == Qt.EditRole:
-                    return self.reddit_objects[row].name
+                    field = self.columns[index.column()]
+                    if field == "date_last_download_utc":
+                        return self.reddit_objects[row].date_last_download_utc_display
+                    return getattr(self.reddit_objects[row], field)
                 if role == Qt.ForegroundRole:
                     if (
                         not self.reddit_objects[row].download_enabled
@@ -387,8 +418,11 @@ class RedditObjectListModel(QAbstractListModel):
         Refreshes the displayed items in the list. This has to be called when the sort order is changed or the new
         sort order will not be displayed until the list is moved.
         """
+        row_count = self.rowCount()
+        if row_count == 0:
+            return
         first = self.createIndex(0, 0)
-        second = self.createIndex(0, self.rowCount())
+        second = self.createIndex(row_count - 1, self.columnCount() - 1)
         self.dataChanged.emit(first, second)
 
     def refresh_session(self):

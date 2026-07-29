@@ -71,7 +71,7 @@ def reveal_in_file_manager(path):
     try:
         if sys.platform == "win32":
             normalized = os.path.normpath(path)
-            subprocess.run(f'explorer /select,"{normalized}"')
+            subprocess.run(f'explorer /select,"{normalized}"', check=False)
         elif sys.platform == "darwin":
             subprocess.call(["open", "-R", path])
         else:

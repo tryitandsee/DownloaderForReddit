@@ -36,6 +36,7 @@ from PyQt5.QtWidgets import (
     QAction,
     QActionGroup,
     QHBoxLayout,
+    QHeaderView,
     QInputDialog,
     QLabel,
     QMainWindow,
@@ -331,6 +332,13 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             lambda x: self.user_count_label.setText(str(x))
         )
         self.user_list_view.setModel(self.user_list_model)
+        self.user_list_view.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.Stretch
+        )
+        self.user_list_view.horizontalHeader().setSectionResizeMode(
+            1, QHeaderView.ResizeToContents
+        )
+        self.user_list_view.sortByColumn(0, Qt.AscendingOrder)
         self.subreddit_list_model = RedditObjectListModel("SUBREDDIT")
         self.subreddit_list_model.starting_add.connect(self.start_spinner)
         self.subreddit_list_model.finished_add.connect(self.stop_spinner)
@@ -503,13 +511,13 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         item selection is being used for (ie: opening the settings dialog for a user)
         :return: A single user selected from the user list.
         """
-        indices = self.user_list_view.selectedIndexes()
+        indices = self.user_list_view.selectionModel().selectedRows()
         if len(indices) <= 0:
             return None
         return self.user_list_model.data(indices[0], Qt.UserRole)
 
     def get_selected_users(self):
-        indices = self.user_list_view.selectedIndexes()
+        indices = self.user_list_view.selectionModel().selectedRows()
         return [self.user_list_model.data(index, Qt.UserRole) for index in indices]
 
     def get_selected_user_ids(self):

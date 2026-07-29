@@ -28,7 +28,6 @@ from .errors import NON_DOWNLOADABLE
 from .reddit_source import RateLimitedError, ValidationError
 from .runner import verify_run
 from .submission_filter import SubmissionFilter
-from .submittable_creator import SubmittableCreator
 
 ExtractionSet = namedtuple(
     "ExtractionSet",
