@@ -48,6 +48,21 @@ _PROFILE_MORE_POSTS_RE = re.compile(
 )
 _END_OF_FEED_MARKER = "end-of-feed-tracker"
 
+# A profile whose whole post history fits on the first page never scrolls, so the pagination
+# response above never fires and the ambient known-post streak (6 posts) is unreachable -- such a
+# user's "Last Checked" could never advance from browsing. Reddit does render a positive
+# end-of-listing marker in the initial DOM for exactly those pages, confirmed empirically: a short
+# history ends in <span id="end-of-feed-tracker">, a profile with no visible posts (none made, or
+# hidden) renders <div id="empty-feed-content"> instead, a long history has neither (it carries a
+# <faceplate-partial slot="load-after">), and a nonexistent user's page renders no feed at all. The
+# injected script reports those two markers through the __dfrFeedExhausted binding. Only their
+# presence is ever read as coverage, never the absence of load-after: the script can run before the
+# listing hydrates, and a false confirm writes date_last_download_utc, which becomes the `since`
+# checkpoint that makes future scans stop early and permanently skip that user's backlog.
+_SUBMITTED_LISTING_URL_RE = re.compile(
+    r"^https://www\.reddit\.com/user/([^/?]+)/submitted/"
+)
+
 # How long each pump iteration blocks the Playwright worker thread waiting for CDP messages.
 # Bounds ambient-push latency (a post can wait up to this long for the pump to notice it) and
 # the worst case an explicit-download task queued behind a pump iteration has to wait.
@@ -106,15 +121,30 @@ _INJECTED_SCRIPT = """
         if (window.__dfrPostsFound) window.__dfrPostsFound(fresh);
     }
 
+    let exhaustedUrl = null;
+    function reportIfExhausted() {
+        if (exhaustedUrl === location.href) return;
+        const marker = document.querySelector('#end-of-feed-tracker, #empty-feed-content');
+        if (!marker) return;
+        if (!window.__dfrFeedExhausted) return;
+        exhaustedUrl = location.href;
+        window.__dfrFeedExhausted(marker.id);
+    }
+
     let debounceHandle = null;
-    function schedulePush() {
+    function scheduleScan() {
         if (debounceHandle) clearTimeout(debounceHandle);
-        debounceHandle = setTimeout(pushNewPosts, 300);
+        debounceHandle = setTimeout(scan, 300);
+    }
+
+    function scan() {
+        pushNewPosts();
+        reportIfExhausted();
     }
 
     function start() {
-        pushNewPosts();
-        new MutationObserver(schedulePush).observe(document.body, {childList: true, subtree: true});
+        scan();
+        new MutationObserver(scheduleScan).observe(document.body, {childList: true, subtree: true});
     }
 
     if (document.readyState === 'loading') {
@@ -364,12 +394,13 @@ class BrowserRedditSource:
         self._on_rate_limited = callback
 
     def set_on_profile_exhausted(self, callback: Callable[[str], None]):
-        """Registered by the GUI to be notified when organic browsing has scrolled a tracked
-        user's profile all the way to Reddit's own end-of-feed marker -- see
-        _handle_profile_pagination_response. Complements the ambient known-post-streak check in
-        DownloaderForRedditGUI._match_and_queue_ambient_posts (that one confirms early once
-        browsing has scrolled *past* previously-covered content; this one is the only signal for
-        a user whose total post count never reaches that streak length)."""
+        """Registered by the GUI to be notified when organic browsing has reached the end of a
+        tracked user's submitted listing -- either by scrolling to Reddit's own end-of-feed marker
+        in a pagination response (_handle_profile_pagination_response) or by the listing rendering
+        an end-of-listing marker in its initial DOM (_dispatch_feed_exhausted), which is the only
+        signal a profile short enough to never scroll ever produces. Complements the ambient
+        known-post-streak check in DownloaderForRedditGUI._match_and_queue_ambient_posts, which
+        confirms early once browsing has scrolled *past* previously-covered content."""
         self._on_profile_exhausted = callback
 
     def is_rate_limited(self) -> bool:
@@ -437,6 +468,31 @@ class BrowserRedditSource:
                 return
             callback = self._on_posts_found
         callback(posts, page_owner)
+
+    def _handle_feed_exhausted(self, source: dict, marker_id: str) -> None:
+        # Same threading reasoning as _handle_posts_found -- may run on the Playwright worker
+        # thread's own call stack, so nothing but a hand-off happens here.
+        url = source["page"].url
+        threading.Thread(
+            target=self._dispatch_feed_exhausted, args=(url, marker_id), daemon=True
+        ).start()
+
+    def _dispatch_feed_exhausted(self, url: str, marker_id: str) -> None:
+        if self._suppress_ambient.is_set():
+            return
+        # Gated to the submitted listing specifically, not _PROFILE_URL_RE: the same markers
+        # render on a profile's overview/comments/upvoted tabs, none of which say anything about
+        # coverage of the posts listing.
+        match = _SUBMITTED_LISTING_URL_RE.match(url)
+        if match is None:
+            return
+        page_owner = match.group(1)
+        logger.info(
+            "Ambient listing rendered an end-of-listing marker",
+            extra={"page_owner": page_owner, "marker_id": marker_id},
+        )
+        if self._on_profile_exhausted is not None:
+            self._on_profile_exhausted(page_owner)
 
     def _handle_follow_state_response(self, response) -> None:
         # Confirmed empirically (PLAN_follow_status_sync.md): reading the response body directly
@@ -555,6 +611,7 @@ class BrowserRedditSource:
         self._context.on("response", self._handle_response)
         self._context.on("response", self._handle_profile_pagination_response)
         self._context.expose_binding("__dfrPostsFound", self._handle_posts_found)
+        self._context.expose_binding("__dfrFeedExhausted", self._handle_feed_exhausted)
         self._context.add_init_script(_INJECTED_SCRIPT)
         self._page = (
             self._context.pages[0] if self._context.pages else self._context.new_page()

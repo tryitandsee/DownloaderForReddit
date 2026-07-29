@@ -121,6 +121,10 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     # (GUI thread) -- object, not list, so PyQt passes the SubmissionData instances through as-is
     # rather than trying to convert them to QVariants.
     ambient_matches_found = pyqtSignal(object)
+    # Emitted from whatever background thread just wrote to a reddit object outside a download
+    # session, so the table repaints instead of showing stale values until the next download
+    # finishes (finished_download_gui_shift is otherwise the only thing that refreshes it).
+    reddit_object_changed = pyqtSignal()
 
     def __init__(self, queue, receiver, download_runner):
         """
@@ -398,6 +402,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.shift_download_buttons()
 
         self.ambient_matches_found.connect(self.start_ambient_download)
+        self.reddit_object_changed.connect(self.user_list_model.refresh_session)
 
         # No Remove button: removal lives in the list's context menu, where it can act on the
         # actual selection.
@@ -1709,12 +1714,15 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                     )
                     if confirmed:
                         user.set_date_last_download_utc()
+                        self.reddit_object_changed.emit()
 
     def handle_profile_exhausted(self, page_owner):
         """Called (from a spawned thread, not the GUI thread -- see
-        BrowserRedditSource._handle_profile_pagination_response) when organic browsing has
-        scrolled a tracked user's profile to Reddit's own end-of-feed marker. A direct proof of
-        full coverage, unlike the known-post-streak check above."""
+        BrowserRedditSource._handle_profile_pagination_response and _dispatch_feed_exhausted) when
+        organic browsing has reached the end of a tracked user's submitted listing, either by
+        scrolling to Reddit's end-of-feed marker or by the listing rendering an end-of-listing
+        marker without ever needing to scroll. A direct proof of full coverage, unlike the
+        known-post-streak check above."""
         try:
             with self.db_handler.get_scoped_session() as session:
                 user = (
@@ -1728,6 +1736,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                 )
                 if user is not None:
                     user.set_date_last_download_utc()
+                    self.reddit_object_changed.emit()
                     self._ambient_known_streaks.pop(page_owner.lower(), None)
                     self.logger.info(
                         "Ambient confirmed full coverage via end-of-feed",
