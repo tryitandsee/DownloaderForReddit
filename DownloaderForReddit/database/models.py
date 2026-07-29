@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, ClassVar
 
 from sqlalchemy import (
@@ -325,6 +325,13 @@ class RedditObject(BaseModel):
     comment_sort_method = Column(Enum(CommentSortMethod), default=CommentSortMethod.NEW)
 
     date_added = Column(DateTime, default=datetime.now())
+    # [mine] feat(core): timestamp confirming a user-page scroll fully enumerated the listing
+    # (reached either Reddit's own pagination ceiling or previously-covered content) -- distinct
+    # from the last_download property below, which only reflects when new Content was actually
+    # downloaded. Stored naive (SQLite's DATETIME type silently drops tzinfo on write and returns
+    # naive datetimes on read regardless of what's assigned), so this is always compared against
+    # naive UTC -- never local time, hence the _utc suffix rather than relying on convention.
+    date_last_download_utc = Column(DateTime, nullable=True)
     lock_settings = Column(Boolean, default=False)
     absolute_date_limit = Column(
         DateTime, default=datetime.fromtimestamp(const.FIRST_POST_EPOCH)
@@ -383,6 +390,14 @@ class RedditObject(BaseModel):
     @property
     def date_added_export(self):
         return self.get_display_datetime(self.date_added)
+
+    @property
+    def date_last_download_utc_display(self):
+        return self.get_display_datetime(self.date_last_download_utc)
+
+    @property
+    def date_last_download_utc_export(self):
+        return self.get_display_datetime(self.date_last_download_utc)
 
     @property
     def absolute_date_limit_display(self):
@@ -504,6 +519,11 @@ class RedditObject(BaseModel):
         if commit:
             self.get_session().commit()
         return True
+
+    def set_date_last_download_utc(self, commit=True):
+        self.date_last_download_utc = datetime.now(UTC).replace(tzinfo=None)
+        if commit:
+            self.get_session().commit()
 
     def get_stats(self):
         session = self.get_session()

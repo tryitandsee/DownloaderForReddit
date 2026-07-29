@@ -12,7 +12,7 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 from typing import Protocol
@@ -43,6 +43,13 @@ _PROFILE_URL_RE = re.compile(r"^https://www\.reddit\.com/user/([^/?]+)/?")
 # the worst case an explicit-download task queued behind a pump iteration has to wait.
 PUMP_INTERVAL_MS = 500
 
+# How long to wait after each scroll for shreddit to lazy-load the next batch of posts, and how
+# many scrolls to attempt before giving up (see BrowserRedditSource._scroll_and_collect). Reddit
+# empirically stops loading more posts around 12 scrolls for a normal-sized history -- 42 is a
+# safety cap well above that, not the expected normal stopping point.
+_SCROLL_PAUSE_MS = 1500
+_MAX_SCROLL_ITERATIONS = 42
+
 logger = logging.getLogger(f"DownloaderForReddit.{__name__}")
 
 # Injected once per document via context.add_init_script() -- runs on every page in the
@@ -50,7 +57,7 @@ logger = logging.getLogger(f"DownloaderForReddit.{__name__}")
 # auto-attaches to every target in a persistent context regardless of who opened it). Defines
 # window.__dfrExtractPosts (reused by explicit-navigation's page.evaluate() calls, so there's
 # exactly one place that knows the <shreddit-post> attribute names) and reports newly-seen posts
-# via the __dfrPostsFound binding (context.expose_function, see
+# via the __dfrPostsFound binding (context.expose_binding, see
 # BrowserRedditSource._handle_posts_found).
 #
 # A real network fetch() to a local server was tried first and rejected: reddit.com's own CSP
@@ -152,7 +159,13 @@ class RedditSource(Protocol):
 
     def validate_subreddit(self, name: str) -> ValidationResult: ...
 
-    def iter_user_submissions(self, name: str) -> list[SubmissionData]: ...
+    # since: if given, the scroll stops as soon as it reaches a post at or before this timestamp
+    # (already covered by a prior confirmed scan) rather than scrolling to Reddit's own
+    # pagination ceiling -- see BrowserRedditSource._scroll_and_collect. The returned bool is
+    # whether coverage was confirmed (False only if the scroll safety cap was hit).
+    def iter_user_submissions(
+        self, name: str, since: datetime | None = None
+    ) -> tuple[list[SubmissionData], bool]: ...
 
     def iter_subreddit_submissions(self, name: str) -> list[SubmissionData]: ...
 
@@ -161,8 +174,8 @@ class RedditSource(Protocol):
     # Combined single-navigation validate + collect, for the initial fetch of a single user/subreddit
     # -- avoids a separate profile-page visit before the submitted/new-listing visit.
     def validate_and_iter_user_submissions(
-        self, name: str
-    ) -> tuple[ValidationResult, list[SubmissionData]]: ...
+        self, name: str, since: datetime | None = None
+    ) -> tuple[ValidationResult, list[SubmissionData], bool]: ...
 
     def validate_and_iter_subreddit_submissions(
         self, name: str
@@ -171,6 +184,14 @@ class RedditSource(Protocol):
     def get_post(self, url: str) -> SubmissionData | None: ...
 
     def open_url(self, url: str) -> None: ...
+
+
+def _to_naive_utc(value: datetime) -> datetime:
+    """SQLite silently drops tzinfo on write (see RedditObject.date_last_download_utc), so
+    anything compared against a value read back from that column must be naive UTC too."""
+    if value.tzinfo is not None:
+        return value.astimezone(UTC).replace(tzinfo=None)
+    return value
 
 
 def _strip_fullname_prefix(fullname: str) -> str:
@@ -260,7 +281,7 @@ class BrowserRedditSource:
     smaller cost than a second tab silently fighting for focus.
 
     Ambient discovery is pushed *to* the app by injected page JS calling a Playwright binding
-    (context.expose_function), which relies on the pump loop below to actually be delivered
+    (context.expose_binding), which relies on the pump loop below to actually be delivered
     promptly (see PUMP_INTERVAL_MS). Because explicit navigation reuses the same page, its own
     results would otherwise get reported back in as an ambient "match" too (the injected
     script's primer fires on every navigation, not just casual browsing) -- _suppressed_ambient
@@ -289,21 +310,26 @@ class BrowserRedditSource:
         self._playwright = None
         self._context = None
         self._page = None
-        self._on_posts_found: Callable[[list[SubmissionData]], None] | None = None
+        self._on_posts_found: (
+            Callable[[list[SubmissionData], str | None], None] | None
+        ) = None
         self._on_rate_limited: Callable[[], None] | None = None
         self._rate_limited = threading.Event()
         # BrowserRedditSource.start() (called from injector.get_reddit_source()) navigates the
         # initial page and fires the injected script's primer scan before the GUI exists to
         # register a consumer via set_on_posts_found -- buffer anything that arrives before then
         # and flush it once a consumer registers, rather than silently dropping that first batch
-        # on every app launch.
+        # on every app launch. Each buffered entry is one dispatch's (posts, page_owner) --
+        # page_owner varies per push, so entries can't be merged into a single flushed call.
         self._pending_posts_lock = threading.Lock()
-        self._pending_posts: list[SubmissionData] = []
+        self._pending_posts: list[tuple[list[SubmissionData], str | None]] = []
         self._suppress_ambient = threading.Event()
         self._pump_stop = threading.Event()
         self._pump_thread = None
 
-    def set_on_posts_found(self, callback: Callable[[list[SubmissionData]], None]):
+    def set_on_posts_found(
+        self, callback: Callable[[list[SubmissionData], str | None], None]
+    ):
         """Registered by the GUI (or a future headless consumer) once it's ready to receive
         ambient matches -- set after construction since BrowserRedditSource is created before
         the GUI exists (see injector.get_reddit_source())."""
@@ -311,8 +337,8 @@ class BrowserRedditSource:
             self._on_posts_found = callback
             pending = self._pending_posts
             self._pending_posts = []
-        if pending:
-            callback(pending)
+        for posts, page_owner in pending:
+            callback(posts, page_owner)
 
     def set_on_rate_limited(self, callback: Callable[[], None]):
         """Registered by DownloadRunner to be notified the moment reddit returns a 429, so the
@@ -347,27 +373,32 @@ class BrowserRedditSource:
             if self._on_rate_limited is not None:
                 self._on_rate_limited()
 
-    def _handle_posts_found(self, raw_posts: list[dict]) -> None:
-        # Invoked via the __dfrPostsFound binding, which may run on the Playwright worker
-        # thread's own call stack (Playwright's threading model here isn't documented well
+    def _handle_posts_found(self, source: dict, raw_posts: list[dict]) -> None:
+        # Invoked via the __dfrPostsFound binding (expose_binding, not expose_function -- the
+        # leading `source` dict identifies which page pushed this, needed because ambient covers
+        # every tab in the persistent context, not just self._page). May run on the Playwright
+        # worker thread's own call stack (Playwright's threading model here isn't documented well
         # enough to assume otherwise) -- hand off immediately rather than risk doing DB work on
         # that thread, exactly as if this were a genuinely separate thread already.
+        url = source["page"].url
         threading.Thread(
-            target=self._dispatch_posts_found, args=(raw_posts,), daemon=True
+            target=self._dispatch_posts_found, args=(url, raw_posts), daemon=True
         ).start()
 
-    def _dispatch_posts_found(self, raw_posts: list[dict]) -> None:
+    def _dispatch_posts_found(self, url: str, raw_posts: list[dict]) -> None:
         if self._suppress_ambient.is_set():
             return
         posts = parse_posts_payload(raw_posts or [])
         if not posts:
             return
+        match = _PROFILE_URL_RE.match(url)
+        page_owner = match.group(1) if match else None
         with self._pending_posts_lock:
             if self._on_posts_found is None:
-                self._pending_posts.extend(posts)
+                self._pending_posts.append((posts, page_owner))
                 return
             callback = self._on_posts_found
-        callback(posts)
+        callback(posts, page_owner)
 
     def _handle_follow_state_response(self, response) -> None:
         # Confirmed empirically (PLAN_follow_status_sync.md): reading the response body directly
@@ -459,7 +490,7 @@ class BrowserRedditSource:
         self._context.on("close", lambda _: setattr(self, "_context", None))
         self._context.on("response", self._handle_follow_state_response)
         self._context.on("response", self._handle_response)
-        self._context.expose_function("__dfrPostsFound", self._handle_posts_found)
+        self._context.expose_binding("__dfrPostsFound", self._handle_posts_found)
         self._context.add_init_script(_INJECTED_SCRIPT)
         self._page = (
             self._context.pages[0]
@@ -520,9 +551,60 @@ class BrowserRedditSource:
             page.wait_for_timeout(2000)
             return _read_posts(page)
 
-    def iter_user_submissions(self, name: str) -> list[SubmissionData]:
+    def _scroll_and_collect(
+        self, page: Page, since: datetime | None
+    ) -> tuple[list[SubmissionData], bool]:
+        """
+        Scrolls an endless-scroll shreddit listing page (generic to any such page, not coupled to
+        user listings specifically -- subreddit listings share the same shape and could reuse this
+        later), collecting posts until either Reddit stops loading more (its own pagination
+        ceiling) or a post at or before `since` is reached (already covered by a prior confirmed
+        scan). `since` is naive UTC (see RedditObject.date_last_download_utc); posts' `created` is
+        timezone-aware, so it's normalized to naive UTC before comparing. Returns the deduped posts
+        seen and whether coverage was confirmed -- False only if the iteration safety cap was hit
+        first, meaning the scan gave up rather than confirmed.
+        """
+
+        def reached_checkpoint(posts: list[SubmissionData]) -> bool:
+            if since is None:
+                return False
+            return any(_to_naive_utc(post.created) <= since for post in posts)
+
+        collected: dict[str, SubmissionData] = {
+            post.reddit_id: post for post in _read_posts(page)
+        }
+        if reached_checkpoint(list(collected.values())):
+            return list(collected.values()), True
+        for _ in range(_MAX_SCROLL_ITERATIONS):
+            self._check_not_rate_limited()
+            page.mouse.wheel(0, 15000)
+            page.wait_for_timeout(_SCROLL_PAUSE_MS)
+            new_posts = [
+                post for post in _read_posts(page) if post.reddit_id not in collected
+            ]
+            if not new_posts:
+                return list(collected.values()), True
+            for post in new_posts:
+                collected[post.reddit_id] = post
+            if reached_checkpoint(new_posts):
+                return list(collected.values()), True
+        return list(collected.values()), False
+
+    def _collect_user(
+        self, url: str, since: datetime | None
+    ) -> tuple[list[SubmissionData], bool]:
+        self._check_not_rate_limited()
+        page = self._get_page()
+        with self._suppressed_ambient():
+            page.goto(url)
+            page.wait_for_timeout(2000)
+            return self._scroll_and_collect(page, since)
+
+    def iter_user_submissions(
+        self, name: str, since: datetime | None = None
+    ) -> tuple[list[SubmissionData], bool]:
         url = f"https://www.reddit.com/user/{name}/submitted/?sort=new"
-        return self._executor.submit(self._collect, url).result()
+        return self._executor.submit(self._collect_user, url, since).result()
 
     def iter_subreddit_submissions(self, name: str) -> list[SubmissionData]:
         url = f"https://www.reddit.com/r/{name}/new/"
@@ -577,10 +659,12 @@ class BrowserRedditSource:
         return ValidationResult(valid=True)
 
     def validate_and_iter_user_submissions(
-        self, name: str
-    ) -> tuple[ValidationResult, list[SubmissionData]]:
+        self, name: str, since: datetime | None = None
+    ) -> tuple[ValidationResult, list[SubmissionData], bool]:
         url = f"https://www.reddit.com/user/{name}/submitted/?sort=new"
-        return self._executor.submit(self._validate_and_collect, url).result()
+        return self._executor.submit(
+            self._validate_and_collect_user, url, since
+        ).result()
 
     def validate_and_iter_subreddit_submissions(
         self, name: str
@@ -613,6 +697,34 @@ class BrowserRedditSource:
             if not validation.valid:
                 return validation, []
             return validation, _read_posts(page)
+
+    def _validate_and_collect_user(
+        self, url: str, since: datetime | None
+    ) -> tuple[ValidationResult, list[SubmissionData], bool]:
+        self._check_not_rate_limited()
+        page = self._get_page()
+        with self._suppressed_ambient():
+            try:
+                page.goto(url)
+            except PlaywrightError:
+                logger.warning(
+                    "Navigation failed during validation",
+                    extra={"url": url},
+                    exc_info=True,
+                )
+                return (
+                    ValidationResult(
+                        valid=False, error=ValidationError.CONNECTION_ERROR
+                    ),
+                    [],
+                    False,
+                )
+            page.wait_for_timeout(2000)
+            validation = self._check_validity(page)
+            if not validation.valid:
+                return validation, [], False
+            posts, coverage_confirmed = self._scroll_and_collect(page, since)
+            return validation, posts, coverage_confirmed
 
     def get_post(self, url: str) -> SubmissionData | None:
         return self._executor.submit(self._get_post_impl, url).result()

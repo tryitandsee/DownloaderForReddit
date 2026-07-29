@@ -55,6 +55,7 @@ from ..database.filters import RedditObjectFilter
 from ..database.model_manager import ModelManger
 from ..database.models import (
     ListAssociation,
+    Post,
     RedditObject,
     RedditObjectList,
     Subreddit,
@@ -1578,13 +1579,13 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     # rather than touching any widget directly. Matches against the tracked+download_enabled
     # list and queues matches for download onto the same standing self.download_runner as
     # explicit downloads.
-    def handle_ambient_posts(self, posts):
+    def handle_ambient_posts(self, posts, page_owner):
         try:
-            self._match_and_queue_ambient_posts(posts)
+            self._match_and_queue_ambient_posts(posts, page_owner)
         except Exception:
             self.logger.exception("Ambient extraction failed")
 
-    def _match_and_queue_ambient_posts(self, posts):
+    def _match_and_queue_ambient_posts(self, posts, page_owner):
         authors = {post.author.lower() for post in posts}
         subreddits = {post.subreddit.lower() for post in posts}
         with self.db_handler.get_scoped_session() as session:
@@ -1612,6 +1613,34 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         ]
         if matches:
             self.ambient_matches_found.emit(matches)
+
+        # A user's own profile page (page_owner set, via _PROFILE_URL_RE in reddit_source.py)
+        # only ever renders that user's own posts -- if every post currently observed there is
+        # already in the DB, that's the same "reached previously-covered content" signal the
+        # explicit download's scroll loop uses (BrowserRedditSource._scroll_and_collect), just
+        # arriving from organic browsing instead of a driven loop. No scrolling required: the
+        # injected script's primer push covers the whole first-loaded screen, so a
+        # fully-downloaded user's profile confirms coverage on first visit.
+        if page_owner and posts:
+            with self.db_handler.get_scoped_session() as session:
+                user = (
+                    session.query(User)
+                    .filter(
+                        func.lower(User.name) == page_owner.lower(),
+                        User.significant == True,
+                        User.download_enabled == True,
+                    )
+                    .first()
+                )
+                if user is not None:
+                    known = {
+                        reddit_id
+                        for (reddit_id,) in session.query(Post.reddit_id).filter(
+                            Post.reddit_id.in_([post.reddit_id for post in posts])
+                        )
+                    }
+                    if all(post.reddit_id in known for post in posts):
+                        user.set_date_last_download_utc()
 
     def start_ambient_download(self, submissions):
         if not self.running:

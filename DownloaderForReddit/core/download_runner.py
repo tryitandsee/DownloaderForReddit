@@ -612,9 +612,19 @@ class DownloadRunner(QObject):
         Message.send_info(
             f"Downloading user: {user.name}"
         )  # [mine] GUI progress logging
-        self.get_validated_submissions(
-            user, self.reddit_source.validate_and_iter_user_submissions
-        )
+        coverage = {"confirmed": False}
+
+        def source_method(name):
+            result, submissions, coverage["confirmed"] = (
+                self.reddit_source.validate_and_iter_user_submissions(
+                    name, user.date_last_download_utc
+                )
+            )
+            return result, submissions
+
+        self.get_validated_submissions(user, source_method)
+        if coverage["confirmed"]:
+            user.set_date_last_download_utc()
         return None
 
     @verify_run
