@@ -33,8 +33,13 @@ class DownloadStatusDialog(QWidget):
         self.fetcher_object_label = QLabel("Fetcher: idle...")
         layout.addWidget(self.fetcher_object_label)
 
-        self.pipeline_label = QLabel()
-        layout.addWidget(self.pipeline_label)
+        panel_row = QHBoxLayout()
+        extraction_column = QVBoxLayout()
+        self.extraction_status_label = QLabel()
+        extraction_column.addWidget(self.extraction_status_label)
+        download_column = QVBoxLayout()
+        self.download_status_label = QLabel()
+        download_column.addWidget(self.download_status_label)
 
         self.extraction_table = QTableWidget(0, 4)
         self.extraction_table.setHorizontalHeaderLabels(
@@ -56,7 +61,8 @@ class DownloadStatusDialog(QWidget):
         self.extraction_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.extraction_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
         self.extraction_table.setMaximumHeight(150)
-        layout.addWidget(self.extraction_table)
+        extraction_column.addWidget(self.extraction_table)
+        panel_row.addLayout(extraction_column)
 
         self.thread_table = QTableWidget(0, 4)
         self.thread_table.setHorizontalHeaderLabels(
@@ -78,7 +84,10 @@ class DownloadStatusDialog(QWidget):
         self.thread_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.thread_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
         self.thread_table.setMaximumHeight(150)
-        layout.addWidget(self.thread_table)
+        download_column.addWidget(self.thread_table)
+        panel_row.addLayout(download_column)
+
+        layout.addLayout(panel_row)
 
         bottom_row = QHBoxLayout()
         self.completed_label = QLabel("Completed: 0")
@@ -108,7 +117,8 @@ class DownloadStatusDialog(QWidget):
         self.fetcher_object_label.setText(f"Fetcher: {fetcher_obj or 'idle...'}")
 
         if runner is None or downloader is None:
-            self.pipeline_label.setText("No active session")
+            self.extraction_status_label.setText("Extractor: no active session")
+            self.download_status_label.setText("Downloader: no active session")
             self.extraction_table.setRowCount(0)
             self.thread_table.setRowCount(0)
             self.completed_label.setText("Completed: —")
@@ -123,8 +133,10 @@ class DownloadStatusDialog(QWidget):
         ext_status = "running" if ext_running else "idle"
         dl_status = "running" if dl_running else "idle"
 
-        self.pipeline_label.setText(
-            f"Extractor: {ext_status}  |  extraction jobs: {ext_futures}\n"
+        self.extraction_status_label.setText(
+            f"Extractor: {ext_status}  |  extraction jobs: {ext_futures}"
+        )
+        self.download_status_label.setText(
             f"Downloader: {dl_status}  |  download jobs: {dl_futures}"
         )
 
