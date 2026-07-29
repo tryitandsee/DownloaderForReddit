@@ -765,11 +765,37 @@ class BrowserRedditSource:
         lookup, not a bulk discovery pattern that would look anomalous.
         Reference: https://github.com/mikf/gallery-dl/blob/master/gallery_dl/extractor/reddit.py
         """
-        return self._executor.submit(
-            self._get_gallery_media_metadata_impl, permalink
-        ).result()
+        post = self._executor.submit(self._fetch_post_json, permalink).result()
+        if post is None:
+            return {}
+        media_metadata = post.get("media_metadata") or {}
+        # Values come back with HTML-entity-escaped URLs (e.g. "&amp;" for "&") -- PRAW always
+        # unescaped these before code elsewhere ever saw them, so do the same here.
+        for value in media_metadata.values():
+            source = value.get("s")
+            if isinstance(source, dict):
+                for key in ("u", "gif", "mp4"):
+                    if key in source:
+                        source[key] = html.unescape(source[key])
+        return media_metadata
 
-    def _get_gallery_media_metadata_impl(self, permalink: str) -> dict:
+    def get_mp4_preview_url(self, permalink: str) -> str | None:
+        """
+        [mine] Fetches a gif post's mp4 preview variant (Reddit always transcodes an uploaded
+        gif to mp4) via the same .json endpoint used by get_gallery_media_metadata -- a
+        browser-discovered SubmissionData has no PRAW-style `.preview` field to read this off
+        of directly, so RedditUploadsExtractor.extract_direct_link asks for it here instead.
+        """
+        post = self._executor.submit(self._fetch_post_json, permalink).result()
+        if post is None:
+            return None
+        try:
+            url = post["preview"]["images"][0]["variants"]["mp4"]["source"]["url"]
+        except (KeyError, IndexError, TypeError):
+            return None
+        return html.unescape(url)
+
+    def _fetch_post_json(self, permalink: str) -> dict | None:
         url = (
             _normalize_reddit_url(urljoin(REDDIT_BASE_URL, permalink)).rstrip("/")
             + ".json"
@@ -782,28 +808,18 @@ class BrowserRedditSource:
             )
         except PlaywrightError:
             logger.warning(
-                "Navigation failed fetching gallery json",
+                "Navigation failed fetching post json",
                 extra={"url": url},
                 exc_info=True,
             )
-            return {}
+            return None
         if not data:
-            return {}
+            return None
         try:
-            post = data[0]["data"]["children"][0]["data"]
+            return data[0]["data"]["children"][0]["data"]
         except (KeyError, IndexError, TypeError):
-            logger.warning("Unexpected gallery json shape", extra={"url": url})
-            return {}
-        media_metadata = post.get("media_metadata") or {}
-        # Values come back with HTML-entity-escaped URLs (e.g. "&amp;" for "&") -- PRAW always
-        # unescaped these before code elsewhere ever saw them, so do the same here.
-        for value in media_metadata.values():
-            source = value.get("s")
-            if isinstance(source, dict):
-                for key in ("u", "gif", "mp4"):
-                    if key in source:
-                        source[key] = html.unescape(source[key])
-        return media_metadata
+            logger.warning("Unexpected post json shape", extra={"url": url})
+            return None
 
     def open_url(self, url: str) -> None:
         # [mine] feat(core): navigate the dedicated account's browser window to a url -- lets the

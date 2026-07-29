@@ -161,12 +161,17 @@ class RedditUploadsExtractor(BaseExtractor):
     def extract_direct_link(self):
         """This is overridden here so that a proper media id can be extracted."""
         ext = self.url.rsplit(".", 1)[1]
-        # [mine] prefer mp4 over gif for i.redd.it direct links; mp4 is higher quality and Reddit always encodes one
-        if ext.lower() == "gif":
-            try:
-                mp4_url = self.submission.preview["images"][0]["variants"]["mp4"][
-                    "source"
-                ]["url"]
+        # [mine] prefer mp4 over gif for i.redd.it direct links; mp4 is higher quality and Reddit
+        # always transcodes one. A browser-discovered SubmissionData has no PRAW-style `.preview`
+        # field, so the mp4 variant is fetched via the browser instead (get_mp4_preview_url).
+        if ext.lower() == "gif" and self.submission is not None:
+            permalink = getattr(self.submission, "permalink", None)
+            mp4_url = (
+                injector.get_reddit_source().get_mp4_preview_url(permalink)
+                if permalink
+                else None
+            )
+            if mp4_url:
                 parsed = urlparse(mp4_url)
                 params = parse_qs(parsed.query)
                 url_ext = (
@@ -176,7 +181,7 @@ class RedditUploadsExtractor(BaseExtractor):
                 )
                 self.url = mp4_url
                 ext = url_ext
-            except (AttributeError, KeyError, TypeError):
+            else:
                 self.logger.debug(
                     "mp4 preview not available, falling back to gif: %s", self.url
                 )

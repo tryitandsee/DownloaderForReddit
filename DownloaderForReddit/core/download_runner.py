@@ -35,6 +35,11 @@ ExtractionSet = namedtuple(
     "extraction_type extraction_object significant_id download_session_id",
 )
 
+# [mine] TODO: stub for a future "force download" GUI toggle -- hardcoded on for now to
+# re-test RedditUploadsExtractor's mp4 fetch against an already-downloaded post without
+# fighting Post.reddit_id's uniqueness constraint. See prepare_submission below.
+FORCE_DOWNLOAD = False
+
 
 class DownloadRunner(QObject):
     """
@@ -515,7 +520,10 @@ class DownloadRunner(QObject):
     # post, and reports one structured "content found" event either way (see
     # messaging/message.py) instead of each call site messaging differently.
     def prepare_submission(self, submission):
-        with self.db.get_scoped_session() as session:
+        # [mine] get_scoped_update_session (commits), not get_scoped_session -- the FORCE_DOWNLOAD
+        # branch below deletes rows and that delete must actually persist, or create_post's own
+        # duplicate check downstream still sees the old Post row and silently refuses to recreate it.
+        with self.db.get_scoped_update_session() as session:
             # Filters must mirror the tracked/download_enabled criteria the ambient poll used to decide
             # this submission was a match (gui/downloader_for_reddit_gui.py:handle_ambient_posts) --
             # otherwise a stale, non-tracked User row sharing the author's name (e.g. auto-created as a
@@ -542,9 +550,24 @@ class DownloadRunner(QObject):
             significant = author or subreddit
             if significant is None:
                 return None
-            is_new = SubmittableCreator.check_duplicate_post(
-                submission.reddit_id, submission.url, session
+            existing_post = (
+                session.query(Post)
+                .filter(
+                    or_(
+                        Post.reddit_id == submission.reddit_id,
+                        Post.url == submission.url,
+                    )
+                )
+                .first()
             )
+            if existing_post is not None and FORCE_DOWNLOAD:
+                session.query(Content).filter(
+                    Content.post_id == existing_post.id
+                ).delete()
+                session.delete(existing_post)
+                session.flush()
+                existing_post = None
+            is_new = existing_post is None
             significant_id = significant.id
         Message.send_content_found(
             ContentFoundPayload(
