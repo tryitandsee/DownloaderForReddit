@@ -12,15 +12,21 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
-from ..messaging.message import ContentFoundPayload
+from ..messaging.message import ContentFoundPayload, ContentSkippedPayload
 from ..viewmodels.hyperlink_delegate import HyperlinkDelegate
 
 MAX_ROWS = 200
+REDDIT_ID_ROLE = Qt.UserRole
+BASE_TEXT_ROLE = Qt.UserRole + 1
 
 
 class ContentFeedPanel(QWidget):
     def __init__(self):
         super().__init__()
+        self._items_by_reddit_id: dict[str, QListWidgetItem] = {}
+        # Distinct reasons seen per post -- a multi-item post (e.g. a gallery) can report the same
+        # filter reason more than once, which shouldn't inflate the badge's count.
+        self._skip_reasons_by_reddit_id: dict[str, list[str]] = {}
         self._build_ui()
 
     def _build_ui(self):
@@ -53,16 +59,59 @@ class ContentFeedPanel(QWidget):
         label = html.escape(f"[{status}] {by}: ")
         permalink = html.escape(payload.permalink)
         item = QListWidgetItem(f'{label}<a href="{permalink}">{permalink}</a>')
+        item.setData(REDDIT_ID_ROLE, payload.reddit_id)
         if not payload.is_new:
             item.setForeground(Qt.gray)
         bar = self.list_widget.verticalScrollBar()
         pos, max_ = bar.value(), bar.maximum()
         at_bottom = max_ == 0 or pos == max_ or (pos / max_) * 100 >= 96
         self.list_widget.addItem(item)
+        self._items_by_reddit_id[payload.reddit_id] = item
         while self.list_widget.count() > MAX_ROWS:
-            self.list_widget.takeItem(0)
+            evicted = self.list_widget.takeItem(0)
+            self._items_by_reddit_id.pop(evicted.data(REDDIT_ID_ROLE), None)
         if at_bottom:
             self.list_widget.scrollToBottom()
 
+    def mark_skipped(self, payload: ContentSkippedPayload):
+        # Appends a small badge to the post's existing "found" line, mirroring the [NEW]/[OLD]
+        # bracketed-prefix style, rather than adding a new line or a long inline sentence. The
+        # full reason still goes in the tooltip -- if the entry already scrolled out of MAX_ROWS,
+        # there's nothing to append to, so drop it silently, same as any other aged-out row.
+        item = self._items_by_reddit_id.get(payload.reddit_id)
+        if item is None:
+            return
+        reasons = self._skip_reasons_by_reddit_id.setdefault(payload.reddit_id, [])
+        if payload.reason in reasons:
+            return
+        reasons.append(payload.reason)
+        base_text = item.data(BASE_TEXT_ROLE)
+        if base_text is None:
+            base_text = item.text()
+            item.setData(BASE_TEXT_ROLE, base_text)
+        badges = "".join(f" [SKIP-{self._reason_word(r)}]" for r in reasons)
+        item.setText(f"{base_text}{badges}")
+        item.setToolTip("\n".join(reasons))
+
+    @staticmethod
+    def _reason_word(reason: str) -> str:
+        # Reason strings are human sentences (see submission_handler.py, base_extractor.py), not
+        # a fixed enum, so the badge word is inferred rather than kept as a second, parallel code
+        # that would have to stay in sync with every skip call site by hand.
+        lowered = reason.lower()
+        for keyword, word in (
+            ("duplicate", "dupe"),
+            ("crosspost", "xpost"),
+            ("text post", "txt"),
+            ("extension", "ext"),
+            ("video", "vid"),
+        ):
+            if keyword in lowered:
+                return word
+        first_word = reason.split()[0] if reason else "skip"
+        return html.escape("".join(c for c in first_word if c.isalnum()).lower() or "skip")
+
     def clear(self):
         self.list_widget.clear()
+        self._items_by_reddit_id.clear()
+        self._skip_reasons_by_reddit_id.clear()

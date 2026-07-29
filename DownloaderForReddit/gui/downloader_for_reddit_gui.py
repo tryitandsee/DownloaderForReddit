@@ -1008,7 +1008,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.output_view_model.handle_message(message)
 
     def handle_content_found(self, message):
-        if self.content_feed_store.add(message.payload):
+        if message.message_type == MessageType.CONTENT_SKIPPED:
+            self.content_feed_panel.mark_skipped(message.payload)
+        elif self.content_feed_store.add(message.payload):
             self.content_feed_panel.add_entry(message.payload)
 
     # [mine] feat(gui): GUI-thread write for BrowserRedditSource's follow-state detection --

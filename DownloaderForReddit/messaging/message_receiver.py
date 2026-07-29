@@ -28,7 +28,10 @@ class MessageReceiver(QObject):
             message = self.queue.get()
             if message is not None:
                 try:
-                    if message.message_type == MessageType.CONTENT_FOUND:
+                    if message.message_type in (
+                        MessageType.CONTENT_FOUND,
+                        MessageType.CONTENT_SKIPPED,
+                    ):
                         self.content_output.emit(message)
                     elif message.message_type == MessageType.FOLLOW_STATE_CHANGED:
                         self.follow_state_output.emit(message)

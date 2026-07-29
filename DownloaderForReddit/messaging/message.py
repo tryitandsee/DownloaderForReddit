@@ -14,6 +14,7 @@ class MessageType(Enum):
 
     CONTENT_FOUND = 6
     FOLLOW_STATE_CHANGED = 7
+    CONTENT_SKIPPED = 8
 
 
 @dataclass
@@ -29,6 +30,16 @@ class ContentFoundPayload:
 class FollowStatePayload:
     username: str
     followed: bool
+
+
+@dataclass
+class ContentSkippedPayload:
+    # A free-text reason rather than an enum/code: skip sites (crosspost links, disabled
+    # self-post settings, content filters) already compute their own human-readable message for
+    # logging/failed_extraction_message, so this just reuses that string instead of introducing a
+    # second classification scheme -- any future filter can report through this same payload.
+    reddit_id: str
+    reason: str
 
 
 class MessagePriority(Enum):
@@ -48,7 +59,7 @@ class Message:
         message_type: MessageType,
         message: str | None = None,
         priority: MessagePriority = MessagePriority.INFO,
-        payload: ContentFoundPayload | FollowStatePayload | None = None,
+        payload: ContentFoundPayload | FollowStatePayload | ContentSkippedPayload | None = None,
     ):
         self.message_type = message_type
         self.message = message
@@ -65,7 +76,7 @@ class Message:
         message_type: MessageType,
         message: str | None = None,
         priority: MessagePriority = MessagePriority.INFO,
-        payload: ContentFoundPayload | FollowStatePayload | None = None,
+        payload: ContentFoundPayload | FollowStatePayload | ContentSkippedPayload | None = None,
     ) -> None:
         m = cls(message_type, message, priority, payload)
         cls.message_queue.put(m)
@@ -101,6 +112,10 @@ class Message:
     @classmethod
     def send_follow_state_changed(cls, payload: FollowStatePayload) -> None:
         cls.send(MessageType.FOLLOW_STATE_CHANGED, payload=payload)
+
+    @classmethod
+    def send_content_skipped(cls, payload: ContentSkippedPayload) -> None:
+        cls.send(MessageType.CONTENT_SKIPPED, payload=payload)
 
     @classmethod
     def send_extraction_error(cls, message: str):

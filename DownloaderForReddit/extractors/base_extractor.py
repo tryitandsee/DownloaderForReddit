@@ -29,7 +29,7 @@ import requests
 from ..core.content_filter import ContentFilter
 from ..core.errors import Error
 from ..database import Content
-from ..messaging.message import Message
+from ..messaging.message import ContentSkippedPayload, Message
 from ..utils import injector
 from ..utils.filename_generator import FilenameGenerator
 
@@ -233,6 +233,12 @@ class BaseExtractor:
                     "extension": extension,
                     "submission_id": self.post.reddit_id,
                 },
+            )
+            Message.send_content_skipped(
+                ContentSkippedPayload(
+                    reddit_id=self.post.reddit_id,
+                    reason=self.content_filter.filter_message,
+                )
             )
         return passes
 

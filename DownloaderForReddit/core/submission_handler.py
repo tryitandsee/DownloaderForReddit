@@ -12,7 +12,7 @@ from ..extractors.base_extractor import BaseExtractor
 from ..extractors.comment_extractor import CommentExtractor
 from ..extractors.direct_extractor import DirectExtractor
 from ..extractors.self_post_extractor import SelfPostExtractor
-from ..messaging.message import Message
+from ..messaging.message import ContentSkippedPayload, Message
 from ..utils import injector
 from . import const
 from .comment_handler import CommentHandler
@@ -79,6 +79,12 @@ class SubmissionHandler(Runner):
                 and not significant_ro.extract_self_post_links
             ):
                 self.post.set_extracted()
+                Message.send_content_skipped(
+                    ContentSkippedPayload(
+                        reddit_id=self.post.reddit_id,
+                        reason="Text post; text download and link extraction both disabled",
+                    )
+                )
         except Exception as e:
             self.handle_error(e)
 
@@ -145,6 +151,12 @@ class SubmissionHandler(Runner):
         try:
             if REDDIT_LINK_RE.match(url):
                 self.post.set_extracted()
+                Message.send_content_skipped(
+                    ContentSkippedPayload(
+                        reddit_id=self.post.reddit_id,
+                        reason="Crosspost/subreddit link, not directly downloadable",
+                    )
+                )
                 return
             extractor_class = self.assign_extractor(url)
             # [mine] assign_extractor returns None for unsupported domains; without this guard it raises on extractor_class(...)
