@@ -38,27 +38,34 @@ FOLLOW_STATE_OPERATION = "UpdateProfileFollowState"
 # own profile page keeps that mismatch out of scope rather than trying to detect it.
 _PROFILE_URL_RE = re.compile(r"^https://www\.reddit\.com/user/([^/?]+)/?")
 
-# Reddit's own lazy-load pagination fetch for a profile's post listing (fired by shreddit's
-# infinite scroll as the user scrolls, confirmed empirically from a real capture). The response
-# body embeds a trailing <faceplate-partial slot="load-after" ...> pointing at the next page's
-# fetch URL as long as there's more content; once genuinely exhausted, that's replaced by a
-# <span id="end-of-feed-tracker"> marker instead -- see _handle_profile_pagination_response.
+# -- Has a listing rendered its own proof that there is nothing more to load? ------------------
+#
+# Three places ask that question and all three answer it from the markers defined here: the
+# injected script's ambient report (__dfrFeedExhausted -> _dispatch_feed_exhausted), the explicit
+# scroll loop's stop condition (_listing_ended, BrowserRedditSource._scroll_and_collect), and the
+# listener on reddit's own lazy-load pagination fetch (_handle_profile_pagination_response), which
+# sees the same marker arrive in a response body rather than in the DOM.
+#
+# Confirmed empirically across four real pages: a history short enough to fit on one page ends in
+# <span id="end-of-feed-tracker">, a profile with no visible posts (none made, or hidden) renders
+# <div id="empty-feed-content"> instead, a long history renders neither (it carries a
+# <faceplate-partial slot="load-after"> pointing at the next page's fetch URL), and a nonexistent
+# user's page renders no feed at all.
+#
+# Only the presence of a marker is ever read as coverage, never the absence of load-after: the
+# injected script can run before the listing hydrates, and a false confirm writes
+# date_last_download_utc, which becomes the `since` checkpoint that makes every future scan of that
+# user stop early and permanently skip their backlog.
+_END_OF_FEED_MARKER = "end-of-feed-tracker"
+_EMPTY_FEED_MARKER = "empty-feed-content"
+_END_OF_LISTING_SELECTOR = f"#{_END_OF_FEED_MARKER}, #{_EMPTY_FEED_MARKER}"
+_END_OF_LISTING_EXPR = f"!!document.querySelector({_END_OF_LISTING_SELECTOR!r})"
 _PROFILE_MORE_POSTS_RE = re.compile(
     r"^https://www\.reddit\.com/svc/shreddit/profiles/profile_posts-more-posts/"
 )
-_END_OF_FEED_MARKER = "end-of-feed-tracker"
-
-# A profile whose whole post history fits on the first page never scrolls, so the pagination
-# response above never fires and the ambient known-post streak (6 posts) is unreachable -- such a
-# user's "Last Checked" could never advance from browsing. Reddit does render a positive
-# end-of-listing marker in the initial DOM for exactly those pages, confirmed empirically: a short
-# history ends in <span id="end-of-feed-tracker">, a profile with no visible posts (none made, or
-# hidden) renders <div id="empty-feed-content"> instead, a long history has neither (it carries a
-# <faceplate-partial slot="load-after">), and a nonexistent user's page renders no feed at all. The
-# injected script reports those two markers through the __dfrFeedExhausted binding. Only their
-# presence is ever read as coverage, never the absence of load-after: the script can run before the
-# listing hydrates, and a false confirm writes date_last_download_utc, which becomes the `since`
-# checkpoint that makes future scans stop early and permanently skip that user's backlog.
+# The ambient report is gated to the submitted listing specifically, not _PROFILE_URL_RE: the same
+# markers render on a profile's overview/comments/upvoted tabs, none of which say anything about
+# coverage of the posts listing.
 _SUBMITTED_LISTING_URL_RE = re.compile(
     r"^https://www\.reddit\.com/user/([^/?]+)/submitted/"
 )
@@ -75,6 +82,10 @@ PUMP_INTERVAL_MS = 500
 _SCROLL_PAUSE_MS = 1500
 _MAX_SCROLL_ITERATIONS = 42
 
+# Consecutive scrolls that each loaded zero new posts before a listing with no end-of-listing
+# marker is treated as finished anyway -- see BrowserRedditSource._scroll_and_collect.
+_MAX_CONSECUTIVE_EMPTY_SCROLLS = 2
+
 logger = logging.getLogger(f"DownloaderForReddit.{__name__}")
 
 # Injected once per document via context.add_init_script() -- runs on every page in the
@@ -90,6 +101,9 @@ logger = logging.getLogger(f"DownloaderForReddit.{__name__}")
 # request outright (confirmed empirically) -- there's no permission prompt to grant, unlike the
 # unrelated Private Network Access gate. A CDP binding call isn't a network request at all, so
 # CSP doesn't apply to it.
+#
+# __END_OF_LISTING_SELECTOR__ is substituted below so the browser side and the Python side ask for
+# the same markers -- see the end-of-listing section above.
 _INJECTED_SCRIPT = """
 (() => {
     function extractPosts() {
@@ -124,7 +138,7 @@ _INJECTED_SCRIPT = """
     let exhaustedUrl = null;
     function reportIfExhausted() {
         if (exhaustedUrl === location.href) return;
-        const marker = document.querySelector('#end-of-feed-tracker, #empty-feed-content');
+        const marker = document.querySelector('__END_OF_LISTING_SELECTOR__');
         if (!marker) return;
         if (!window.__dfrFeedExhausted) return;
         exhaustedUrl = location.href;
@@ -153,7 +167,7 @@ _INJECTED_SCRIPT = """
         start();
     }
 })();
-"""
+""".replace("__END_OF_LISTING_SELECTOR__", _END_OF_LISTING_SELECTOR)
 
 # Falls back to an empty list if evaluated before the init script has installed
 # window.__dfrExtractPosts -- shouldn't happen after a real navigation, but a fresh page() call
@@ -308,6 +322,19 @@ def parse_posts_payload(raw_posts: list[dict]) -> list[SubmissionData]:
 
 def _read_posts(page: Page) -> list[SubmissionData]:
     return parse_posts_payload(page.evaluate(_EXTRACT_POSTS_EXPR))
+
+
+def _listing_ended(page: Page) -> bool:
+    """The DOM-read half of the end-of-listing signal (the ambient half is the injected script's
+    __dfrFeedExhausted report) -- see the end-of-listing section at the top of this module.
+
+    Restricted to profile listings, the only pages the markers were ever verified against. What a
+    subreddit listing renders is unknown, and a marker that turns up somewhere other than the true
+    end would confirm coverage that was never scanned; subreddits fall back to the empty-scroll
+    stop until there's evidence."""
+    if _SUBMITTED_LISTING_URL_RE.match(page.url) is None:
+        return False
+    return bool(page.evaluate(_END_OF_LISTING_EXPR))
 
 
 class BrowserRedditSource:
@@ -480,9 +507,6 @@ class BrowserRedditSource:
     def _dispatch_feed_exhausted(self, url: str, marker_id: str) -> None:
         if self._suppress_ambient.is_set():
             return
-        # Gated to the submitted listing specifically, not _PROFILE_URL_RE: the same markers
-        # render on a profile's overview/comments/upvoted tabs, none of which say anything about
-        # coverage of the posts listing.
         match = _SUBMITTED_LISTING_URL_RE.match(url)
         if match is None:
             return
@@ -681,6 +705,12 @@ class BrowserRedditSource:
         timezone-aware, so it's normalized to naive UTC before comparing. Returns the deduped posts
         seen and whether coverage was confirmed -- False only if the iteration safety cap was hit
         first, meaning the scan gave up rather than confirmed.
+
+        The listing's own end-of-listing marker (see _SUBMITTED_LISTING_URL_RE's comment) is the
+        one positive proof that there is nothing more to load, and short-circuits without a scroll
+        for a history that fits on one page. An empty batch is the fallback for listings that never
+        render one -- it's a timing guess, since a slow lazy-load looks exactly like a finished one,
+        so it takes _MAX_CONSECUTIVE_EMPTY_SCROLLS of them rather than the first.
         """
 
         def reached_checkpoint(posts: list[SubmissionData]) -> bool:
@@ -691,8 +721,9 @@ class BrowserRedditSource:
         collected: dict[str, SubmissionData] = {
             post.reddit_id: post for post in _read_posts(page)
         }
-        if reached_checkpoint(list(collected.values())):
+        if reached_checkpoint(list(collected.values())) or _listing_ended(page):
             return list(collected.values()), True
+        empty_scrolls = 0
         for _ in range(_MAX_SCROLL_ITERATIONS):
             self._check_not_rate_limited()
             page.mouse.wheel(0, 15000)
@@ -700,11 +731,19 @@ class BrowserRedditSource:
             new_posts = [
                 post for post in _read_posts(page) if post.reddit_id not in collected
             ]
-            if not new_posts:
-                return list(collected.values()), True
             for post in new_posts:
                 collected[post.reddit_id] = post
-            if reached_checkpoint(new_posts):
+            if _listing_ended(page) or reached_checkpoint(new_posts):
+                return list(collected.values()), True
+            if new_posts:
+                empty_scrolls = 0
+                continue
+            empty_scrolls += 1
+            if empty_scrolls >= _MAX_CONSECUTIVE_EMPTY_SCROLLS:
+                logger.info(
+                    "Listing scan stopping without an end-of-listing marker",
+                    extra={"url": page.url, "collected": len(collected)},
+                )
                 return list(collected.values()), True
         return list(collected.values()), False
 
