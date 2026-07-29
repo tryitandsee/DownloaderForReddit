@@ -38,6 +38,16 @@ FOLLOW_STATE_OPERATION = "UpdateProfileFollowState"
 # own profile page keeps that mismatch out of scope rather than trying to detect it.
 _PROFILE_URL_RE = re.compile(r"^https://www\.reddit\.com/user/([^/?]+)/?")
 
+# Reddit's own lazy-load pagination fetch for a profile's post listing (fired by shreddit's
+# infinite scroll as the user scrolls, confirmed empirically from a real capture). The response
+# body embeds a trailing <faceplate-partial slot="load-after" ...> pointing at the next page's
+# fetch URL as long as there's more content; once genuinely exhausted, that's replaced by a
+# <span id="end-of-feed-tracker"> marker instead -- see _handle_profile_pagination_response.
+_PROFILE_MORE_POSTS_RE = re.compile(
+    r"^https://www\.reddit\.com/svc/shreddit/profiles/profile_posts-more-posts/"
+)
+_END_OF_FEED_MARKER = "end-of-feed-tracker"
+
 # How long each pump iteration blocks the Playwright worker thread waiting for CDP messages.
 # Bounds ambient-push latency (a post can wait up to this long for the pump to notice it) and
 # the worst case an explicit-download task queued behind a pump iteration has to wait.
@@ -80,6 +90,10 @@ _INJECTED_SCRIPT = """
             createdTimestamp: el.getAttribute('created-timestamp'),
             score: el.getAttribute('score'),
             nsfw: el.getAttribute('nsfw'),
+            // Diagnostic only, not part of SubmissionData -- investigating whether an absent/empty
+            // cursor on the last rendered post reliably signals "no more pages" for a profile
+            // listing (see _dispatch_posts_found). Not yet used for anything functional.
+            moreCursor: el.getAttribute('more-posts-cursor'),
         }));
     }
     window.__dfrExtractPosts = extractPosts;
@@ -314,6 +328,7 @@ class BrowserRedditSource:
             Callable[[list[SubmissionData], str | None], None] | None
         ) = None
         self._on_rate_limited: Callable[[], None] | None = None
+        self._on_profile_exhausted: Callable[[str], None] | None = None
         self._rate_limited = threading.Event()
         # BrowserRedditSource.start() (called from injector.get_reddit_source()) navigates the
         # initial page and fires the injected script's primer scan before the GUI exists to
@@ -345,6 +360,15 @@ class BrowserRedditSource:
         active download session can be cancelled immediately rather than continuing to hammer a
         rate-limited endpoint. See _handle_response."""
         self._on_rate_limited = callback
+
+    def set_on_profile_exhausted(self, callback: Callable[[str], None]):
+        """Registered by the GUI to be notified when organic browsing has scrolled a tracked
+        user's profile all the way to Reddit's own end-of-feed marker -- see
+        _handle_profile_pagination_response. Complements the ambient known-post-streak check in
+        DownloaderForRedditGUI._match_and_queue_ambient_posts (that one confirms early once
+        browsing has scrolled *past* previously-covered content; this one is the only signal for
+        a user whose total post count never reaches that streak length)."""
+        self._on_profile_exhausted = callback
 
     def is_rate_limited(self) -> bool:
         return self._rate_limited.is_set()
@@ -393,6 +417,18 @@ class BrowserRedditSource:
             return
         match = _PROFILE_URL_RE.match(url)
         page_owner = match.group(1) if match else None
+        if page_owner:
+            # Diagnostic only -- see extractPosts()'s moreCursor comment. Logging the last raw
+            # post's cursor (rendering order, so "last" is whatever loaded most recently) to see
+            # what value it holds once a profile page's infinite scroll genuinely runs out.
+            logger.info(
+                "Ambient profile batch cursor",
+                extra={
+                    "page_owner": page_owner,
+                    "batch_size": len(raw_posts or []),
+                    "last_more_cursor": (raw_posts or [{}])[-1].get("moreCursor"),
+                },
+            )
         with self._pending_posts_lock:
             if self._on_posts_found is None:
                 self._pending_posts.append((posts, page_owner))
@@ -457,6 +493,32 @@ class BrowserRedditSource:
             FollowStatePayload(username=username, followed=followed)
         )
 
+    def _handle_profile_pagination_response(self, response) -> None:
+        if not _PROFILE_MORE_POSTS_RE.match(response.url):
+            return
+        match = _PROFILE_URL_RE.match(response.request.frame.url)
+        if match is None:
+            return
+        page_owner = match.group(1)
+        try:
+            body = response.text()
+        except PlaywrightError:
+            logger.warning(
+                "Failed to read profile pagination response body", exc_info=True
+            )
+            return
+        end_of_feed = _END_OF_FEED_MARKER in body
+        logger.info(
+            "Ambient profile pagination response",
+            extra={"page_owner": page_owner, "end_of_feed": end_of_feed},
+        )
+        if end_of_feed and self._on_profile_exhausted is not None:
+            # Mirrors _handle_posts_found's own reasoning: hand off rather than risk DB work
+            # directly on whatever thread this event fires on.
+            threading.Thread(
+                target=self._on_profile_exhausted, args=(page_owner,), daemon=True
+            ).start()
+
     @contextmanager
     def _suppressed_ambient(self):
         # Explicit navigation reuses the ambient-facing page, so its own primer push must be
@@ -490,6 +552,7 @@ class BrowserRedditSource:
         self._context.on("close", lambda _: setattr(self, "_context", None))
         self._context.on("response", self._handle_follow_state_response)
         self._context.on("response", self._handle_response)
+        self._context.on("response", self._handle_profile_pagination_response)
         self._context.expose_binding("__dfrPostsFound", self._handle_posts_found)
         self._context.add_init_script(_INJECTED_SCRIPT)
         self._page = (

@@ -46,7 +46,7 @@ from PyQt5.QtWidgets import (
     QSystemTrayIcon,
     QWidget,
 )
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 from ..core.cli import CLI
 from ..core.update_runner import UpdateRunner
@@ -94,6 +94,14 @@ from ..viewmodels.hyperlink_delegate import HyperlinkDelegate
 from ..viewmodels.output_view_model import OutputViewModel
 from ..viewmodels.reddit_object_list_model import RedditObjectListModel
 
+# How many consecutive already-downloaded posts (in DOM order) ambient browsing must see on a
+# tracked user's profile before treating their whole listing as covered -- see
+# DownloaderForRedditGUI._match_and_queue_ambient_posts. A single known post isn't enough (a
+# pinned post can put old, already-downloaded content ahead of a large undiscovered backlog); a
+# run this long is far more likely to mean organic browsing has genuinely scrolled past the
+# newest unseen content into already-covered territory.
+_AMBIENT_KNOWN_STREAK_THRESHOLD = 6
+
 
 class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     stop_download_signal = pyqtSignal(
@@ -128,6 +136,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.running = False
         self.invalid_list = []
         self.db_handler = injector.get_database_handler()
+        # Tracks, per tracked username, the current run of consecutive already-known posts seen
+        # in DOM order while ambient-browsing their profile -- see _match_and_queue_ambient_posts.
+        self._ambient_known_streaks = {}
         self.spinner = WaitingSpinner(
             self.user_list_view,
             roundness=80,
@@ -467,6 +478,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         # can synchronously trigger start_ambient_download -> started_download_gui_shift and
         # touch widgets (e.g. self.progress_bar) that must already exist by then.
         injector.get_reddit_source().set_on_posts_found(self.handle_ambient_posts)
+        injector.get_reddit_source().set_on_profile_exhausted(
+            self.handle_profile_exhausted
+        )
 
         self.log_startup()
 
@@ -1623,12 +1637,17 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             self.ambient_matches_found.emit(matches)
 
         # A user's own profile page (page_owner set, via _PROFILE_URL_RE in reddit_source.py)
-        # only ever renders that user's own posts -- if every post currently observed there is
-        # already in the DB, that's the same "reached previously-covered content" signal the
-        # explicit download's scroll loop uses (BrowserRedditSource._scroll_and_collect), just
-        # arriving from organic browsing instead of a driven loop. No scrolling required: the
-        # injected script's primer push covers the whole first-loaded screen, so a
-        # fully-downloaded user's profile confirms coverage on first visit.
+        # only ever renders that user's own posts -- reaching a run of already-downloaded posts
+        # in DOM order is the same "reached previously-covered content" signal the explicit
+        # download's scroll loop uses via its `since` checkpoint
+        # (BrowserRedditSource._scroll_and_collect), just arriving from organic browsing instead
+        # of a driven loop.
+        # A run rather than a single hit: pinned posts can put old, already-downloaded content
+        # ahead of a large undiscovered backlog, so one known post proves nothing about what's
+        # below it. self._ambient_known_streaks carries the run length across separate pushes for
+        # the same profile (the primer, then whatever the MutationObserver reports as the user
+        # keeps scrolling); it self-corrects on the next unknown post regardless of stale state
+        # from a previous visit.
         if page_owner and posts:
             with self.db_handler.get_scoped_session() as session:
                 user = (
@@ -1641,14 +1660,77 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                     .first()
                 )
                 if user is not None:
-                    known = {
-                        reddit_id
-                        for (reddit_id,) in session.query(Post.reddit_id).filter(
-                            Post.reddit_id.in_([post.reddit_id for post in posts])
+                    key = page_owner.lower()
+                    observed_ids = [post.reddit_id for post in posts]
+                    observed_urls = [post.url for post in posts]
+                    # A post can be fully covered without its own reddit_id ever getting a Post
+                    # row: SubmittableCreator.check_duplicate_post also skips creation when the
+                    # URL matches an existing post (reposts/crossposts of the same media), so a
+                    # reddit_id-only check undercounts coverage on repost-heavy accounts. Match on
+                    # either, same as that dedup check does.
+                    known_rows = session.query(Post.reddit_id, Post.url).filter(
+                        or_(
+                            Post.reddit_id.in_(observed_ids),
+                            Post.url.in_(observed_urls),
                         )
+                    )
+                    known_reddit_ids = set()
+                    known_urls = set()
+                    for reddit_id, url in known_rows:
+                        known_reddit_ids.add(reddit_id)
+                        known_urls.add(url)
+                    known = {
+                        post.reddit_id
+                        for post in posts
+                        if post.reddit_id in known_reddit_ids or post.url in known_urls
                     }
-                    if all(post.reddit_id in known for post in posts):
+                    streak = self._ambient_known_streaks.get(key, 0)
+                    for rid in observed_ids:
+                        streak = streak + 1 if rid in known else 0
+                    confirmed = streak >= _AMBIENT_KNOWN_STREAK_THRESHOLD
+                    self._ambient_known_streaks[key] = 0 if confirmed else streak
+                    self.logger.debug(
+                        "Ambient coverage check",
+                        extra={
+                            "page_owner": page_owner,
+                            "observed_count": len(observed_ids),
+                            "observed_ids": observed_ids,
+                            "known_ids": sorted(known),
+                            "unknown_ids": [
+                                rid for rid in observed_ids if rid not in known
+                            ],
+                            "streak": streak,
+                            "confirmed": confirmed,
+                        },
+                    )
+                    if confirmed:
                         user.set_date_last_download_utc()
+
+    def handle_profile_exhausted(self, page_owner):
+        """Called (from a spawned thread, not the GUI thread -- see
+        BrowserRedditSource._handle_profile_pagination_response) when organic browsing has
+        scrolled a tracked user's profile to Reddit's own end-of-feed marker. A direct proof of
+        full coverage, unlike the known-post-streak check above."""
+        try:
+            with self.db_handler.get_scoped_session() as session:
+                user = (
+                    session.query(User)
+                    .filter(
+                        func.lower(User.name) == page_owner.lower(),
+                        User.significant == True,
+                        User.download_enabled == True,
+                    )
+                    .first()
+                )
+                if user is not None:
+                    user.set_date_last_download_utc()
+                    self._ambient_known_streaks.pop(page_owner.lower(), None)
+                    self.logger.info(
+                        "Ambient confirmed full coverage via end-of-feed",
+                        extra={"page_owner": page_owner},
+                    )
+        except Exception:
+            self.logger.exception("Failed to handle profile-exhausted signal")
 
     def start_ambient_download(self, submissions):
         if not self.running:
