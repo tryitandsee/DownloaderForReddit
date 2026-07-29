@@ -1,4 +1,5 @@
 import logging
+from datetime import UTC, datetime, timedelta
 
 from PyQt5.QtCore import (
     QAbstractTableModel,
@@ -9,7 +10,7 @@ from PyQt5.QtCore import (
     pyqtSignal,
 )
 from PyQt5.QtGui import QColor
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.orm.exc import NoResultFound
 
 from ..core.reddit_object_creator import RedditObjectCreator
@@ -33,8 +34,11 @@ class RedditObjectListModel(QAbstractTableModel):
     new_object_in_list = pyqtSignal(int)
     count_change = pyqtSignal(int)
 
-    columns = ("name", "last_download", "date_last_download_utc")
-    column_headers = ("Name", "Last Download", "Last Checked")
+    columns = ("name", "last_download", "date_last_download_utc", "expected_new")
+    column_headers = ("Name", "Last Download", "Last Checked", "Expected")
+
+    velocity_window_days = 30
+    velocity_window_lag_days = 7
 
     def __init__(self, list_type):
         """
@@ -59,6 +63,7 @@ class RedditObjectListModel(QAbstractTableModel):
         self.sort_desc = False
         self.search_term = ""
         self.last_download_cache = {}
+        self.expected_new_cache = {}
 
     @property
     def name(self):
@@ -116,6 +121,7 @@ class RedditObjectListModel(QAbstractTableModel):
                 .one()
             )
             self.sort_list()
+            self.refresh_expected_new()
         except NoResultFound:
             pass
 
@@ -166,6 +172,82 @@ class RedditObjectListModel(QAbstractTableModel):
         )
         self.last_download_cache = dict(rows)
 
+    def refresh_expected_new_cache(self):
+        """
+        Estimates how many unseen posts each object has accumulated since we last confirmed
+        coverage of it: score = posting rate * days elapsed since that confirmation.
+
+        The rate window is lagged by velocity_window_lag_days because the most recent days are
+        always still being filled in -- a post made two days ago may simply not have been
+        discovered yet -- so a trailing window systematically undercounts.
+
+        Not called from sort_list(): pool_idle drives refresh_session() -> sort_list() constantly
+        during ambient browsing, and recomputing there would re-run this aggregate every time and
+        reshuffle rows mid-browse. Scores update on list load and on the Refresh button only.
+        """
+        self.expected_new_cache = {}
+        try:
+            # Deliberately the whole list rather than self.reddit_objects, which is narrowed by
+            # any active search. Unlike last_download_cache, this one is not rebuilt by
+            # sort_list(), so a cache built while a search was active would leave every filtered
+            # out row reading 0.0 once the search is cleared.
+            reddit_objects = self.list.reddit_objects.all()
+        except AttributeError:
+            return
+        if not reddit_objects:
+            return
+        ids = [ro.id for ro in reddit_objects]
+        now_utc = datetime.now(UTC).replace(tzinfo=None)
+        now_local = datetime.now()
+        window_end = now_utc - timedelta(days=self.velocity_window_lag_days)
+        window_start = window_end - timedelta(days=self.velocity_window_days)
+        rows = (
+            self.session.query(
+                Post.significant_reddit_object_id,
+                func.sum(
+                    case(
+                        [
+                            (
+                                (Post.date_posted >= window_start)
+                                & (Post.date_posted < window_end),
+                                1,
+                            )
+                        ],
+                        else_=0,
+                    )
+                ),
+                func.max(Post.extraction_date),
+            )
+            .filter(Post.significant_reddit_object_id.in_(ids))
+            .group_by(Post.significant_reddit_object_id)
+            .all()
+        )
+        post_data = {ro_id: (count, extraction) for ro_id, count, extraction in rows}
+        for reddit_object in reddit_objects:
+            count, last_extraction = post_data.get(reddit_object.id, (0, None))
+            # date_last_download_utc is naive UTC while extraction_date is naive local, so each is
+            # measured against its own clock and only the resulting durations are compared.
+            deltas = []
+            if reddit_object.date_last_download_utc is not None:
+                deltas.append(now_utc - reddit_object.date_last_download_utc)
+            if last_extraction is not None:
+                deltas.append(now_local - last_extraction)
+            if not deltas:
+                self.expected_new_cache[reddit_object.id] = 0.0
+                continue
+            elapsed_days = max(0.0, min(deltas).total_seconds() / 86_400)
+            # A rate measured over velocity_window_days says nothing credible about a horizon
+            # longer than itself. Uncapped, the smoothing floor alone earned a year-dormant
+            # account a score of 10 -- above the median active user -- purely for being stale.
+            elapsed_days = min(elapsed_days, self.velocity_window_days)
+            rate = ((count or 0) + 1) / (self.velocity_window_days + 1)
+            self.expected_new_cache[reddit_object.id] = rate * elapsed_days
+
+    def refresh_expected_new(self):
+        self.refresh_expected_new_cache()
+        self.apply_column_sort()
+        self.refresh()
+
     def apply_column_sort(self):
         if self.sort_column is None or self.reddit_objects is None:
             return
@@ -177,6 +259,8 @@ class RedditObjectListModel(QAbstractTableModel):
                 self.last_download_cache.get(ro.id) is not None,
                 self.last_download_cache.get(ro.id),
             )
+        elif field == "expected_new":
+            key = lambda ro: self.expected_new_cache.get(ro.id, 0.0)
         else:
             key = lambda ro: (getattr(ro, field) is not None, getattr(ro, field))
         self.reddit_objects.sort(key=key, reverse=self.sort_desc)
@@ -375,6 +459,8 @@ class RedditObjectListModel(QAbstractTableModel):
                         )
                     if field == "date_last_download_utc":
                         return getattr(reddit_object, f"{field}_display")
+                    if field == "expected_new":
+                        return f"{self.expected_new_cache.get(reddit_object.id, 0.0):,.1f}"
                     return getattr(reddit_object, field)
                 if role == Qt.ForegroundRole:
                     if (

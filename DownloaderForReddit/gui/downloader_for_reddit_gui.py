@@ -43,6 +43,7 @@ from PyQt5.QtWidgets import (
     QMenu,
     QMessageBox,
     QProgressBar,
+    QPushButton,
     QSystemTrayIcon,
     QWidget,
 )
@@ -343,15 +344,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             lambda x: self.user_count_label.setText(str(x))
         )
         self.user_list_view.setModel(self.user_list_model)
-        self.user_list_view.horizontalHeader().setSectionResizeMode(
-            0, QHeaderView.Stretch
-        )
-        self.user_list_view.horizontalHeader().setSectionResizeMode(
-            1, QHeaderView.ResizeToContents
-        )
-        self.user_list_view.horizontalHeader().setSectionResizeMode(
-            2, QHeaderView.ResizeToContents
-        )
         self.user_list_view.sortByColumn(0, Qt.AscendingOrder)
         self.subreddit_list_model = RedditObjectListModel("SUBREDDIT")
         self.subreddit_list_model.starting_add.connect(self.start_spinner)
@@ -369,6 +361,15 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             lambda x: self.subreddit_count_label.setText(str(x))
         )
         self.subreddit_list_view.setModel(self.subreddit_list_model)
+
+        # Only the user list is a QTableView; subreddit_list_view is a QListView, which renders
+        # column 0 alone and so has no header to configure.
+        user_header = self.user_list_view.horizontalHeader()
+        user_header.setSectionResizeMode(0, QHeaderView.Stretch)
+        for column in range(1, self.user_list_model.columnCount()):
+            user_header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
+
+        self.setup_expected_new_refresh_button()
 
         self.load_state()
 
@@ -495,6 +496,22 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                 "platform": platform.platform(),
             },
         )
+
+    def setup_expected_new_refresh_button(self):
+        """
+        The Expected New scores are a snapshot rather than a live readout -- see
+        RedditObjectListModel.refresh_expected_new_cache for why they must not be recomputed on
+        the pool_idle path. This button is the only way to update them after the initial load.
+        """
+        self.refresh_expected_new_button = QPushButton("Refresh")
+        self.refresh_expected_new_button.setToolTip("Recalculate Expected new posts")
+        self.refresh_expected_new_button.clicked.connect(
+            self.refresh_expected_new_scores
+        )
+        self.horizontalLayout_4.addWidget(self.refresh_expected_new_button)
+
+    def refresh_expected_new_scores(self):
+        self.user_list_model.refresh_expected_new()
 
     def setup_list_sort_menu(self):
         list_view_group = QActionGroup(self)

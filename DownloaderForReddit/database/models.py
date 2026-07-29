@@ -7,6 +7,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     Integer,
     SmallInteger,
     String,
@@ -683,6 +684,9 @@ def set_download_session_name(mapper, connection, target):
 
 class Post(BaseModel):
     __tablename__ = "post"
+    __table_args__ = (
+        Index("ix_post_sig_date", "significant_reddit_object_id", "date_posted"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(collation="NOCASE"))
@@ -887,7 +891,7 @@ class Content(BaseModel):
     user = relationship("User", backref="content")
     subreddit_id = Column(ForeignKey("subreddit.id"))
     subreddit = relationship("Subreddit", backref="content")
-    post_id = Column(ForeignKey("post.id"), nullable=True)
+    post_id = Column(ForeignKey("post.id"), nullable=True, index=True)
     post = relationship("Post", backref="content")
     comment_id = Column(ForeignKey("comment.id"), nullable=True)
     comment = relationship("Comment", backref="content")
