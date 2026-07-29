@@ -22,6 +22,14 @@ Squash it. All of it. One commit.
 
 When logging or displaying a submission/content item, order fields as: user/subreddit, reddit_id, url.
 
+## Diagnostics
+
+Before hand-writing a query against the live database or grepping the log, use
+`Tools/dfr_query.py` (`--help` for subcommands). It reads the database read-only, is safe
+while the app is running, and handles the schema's mixed UTC/local datetime conventions.
+Grepping `DownloaderForReddit.log` directly returns whole embedded tracebacks and will
+blow the read cap; `dfr_query.py log` filters before including them.
+
 ## Architecture
 
 @docs/ARCHITECTURE.md
