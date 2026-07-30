@@ -43,10 +43,8 @@ class DownloadStatusDialog(QWidget):
         self.download_status_label = QLabel()
         download_column.addWidget(self.download_status_label)
 
-        self.extraction_table = QTableWidget(0, 4)
-        self.extraction_table.setHorizontalHeaderLabels(
-            ["Thread", "User", "ID", "Extracting"]
-        )
+        self.extraction_table = QTableWidget(0, 3)
+        self.extraction_table.setHorizontalHeaderLabels(["User", "ID", "Extracting"])
         self.extraction_table.horizontalHeader().setSectionResizeMode(
             0, QHeaderView.ResizeToContents
         )
@@ -54,10 +52,7 @@ class DownloadStatusDialog(QWidget):
             1, QHeaderView.ResizeToContents
         )
         self.extraction_table.horizontalHeader().setSectionResizeMode(
-            2, QHeaderView.ResizeToContents
-        )
-        self.extraction_table.horizontalHeader().setSectionResizeMode(
-            3, QHeaderView.Stretch
+            2, QHeaderView.Stretch
         )
         self.extraction_table.verticalHeader().setVisible(False)
         self.extraction_table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -66,10 +61,8 @@ class DownloadStatusDialog(QWidget):
         extraction_column.addWidget(self.extraction_table)
         panel_row.addLayout(extraction_column)
 
-        self.thread_table = QTableWidget(0, 4)
-        self.thread_table.setHorizontalHeaderLabels(
-            ["Thread", "User", "ID", "Downloading"]
-        )
+        self.thread_table = QTableWidget(0, 3)
+        self.thread_table.setHorizontalHeaderLabels(["User", "ID", "Downloading"])
         self.thread_table.horizontalHeader().setSectionResizeMode(
             0, QHeaderView.ResizeToContents
         )
@@ -77,10 +70,7 @@ class DownloadStatusDialog(QWidget):
             1, QHeaderView.ResizeToContents
         )
         self.thread_table.horizontalHeader().setSectionResizeMode(
-            2, QHeaderView.ResizeToContents
-        )
-        self.thread_table.horizontalHeader().setSectionResizeMode(
-            3, QHeaderView.Stretch
+            2, QHeaderView.Stretch
         )
         self.thread_table.verticalHeader().setVisible(False)
         self.thread_table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -147,25 +137,21 @@ class DownloadStatusDialog(QWidget):
 
         active_ext = dict(getattr(extractor, "_active_extractions", {}))
         self.extraction_table.setRowCount(len(active_ext))
-        for row, (thread, (user, item_id, info)) in enumerate(active_ext.items()):
-            short = thread.rsplit("_", 1)[-1] if "_" in thread else thread
-            self.extraction_table.setItem(row, 0, QTableWidgetItem(short))
+        for row, (_thread, (user, item_id, info)) in enumerate(active_ext.items()):
             self.extraction_table.setItem(
-                row, 1, QTableWidgetItem(anonymizer.redact(user))
+                row, 0, QTableWidgetItem(anonymizer.redact(user))
             )
-            self.extraction_table.setItem(row, 2, QTableWidgetItem(str(item_id)))
+            self.extraction_table.setItem(row, 1, QTableWidgetItem(str(item_id)))
             self.extraction_table.setItem(
-                row, 3, QTableWidgetItem(anonymizer.redact(info))
+                row, 2, QTableWidgetItem(anonymizer.redact(info))
             )
 
         active = dict(downloader._active_downloads)
         self.thread_table.setRowCount(len(active))
-        for row, (thread, (user, content_id, title)) in enumerate(active.items()):
-            short = thread.rsplit("_", 1)[-1] if "_" in thread else thread
-            self.thread_table.setItem(row, 0, QTableWidgetItem(short))
-            self.thread_table.setItem(row, 1, QTableWidgetItem(anonymizer.redact(user)))
-            self.thread_table.setItem(row, 2, QTableWidgetItem(str(content_id)))
-            self.thread_table.setItem(row, 3, QTableWidgetItem(title))
+        for row, (_thread, (user, content_id, title)) in enumerate(active.items()):
+            self.thread_table.setItem(row, 0, QTableWidgetItem(anonymizer.redact(user)))
+            self.thread_table.setItem(row, 1, QTableWidgetItem(str(content_id)))
+            self.thread_table.setItem(row, 2, QTableWidgetItem(title))
 
         self.completed_label.setText(f"Completed: {downloader.download_count}")
         self.duplicate_label.setText(f"Duplicates: {downloader.duplicate_count}")
