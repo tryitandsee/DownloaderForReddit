@@ -2,10 +2,9 @@ import logging
 import os
 from threading import Thread
 
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication, QDialog, QFileDialog
 
-from ..customwidgets.qt_compat_spinner import CompatibleWaitingSpinner as WaitingSpinner
 from ..database.models import ListAssociation, RedditObject
 from ..guiresources.add_reddit_object_dialog_auto import Ui_AddRedditObjectDialog
 from ..utils import injector, reddit_utils, system_util
@@ -14,8 +13,6 @@ from .existing_names_dialog import ExistingNamesDialog
 
 
 class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
-    validation_finished = pyqtSignal()
-
     def __init__(self, list_model, parent=None):
         QDialog.__init__(self, parent=parent)
         self.setupUi(self)
@@ -110,23 +107,6 @@ class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
         return None
 
     def validate_imported_objects(self, imported_objects):
-        self.spinner = WaitingSpinner(
-            parent=None,
-            roundness=80.0,
-            opacity=10.0,
-            fade=72.0,
-            radius=10.0,
-            lines=12,
-            line_length=12.0,
-            line_width=4.0,
-            speed=1.4,
-            color=(0, 0, 0),
-        )
-        self.spinner.setParent(self.multi_object_list_widget)
-        self.validation_finished.connect(
-            self.spinner.stop
-        )  # signal used to stop timer in correct thread
-        self.spinner.start()
         self.thread = Thread(target=self.validate_objects, args=imported_objects)
         self.thread.start()
 
@@ -139,7 +119,6 @@ class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
                 ro.date_created = v_set.date_created
                 self.imported.append(ro)
                 self.multi_object_list_widget.addItem(ro.name)
-        self.validation_finished.emit()
 
     def accept(self):
         self.add_reddit_objects()

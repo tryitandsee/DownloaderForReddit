@@ -28,8 +28,6 @@ from ..utils.anonymizer import get_anonymizer
 
 
 class RedditObjectListModel(QAbstractTableModel):
-    starting_add = pyqtSignal(object)
-    finished_add = pyqtSignal()
     reddit_object_added = pyqtSignal(int)
     existing_object_added = pyqtSignal(tuple)
     new_object_in_list = pyqtSignal(int)
@@ -319,7 +317,6 @@ class RedditObjectListModel(QAbstractTableModel):
         :param name_list: A list of names to be validated, made into reddit objects, and added to the current reddit
                           object list.
         """
-        self.starting_add.emit(self)
         name_list = self.check_existing(name_list)
         self.validating = True
         self.validation_thread = QThread()
@@ -334,7 +331,6 @@ class RedditObjectListModel(QAbstractTableModel):
         )
         self.validator.finished.connect(self.validation_thread.quit)
         self.validator.finished.connect(self.validator.deleteLater)
-        self.validator.finished.connect(self.finish_adding)
         self.validation_thread.finished.connect(self.validation_thread.deleteLater)
         self.validation_thread.start()
 
@@ -393,9 +389,6 @@ class RedditObjectListModel(QAbstractTableModel):
         if reddit_object.id not in self.get_id_list(download_enabled=False):
             self.insertRow(reddit_object)
             self.sort_list()
-
-    def finish_adding(self):
-        self.finished_add.emit()
 
     def insertRow(self, item, parent=QModelIndex(), *args, **kwargs):
         if item is not None:

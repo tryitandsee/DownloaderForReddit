@@ -51,7 +51,6 @@ from sqlalchemy import func, or_
 from ..core.cli import CLI
 from ..core.update_runner import UpdateRunner
 from ..customwidgets.link_cursor_handler import LinkCursorHandler
-from ..customwidgets.qt_compat_spinner import CompatibleWaitingSpinner as WaitingSpinner
 from ..database.model_manager import ModelManger
 from ..database.models import (
     ListAssociation,
@@ -154,16 +153,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         # Tracks, per tracked username, the current run of consecutive already-known posts seen
         # in DOM order while ambient-browsing their profile -- see _match_and_queue_ambient_posts.
         self._ambient_known_streaks = {}
-        self.spinner = WaitingSpinner(
-            self.user_list_view,
-            roundness=80,
-            fade=72,
-            radius=10,
-            lines=12,
-            line_length=12,
-            line_width=4,
-            speed=1.4,
-        )
         self.tray_icon_image = QIcon(
             QPixmap("Resources/Images/RedditDownloaderIcon.png").scaled(48, 48)
         )
@@ -340,8 +329,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         # endregion
 
         self.user_list_model = RedditObjectListModel("USER")
-        self.user_list_model.starting_add.connect(self.start_spinner)
-        self.user_list_model.finished_add.connect(self.stop_spinner)
         self.user_list_model.reddit_object_added.connect(
             self.check_new_object_for_download
         )
@@ -357,8 +344,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.user_list_view.setModel(self.user_list_model)
         self.user_list_view.sortByColumn(0, Qt.AscendingOrder)
         self.subreddit_list_model = RedditObjectListModel("SUBREDDIT")
-        self.subreddit_list_model.starting_add.connect(self.start_spinner)
-        self.subreddit_list_model.finished_add.connect(self.stop_spinner)
         self.subreddit_list_model.reddit_object_added.connect(
             self.check_new_object_for_download
         )
@@ -1116,21 +1101,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                 "Received unexpected non-text message type on handle_progress",
                 extra={"message_type": message.message_type},
             )
-
-    def start_main_spinner(self):
-        self.spinner.setParent(self)
-        self.spinner.start()
-
-    def start_spinner(self, list_model):
-        if list_model == self.user_list_model:
-            parent = self.user_list_view
-        else:
-            parent = self.subreddit_list_view
-        self.spinner.setParent(parent)
-        self.spinner.start()
-
-    def stop_spinner(self):
-        self.spinner.stop()
 
     def update_status_bar(self):
         self.statusbar.showMessage(
@@ -2017,7 +1987,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         Opens and runs the update checker on a separate thread. Sets self.from_menu so that other dialogs know the
         updater has been ran by the user, this will result in different dialog behaviour
         """
-        self.start_main_spinner()
         self.update_check_thread = QThread()
         self.update_checker = UpdateChecker()
         self.update_checker.moveToThread(self.update_check_thread)
@@ -2029,7 +1998,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             )
         else:
             self.update_checker.update_available_signal.connect(self.display_update)
-        self.update_checker.finished.connect(self.stop_spinner)
         self.update_checker.finished.connect(self.update_check_thread.quit)
         self.update_checker.finished.connect(self.update_checker.deleteLater)
         self.update_check_thread.finished.connect(self.update_check_thread.deleteLater)

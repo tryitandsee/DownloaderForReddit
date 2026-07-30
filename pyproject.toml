@@ -15,7 +15,6 @@ dependencies = [
     "SQLAlchemy==1.3.*",
     "toml",
     "alembic==1.4.*",
-    "pyqtspinner", # hard-depends on PyQt5; must be replaced/vendored before any PyQt6/PySide6 migration
     "redgifs",
     "yt-dlp",
     "playwright",

@@ -248,7 +248,6 @@ dependencies = [
     { name = "praw" },
     { name = "pyqt5" },
     { name = "pyqt5-qt5" },
-    { name = "pyqtspinner" },
     { name = "python-json-logger" },
     { name = "redgifs" },
     { name = "requests" },
@@ -272,7 +271,6 @@ requires-dist = [
     { name = "praw" },
     { name = "pyqt5", specifier = "==5.15.*" },
     { name = "pyqt5-qt5", specifier = "<5.15.11" },
-    { name = "pyqtspinner" },
     { name = "python-json-logger" },
     { name = "redgifs" },
     { name = "requests" },
@@ -732,18 +730,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/f5/e7/4f96b84520b8f8b7502682fd43f68f63ca6572b5858f56e5f61c76a54fe2/pyqt5_sip-12.18.0-cp314-cp314-manylinux_2_5_x86_64.manylinux1_x86_64.whl", hash = "sha256:92abe984becbde768954d6d0951f56d80a9868d2fd9e738e61fc944f0ff83dd6", size = 282439, upload-time = "2026-01-13T15:53:14.856Z" },
     { url = "https://files.pythonhosted.org/packages/79/8e/ccdf20d373ceba83e1d1b7f818505c375208ffde4a96376dc7dbe592406c/pyqt5_sip-12.18.0-cp314-cp314-win32.whl", hash = "sha256:bd9e3c6f81346f1b08d6db02305cdee20c009b43aa083d44ee2de47a7da0e123", size = 50713, upload-time = "2026-01-13T15:53:18.634Z" },
     { url = "https://files.pythonhosted.org/packages/7f/21/8486ed45977be615ec5371b24b47298b1cb0e1a455b419eddd0215078dba/pyqt5_sip-12.18.0-cp314-cp314-win_amd64.whl", hash = "sha256:6d948f1be619c645cd3bda54952bfdc1aef7c79242dccea6a6858748e61114b9", size = 59622, upload-time = "2026-01-13T15:53:17.714Z" },
-]
-
-[[package]]
-name = "pyqtspinner"
-version = "2.0.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pyqt5" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/29/cb/f7500dd7a4b3464f7cf8932063a3563db05e5f19bf93af3957156e8fcecc/pyqtspinner-2.0.0.tar.gz", hash = "sha256:273d42cf95b11203375c06ee9e6c9e853c0017bb1ada844f494e21e97ca305e4", size = 7338, upload-time = "2022-10-17T15:21:36.154Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/42/f9/6b373e748886fd510fa16585f03ed67674ef1faa2a2610ed20be2d865568/pyqtspinner-2.0.0-py3-none-any.whl", hash = "sha256:04646fe09287d6bd99bdd78ac1633aa2ce6caab70b2bd5e7ee0fc51dd4113220", size = 8261, upload-time = "2022-10-17T15:21:33.927Z" },
 ]
 
 [[package]]
