@@ -1,4 +1,7 @@
 from datetime import UTC, datetime, timedelta
+from threading import Event
+
+import pytest
 
 from DownloaderForReddit.core.reddit_source import (
     _END_OF_LISTING_EXPR,
@@ -6,6 +9,7 @@ from DownloaderForReddit.core.reddit_source import (
     _INJECTED_SCRIPT,
     _MAX_SCROLL_ITERATIONS,
     BrowserRedditSource,
+    StopRequestedError,
 )
 
 # Captured from the real rendered DOM of three profile submitted-listings (usernames anonymized,
@@ -230,3 +234,51 @@ def test_scroll_and_collect_reports_unconfirmed_when_the_scroll_cap_is_hit():
     posts, confirmed = BrowserRedditSource()._scroll_and_collect(page, since=None)
 
     assert (len(posts), confirmed) == (_MAX_SCROLL_ITERATIONS + 1, False)
+
+
+def test_scroll_and_collect_paces_every_scroll_when_a_pacer_is_registered():
+    page = FakePage(
+        [[raw_post("t3_1ug7l94")], [raw_post("t3_1ug7l94"), raw_post("t3_1ug7iba")]],
+        ended_after=1,
+    )
+    source = BrowserRedditSource()
+    pace_calls = []
+    source.set_scroll_pacer(lambda: pace_calls.append(None))
+
+    source._scroll_and_collect(page, since=None)
+
+    assert len(pace_calls) == page.scrolls == 1
+
+
+def test_scroll_and_collect_never_scrolls_when_no_pacer_is_registered():
+    # No set_scroll_pacer call -- confirms the pacer is optional (registered by DownloadRunner,
+    # not required for a bare BrowserRedditSource) rather than a hard dependency.
+    page = FakePage([[raw_post("t3_1ug7l94")]], ended_after=0)
+
+    posts, confirmed = BrowserRedditSource()._scroll_and_collect(page, since=None)
+
+    assert (len(posts), confirmed, page.scrolls) == (1, True, 0)
+
+
+def test_scroll_and_collect_raises_immediately_when_stop_is_requested():
+    """Regression test: continue_run is only checked between objects/scrolls, never during a
+    page.goto/mouse.wheel call itself -- most of a download's wall-clock time -- so a Stop click
+    previously had no effect until whatever navigation was already in flight finished on its own.
+    set_stop_event gives BrowserRedditSource direct, thread-safe access to the same Event the GUI
+    sets, checked at the top of every scroll via _check_should_continue."""
+    page = FakePage([[raw_post(f"t3_{n}")] for n in range(_MAX_SCROLL_ITERATIONS + 2)])
+    source = BrowserRedditSource()
+    stop_requested = Event()
+    source.set_stop_event(stop_requested)
+    stop_requested.set()
+
+    with pytest.raises(StopRequestedError):
+        source._scroll_and_collect(page, since=None)
+
+    assert page.scrolls == 0
+
+
+def test_check_should_continue_is_a_no_op_when_no_stop_event_is_registered():
+    # No set_stop_event call -- confirms the check tolerates a bare BrowserRedditSource, same as
+    # the scroll pacer.
+    BrowserRedditSource()._check_should_continue()

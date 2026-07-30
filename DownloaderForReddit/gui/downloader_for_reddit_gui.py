@@ -382,12 +382,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         )
 
         self.download_button.clicked.connect(self.run_full_download)
-        self.soft_stop_download_button.clicked.connect(
-            lambda: self.stop_download_signal.emit(False)
-        )
-        self.terminate_download_button.clicked.connect(
-            lambda: self.stop_download_signal.emit(True)
-        )
+        self.soft_stop_download_button.clicked.connect(lambda: self.request_stop(False))
+        self.terminate_download_button.clicked.connect(lambda: self.request_stop(True))
         self.stop_download_signal.connect(self.download_runner.stop_download)
         self.download_runner.remove_invalid_object.connect(
             self.remove_invalid_reddit_object
@@ -977,6 +973,18 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         )
         self.download_runner.request_download.emit(params)
         self.logger.info("Download requested")
+
+    def request_stop(self, hard_stop):
+        """
+        Flips download_runner.stop_requested directly, from this (GUI) thread, before also
+        emitting stop_download_signal for the rest of stop_download's bookkeeping (message,
+        session cancellation). The direct set is what actually matters for responsiveness: a
+        paced bulk run can occupy the runner's own thread in a plain Python loop for minutes, and
+        stop_download() itself only runs there via a queued cross-thread signal that can't be
+        dispatched until that loop returns -- see continue_run's docstring in DownloadRunner.
+        """
+        self.download_runner.stop_requested.set()
+        self.stop_download_signal.emit(hard_stop)
 
     def add_to_download(self, *args: int):
         """

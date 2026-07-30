@@ -1,7 +1,8 @@
 import logging
 import platform
-from collections import defaultdict, namedtuple
-from datetime import datetime
+import time
+from collections import namedtuple
+from datetime import UTC, datetime, timedelta
 from queue import Queue
 from threading import Event, Thread
 
@@ -25,7 +26,7 @@ from ..version import __version__
 from . import const
 from .content_runner import ContentRunner
 from .errors import NON_DOWNLOADABLE
-from .reddit_source import RateLimitedError, ValidationError
+from .reddit_source import RateLimitedError, StopRequestedError, ValidationError
 from .runner import verify_run
 from .submission_filter import SubmissionFilter
 
@@ -75,6 +76,14 @@ class DownloadRunner(QObject):
         # Governs the pool threads only; set once, at real app shutdown (see stop_pool). A
         # Stop/Terminate click must not touch this -- it has to keep servicing later sessions.
         self.stop_run = Event()
+        # Backs the continue_run property below. A plain bool wouldn't do -- stop_download() is
+        # only ever invoked via a queued cross-thread signal (this runner lives on its own
+        # QThread), so it can't run until whatever's currently executing on that thread returns
+        # control to the Qt event loop. A paced bulk run (see _pace) can occupy
+        # that thread in a plain Python time.sleep loop for minutes, so continue_run has to be
+        # something the GUI thread can flip directly and immediately -- a threading.Event's
+        # internal lock needs no Qt dispatch to be visible cross-thread.
+        self.stop_requested = Event()
         self.cancelled_sessions = set()
         self.hard_stopped_sessions = set()
 
@@ -91,8 +100,8 @@ class DownloadRunner(QObject):
         # True for the whole span of a start_batch() call -- idle_tick runs concurrently on a
         # different thread and only sees queue/future state, so without this it could see empty
         # queues and declare idle while start_batch is still mid-navigation, before it's queued
-        # anything (e.g. get_home_feed_submissions's Playwright call, which can easily take longer
-        # than idle_tick's ~2s poll interval).
+        # anything, or while a paced run (see _pace) is sitting between objects or between
+        # scrolls with both queues legitimately empty.
         self._batch_in_progress = False
 
         # Per-batch state below, reset at the top of every start_batch() call -- safe as plain
@@ -120,6 +129,26 @@ class DownloadRunner(QObject):
         self.request_download.connect(self.start_batch)
         self.rate_limited.connect(self.handle_rate_limited)
         self.reddit_source.set_on_rate_limited(self.rate_limited.emit)
+        # Reuses the exact pacing already built for between-object waits (see
+        # run_paced_bulk_download) to also pace individual scrolls within one object's listing --
+        # one pacing mechanism, not a separate one for each.
+        self.reddit_source.set_scroll_pacer(self._pace)
+        # Gives reddit_source direct, thread-safe read access to the same Event request_stop sets
+        # -- continue_run is only checked between objects/scrolls, never during a page.goto/
+        # mouse.wheel call itself (most of a download's wall-clock time), so without this a Stop
+        # click has no effect until whatever navigation is currently in flight finishes on its own.
+        self.reddit_source.set_stop_event(self.stop_requested)
+
+    @property
+    def continue_run(self):
+        return not self.stop_requested.is_set()
+
+    @continue_run.setter
+    def continue_run(self, value):
+        if value:
+            self.stop_requested.clear()
+        else:
+            self.stop_requested.set()
 
     def start_pool(self):
         """Creates the extractor/downloader and their worker threads. Called once, at app start."""
@@ -201,7 +230,9 @@ class DownloadRunner(QObject):
         # validation no longer touches it, since "exists on reddit" and "is followed" are
         # unrelated facts.
         if result.valid:
-            Message.send_debug(f"{reddit_object.name} is valid")
+            Message.send_debug(
+                f"{reddit_object.name} exists and is reachable on Reddit"
+            )
             return True
         if result.error == ValidationError.NOT_FOUND:
             self.handle_invalid_reddit_object(reddit_object)
@@ -459,6 +490,8 @@ class DownloadRunner(QObject):
 
     def run_download(self):
         if self.reddit_object_id_list is not None:
+            # Explicit multi-select download -- deliberately uncapped and cooldown-free, the
+            # "download manually" escape hatch _iter_bulk_targets's skip message points to.
             for ro_id in self.reddit_object_id_list:
                 self.get_reddit_object_submissions(ro_id)
         else:
@@ -466,14 +499,70 @@ class DownloadRunner(QObject):
                 self.filter_subreddits = True
                 self.validate_subreddit_list()
             if self.user_id_list is not None:
-                # Bulk user downloads go through the home feed (one aggregated "new" scrape) rather than
-                # visiting each user's submitted page individually.
-                # Downloading a single user via the context menu still goes through
-                # get_reddit_object_submissions -> iter_user_submissions above.
-                self.get_home_feed_submissions()
+                self.run_paced_bulk_download(User, self.user_id_list, self.get_user_submissions)
             else:
-                for subreddit_id in self.subreddit_id_list:
-                    self.get_subreddit_submissions(subreddit_id)
+                self.run_paced_bulk_download(
+                    Subreddit, self.subreddit_id_list, self.get_subreddit_submissions
+                )
+
+    def run_paced_bulk_download(self, model_class, id_list, get_submissions):
+        """
+        Bulk "download N users/subreddits" -- visits each object one at a time, in the order
+        given (the object list table's current sort), capped at BULK_DOWNLOAD_LIMIT actually-
+        downloaded objects and skipping (without counting toward that cap) any object whose
+        date_last_download_utc checkpoint is inside BULK_DOWNLOAD_COOLDOWN_HOURS. See _pace for
+        the pacing between objects (also reused between scrolls within one object's listing).
+        """
+        with self.db.get_scoped_session() as session:
+            targets = list(self._iter_bulk_targets(model_class, id_list, session))
+        for index, obj_id in enumerate(targets):
+            if not self.continue_run:
+                break
+            get_submissions(obj_id)
+            if index < len(targets) - 1:
+                self._pace()
+
+    def _iter_bulk_targets(self, model_class, id_list, session):
+        count = 0
+        cooldown = timedelta(hours=const.BULK_DOWNLOAD_COOLDOWN_HOURS)
+        now = datetime.now(UTC).replace(tzinfo=None)
+        for obj_id in id_list:
+            if count >= const.BULK_DOWNLOAD_LIMIT:
+                return
+            obj = session.query(model_class).get(obj_id)
+            if obj is None:
+                continue
+            last = obj.date_last_download_utc
+            if last is not None and now - last < cooldown:
+                remaining = cooldown - (now - last)
+                hours, remainder = divmod(int(remaining.total_seconds()), 3600)
+                minutes = remainder // 60
+                Message.send_warning(
+                    f"{obj.name} was downloaded too recently. Try again in "
+                    f"{hours}h {minutes}m or download manually."
+                )
+                continue
+            count += 1
+            yield obj_id
+
+    def _pace(self):
+        """Shared pacing primitive: ticks every BULK_DOWNLOAD_PACE_SECONDS, which also acts as
+        the queue-drain wait -- resolving before or after the first tick is fine, that's the
+        intended jitter, not a bug. Used both between bulk objects (run_paced_bulk_download) and,
+        registered as reddit_source's scroll_pacer, before every scroll within one object's
+        listing -- scrolling flat-out with no gap looks like a bot, and doing it faster than the
+        extraction/download pipeline can keep up with just builds an unbounded backlog.
+        self.continue_run is the same flag stop_download and handle_rate_limited already clear,
+        so a Stop click or a mid-run 429 ends the wait promptly, at the same 5s granularity."""
+        while self.continue_run:
+            time.sleep(const.BULK_DOWNLOAD_PACE_SECONDS)
+            if (
+                not self.extractor.futures
+                and not self.downloader.futures
+                and self.submission_queue.empty()
+                and self.download_queue.empty()
+            ):
+                return
 
     # [mine] feat(core): fetch a single post by URL and build its SUBMISSION ExtractionSet, or None if invalid
     def prepare_single_submission(self, url):
@@ -481,6 +570,9 @@ class DownloadRunner(QObject):
             submission = self.reddit_source.get_post(url)
         except RateLimitedError:
             # handle_rate_limited already messaged the user and cancelled the session.
+            return None
+        except StopRequestedError:
+            # stop_download already messaged the user; nothing further to report.
             return None
         except PlaywrightError:
             self.logger.exception(
@@ -515,14 +607,12 @@ class DownloadRunner(QObject):
         return self.prepare_submission(submission)
 
     # Shared by explicit single-post downloads (prepare_single_submission, above) and ambient
-    # matches: resolves whichever of author/subreddit is actually tracked, checks for a duplicate
-    # post, and reports one structured "content found" event either way (see
-    # messaging/message.py) instead of each call site messaging differently.
+    # matches: resolves whichever of author/subreddit is actually tracked, then hands off to
+    # _finalize_submission -- the one place that checks for a duplicate post and reports a
+    # "content found" event, also used directly by queue_submissions below, where the tracked
+    # object is already known rather than needing to be resolved by name.
     def prepare_submission(self, submission):
-        # [mine] get_scoped_update_session (commits), not get_scoped_session -- the FORCE_DOWNLOAD
-        # branch below deletes rows and that delete must actually persist, or create_post's own
-        # duplicate check downstream still sees the old Post row and silently refuses to recreate it.
-        with self.db.get_scoped_update_session() as session:
+        with self.db.get_scoped_session() as session:
             # Filters must mirror the tracked/download_enabled criteria the ambient poll used to decide
             # this submission was a match (gui/downloader_for_reddit_gui.py:handle_ambient_posts) --
             # otherwise a stale, non-tracked User row sharing the author's name (e.g. auto-created as a
@@ -549,6 +639,19 @@ class DownloadRunner(QObject):
             significant = author or subreddit
             if significant is None:
                 return None
+            significant_id = significant.id
+        return self._finalize_submission(submission, significant_id)
+
+    # See content (submission, already known to belong to significant_id), check for a duplicate
+    # post, report one structured "content found" event either way, and hand back an ExtractionSet
+    # ready to download -- the one place all three "found a submission" paths (bulk queue_submissions,
+    # ambient/explicit prepare_submission) end up, so a bulk download shows up in the content feed
+    # panel exactly like ambient matches and explicit single-post downloads do.
+    def _finalize_submission(self, submission, significant_id):
+        # [mine] get_scoped_update_session (commits), not get_scoped_session -- the FORCE_DOWNLOAD
+        # branch below deletes rows and that delete must actually persist, or create_post's own
+        # duplicate check downstream still sees the old Post row and silently refuses to recreate it.
+        with self.db.get_scoped_update_session() as session:
             existing_post = (
                 session.query(Post)
                 .filter(
@@ -567,7 +670,6 @@ class DownloadRunner(QObject):
                 session.flush()
                 existing_post = None
             is_new = existing_post is None
-            significant_id = significant.id
         Message.send_content_found(
             ContentFoundPayload(
                 reddit_id=submission.reddit_id,
@@ -579,7 +681,8 @@ class DownloadRunner(QObject):
         )
         if not is_new:
             return None
-        # download_session_id filled in by run_batch once a session actually gets created
+        # download_session_id filled in by the caller once a session actually gets created
+        # (run_batch for ambient/explicit, queue_submissions for bulk).
         return ExtractionSet(
             extraction_type="SUBMISSION",
             extraction_object=submission,
@@ -689,6 +792,9 @@ class DownloadRunner(QObject):
         except RateLimitedError:
             # handle_rate_limited already messaged the user and cancelled the session.
             return
+        except StopRequestedError:
+            # stop_download already messaged the user; nothing further to report.
+            return
         except PlaywrightError:
             extra = {
                 "object_type": reddit_object.object_type,
@@ -707,11 +813,11 @@ class DownloadRunner(QObject):
 
     def queue_submissions(self, reddit_object, submissions):
         for submission in submissions:
-            extraction_set = ExtractionSet(
-                extraction_type="SUBMISSION",
-                extraction_object=submission,
-                significant_id=reddit_object.id,
-                download_session_id=self.download_session_id,
+            extraction_set = self._finalize_submission(submission, reddit_object.id)
+            if extraction_set is None:
+                continue
+            extraction_set = extraction_set._replace(
+                download_session_id=self.download_session_id
             )
             self.submission_queue.put(extraction_set)
 
@@ -724,57 +830,6 @@ class DownloadRunner(QObject):
             ) and self.submission_filter.filter_submission(submission, reddit_object):
                 submissions.append(submission)
         return submissions
-
-    @verify_run
-    def get_home_feed_submissions(self):
-        """
-        Bulk user downloads pull from the dedicated account's home feed (sorted "new") in a single scrape,
-        rather than visiting each tracked user's own page. Users are NOT individually validated here
-        (that would mean one profile-page visit per user, exactly the per-user navigation this path
-        exists to avoid) -- a deleted/suspended/not-yet-followed user's posts just won't appear in the
-        feed and nothing is downloaded for them this run; they won't get auto-marked inactive from a
-        bulk run the way a single context-menu download still does.
-        Requires the dedicated account to actually follow every user in self.user_id_list (followed
-        manually, one at a time -- reddit's follow rate limit is ~10/day); a user whose posts never
-        appear in the aggregated feed (e.g. not yet followed) will simply have nothing downloaded for
-        them this run.
-        """
-        with self.db.get_scoped_session() as session:
-            users = session.query(User).filter(User.id.in_(self.user_id_list)).all()
-            users_by_name = {user.name: user for user in users}
-            for user in users:
-                user.set_existing()
-
-            if not users_by_name:
-                return
-
-            self._current_fetch_object = "Home Feed"
-            Message.send_info("Downloading home feed")
-            try:
-                raw_submissions = self.reddit_source.iter_home_feed()
-            except RateLimitedError:
-                # handle_rate_limited already messaged the user and cancelled the session.
-                return
-            except PlaywrightError:
-                self.logger.exception(
-                    "Browser navigation failed while fetching home feed"
-                )
-                Message.send_error(
-                    "Failed to fetch home feed. Please try again shortly."
-                )
-                return
-
-            by_user = defaultdict(list)
-            for submission in raw_submissions:
-                user = users_by_name.get(submission.author)
-                if user is not None:
-                    by_user[user].append(submission)
-
-            for user, user_raw_submissions in by_user.items():
-                if not self.continue_run:
-                    break
-                submissions = self.filter_submissions(user, user_raw_submissions)
-                self.queue_submissions(user, submissions)
 
     def stop_download(self, hard_stop=False):
         """

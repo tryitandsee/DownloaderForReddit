@@ -177,7 +177,15 @@ _EXTRACT_POSTS_EXPR = "window.__dfrExtractPosts ? window.__dfrExtractPosts() : [
 
 class RateLimitedError(Exception):
     """Raised instead of navigating once reddit has returned an HTTP 429 -- see
-    BrowserRedditSource._handle_response and _check_not_rate_limited."""
+    BrowserRedditSource._handle_response and _check_should_continue."""
+
+
+class StopRequestedError(Exception):
+    """Raised instead of navigating (or continuing a scroll) once a Stop/Terminate click has set
+    DownloadRunner's stop_requested Event -- see set_stop_event and _check_should_continue. Mid-
+    navigation, that Event is otherwise invisible: DownloadRunner.continue_run is only checked
+    between objects and between scrolls (see _pace), never during a page.goto/mouse.wheel/
+    wait_for_timeout call itself, which is where most of a download's wall-clock time goes."""
 
 
 class ValidationError(Enum):
@@ -388,7 +396,9 @@ class BrowserRedditSource:
         ) = None
         self._on_rate_limited: Callable[[], None] | None = None
         self._on_profile_exhausted: Callable[[str], None] | None = None
+        self._scroll_pacer: Callable[[], None] | None = None
         self._rate_limited = threading.Event()
+        self._stop_requested: threading.Event | None = None
         # BrowserRedditSource.start() (called from injector.get_reddit_source()) navigates the
         # initial page and fires the injected script's primer scan before the GUI exists to
         # register a consumer via set_on_posts_found -- buffer anything that arrives before then
@@ -420,6 +430,23 @@ class BrowserRedditSource:
         rate-limited endpoint. See _handle_response."""
         self._on_rate_limited = callback
 
+    def set_stop_event(self, event: threading.Event):
+        """Registered by DownloadRunner with its own stop_requested Event (the same one
+        request_stop sets directly, cross-thread, from the GUI) -- checked before every
+        navigation-triggering call and inside the scroll loop via _check_should_continue, so a
+        Stop/Terminate click aborts in-flight browsing immediately instead of only taking effect
+        the next time control returns between objects or between scrolls."""
+        self._stop_requested = event
+
+    def set_scroll_pacer(self, callback: Callable[[], None]):
+        """Registered by DownloadRunner (its own _pace, reused here) and called
+        before every scroll in _scroll_and_collect -- scrolling a listing end-to-end with no gap
+        between wheel events looks like a bot, and doing it faster than the extraction/download
+        pipeline can keep up with just builds an unbounded backlog. Reusing the same paced-wait
+        that already runs between bulk objects keeps this to one pacing mechanism instead of a
+        separate one for "between objects" and another for "within one object's scroll"."""
+        self._scroll_pacer = callback
+
     def set_on_profile_exhausted(self, callback: Callable[[str], None]):
         """Registered by the GUI to be notified when organic browsing has reached the end of a
         tracked user's submitted listing -- either by scrolling to Reddit's own end-of-feed marker
@@ -438,9 +465,11 @@ class BrowserRedditSource:
         cooldown/resume, the next download the user starts is the resume signal."""
         self._rate_limited.clear()
 
-    def _check_not_rate_limited(self) -> None:
+    def _check_should_continue(self) -> None:
         if self._rate_limited.is_set():
             raise RateLimitedError("Reddit rate limit (429) reached")
+        if self._stop_requested is not None and self._stop_requested.is_set():
+            raise StopRequestedError("Stop requested")
 
     def _handle_response(self, response) -> None:
         # Fired for every response in the context (context.on("response", ...)), not just
@@ -687,7 +716,7 @@ class BrowserRedditSource:
         return self._page
 
     def _collect(self, url: str) -> list[SubmissionData]:
-        self._check_not_rate_limited()
+        self._check_should_continue()
         page = self._get_page()
         with self._suppressed_ambient():
             page.goto(url)
@@ -725,7 +754,12 @@ class BrowserRedditSource:
             return list(collected.values()), True
         empty_scrolls = 0
         for _ in range(_MAX_SCROLL_ITERATIONS):
-            self._check_not_rate_limited()
+            self._check_should_continue()
+            if self._scroll_pacer is not None:
+                self._scroll_pacer()
+                # The pacer can block for a while (queue-drain wait) -- re-check in case a 429 or
+                # a Stop landed during it rather than scrolling into a listing we shouldn't.
+                self._check_should_continue()
             page.mouse.wheel(0, 15000)
             page.wait_for_timeout(_SCROLL_PAUSE_MS)
             new_posts = [
@@ -750,7 +784,7 @@ class BrowserRedditSource:
     def _collect_listing(
         self, url: str, since: datetime | None
     ) -> tuple[list[SubmissionData], bool]:
-        self._check_not_rate_limited()
+        self._check_should_continue()
         page = self._get_page()
         with self._suppressed_ambient():
             page.goto(url)
@@ -783,7 +817,7 @@ class BrowserRedditSource:
         return self._executor.submit(self._validate, url).result()
 
     def _validate(self, url: str) -> ValidationResult:
-        self._check_not_rate_limited()
+        self._check_should_continue()
         page = self._get_page()
         with self._suppressed_ambient():
             try:
@@ -839,7 +873,7 @@ class BrowserRedditSource:
         # A single navigation serves both validation and the submissions scrape -- the listing page
         # shows the same 404/private/suspended copy as the plain profile page, so there's no need to
         # visit the profile page first just to check it exists.
-        self._check_not_rate_limited()
+        self._check_should_continue()
         page = self._get_page()
         with self._suppressed_ambient():
             try:
@@ -873,7 +907,7 @@ class BrowserRedditSource:
         # www.reddit.com's permalink page renders it, same as the listing pages. Normalize the
         # domain before navigating.
         url = _normalize_reddit_url(url)
-        self._check_not_rate_limited()
+        self._check_should_continue()
         page = self._get_page()
         with self._suppressed_ambient():
             try:
@@ -938,7 +972,7 @@ class BrowserRedditSource:
             _normalize_reddit_url(urljoin(REDDIT_BASE_URL, permalink)).rstrip("/")
             + ".json"
         )
-        self._check_not_rate_limited()
+        self._check_should_continue()
         page = self._get_page()
         try:
             data = page.evaluate(

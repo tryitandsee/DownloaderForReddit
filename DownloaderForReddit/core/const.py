@@ -37,3 +37,8 @@ RESOURCES = os.path.abspath("Resources/")
 SUPPORTED_SITES_FILE = os.path.join(RESOURCES, "supported_video_sites.txt")
 TIMEOUT_INCREMENT = 0.25
 RATE_LIMIT_DOC_URL = "https://github.com/MalloyDelacroix/DownloaderForReddit/wiki/The-Ongoing-Impact-of-Reddits-API-Rate-Limits"
+
+# [mine] feat(core): bulk "download N users/subreddits" pacing. TODO move to settings
+BULK_DOWNLOAD_LIMIT = 20  # objects actually downloaded per bulk run, excluding cooldown skips
+BULK_DOWNLOAD_COOLDOWN_HOURS = 12  # skip an object whose date_last_download_utc is within this window
+BULK_DOWNLOAD_PACE_SECONDS = 10  # poll tick between objects; also the queue-drain check interval
