@@ -5,10 +5,12 @@ from collections import namedtuple
 from datetime import UTC, datetime, timedelta
 from queue import Queue
 from threading import Event, Thread
+from typing import cast
 
 from playwright.sync_api import Error as PlaywrightError
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from sqlalchemy import func, or_
+from sqlalchemy.orm import Session
 
 from DownloaderForReddit.core.download.downloader import Downloader
 
@@ -491,9 +493,10 @@ class DownloadRunner(QObject):
     def run_download(self):
         if self.reddit_object_id_list is not None:
             # Explicit multi-select download -- deliberately uncapped and cooldown-free, the
-            # "download manually" escape hatch _iter_bulk_targets's skip message points to.
-            for ro_id in self.reddit_object_id_list:
-                self.get_reddit_object_submissions(ro_id)
+            # "download manually" escape hatch run_paced_bulk_download's skip message points to.
+            total = len(self.reddit_object_id_list)
+            for index, ro_id in enumerate(self.reddit_object_id_list):
+                self.get_reddit_object_submissions(ro_id, progress=(index + 1, total))
         else:
             if self.user_id_list is not None and self.subreddit_id_list is not None:
                 self.filter_subreddits = True
@@ -513,23 +516,23 @@ class DownloadRunner(QObject):
         date_last_download_utc checkpoint is inside BULK_DOWNLOAD_COOLDOWN_HOURS. See _pace for
         the pacing between objects (also reused between scrolls within one object's listing).
         """
-        with self.db.get_scoped_session() as session:
-            targets = list(self._iter_bulk_targets(model_class, id_list, session))
-        for index, obj_id in enumerate(targets):
-            if not self.continue_run:
-                break
-            get_submissions(obj_id)
-            if index < len(targets) - 1:
-                self._pace()
-
-    def _iter_bulk_targets(self, model_class, id_list, session):
-        count = 0
         cooldown = timedelta(hours=const.BULK_DOWNLOAD_COOLDOWN_HOURS)
         now = datetime.now(UTC).replace(tzinfo=None)
-        for obj_id in id_list:
-            if count >= const.BULK_DOWNLOAD_LIMIT:
-                return
-            obj = session.query(model_class).get(obj_id)
+        with self.db.get_scoped_session() as session:
+            objs = [(obj_id, session.query(model_class).get(obj_id)) for obj_id in id_list]
+
+        def eligible(obj):
+            if obj is None:
+                return False
+            last = obj.date_last_download_utc
+            return last is None or now - last >= cooldown
+
+        total = min(sum(1 for _, obj in objs if eligible(obj)), const.BULK_DOWNLOAD_LIMIT)
+
+        downloaded = 0
+        for obj_id, obj in objs:
+            if not self.continue_run or downloaded >= const.BULK_DOWNLOAD_LIMIT:
+                break
             if obj is None:
                 continue
             last = obj.date_last_download_utc
@@ -542,8 +545,10 @@ class DownloadRunner(QObject):
                     f"{hours}h {minutes}m or download manually."
                 )
                 continue
-            count += 1
-            yield obj_id
+            downloaded += 1
+            get_submissions(obj_id, progress=(downloaded, total))
+            if downloaded < total:
+                self._pace()
 
     def _pace(self):
         """Shared pacing primitive: ticks every BULK_DOWNLOAD_PACE_SECONDS, which also acts as
@@ -707,7 +712,9 @@ class DownloadRunner(QObject):
                     break
 
     @verify_run
-    def get_reddit_object_submissions(self, reddit_object_id):
+    def get_reddit_object_submissions(
+        self, reddit_object_id: int, progress: tuple[int, int] | None = None
+    ) -> None:
         """
         Takes a RedditObject id and then calls the appropriate method to get submissions for the object depending on
         what type of reddit object it is (user or subreddit)
@@ -720,22 +727,32 @@ class DownloadRunner(QObject):
                 .first()
             )
             if object_type[0] == "USER":
-                self.get_user_submissions(reddit_object_id, session=session)
+                self.get_user_submissions(reddit_object_id, session=session, progress=progress)
             else:
-                self.get_subreddit_submissions(reddit_object_id, session=session)
+                self.get_subreddit_submissions(
+                    reddit_object_id, session=session, progress=progress
+                )
 
     @verify_run
-    def get_user_submissions(self, user_id, session=None):
+    def get_user_submissions(
+        self,
+        user_id: int,
+        session: Session | None = None,
+        progress: tuple[int, int] | None = None,
+    ) -> None:
         if session is None:
             with self.db.get_scoped_session() as db_session:
-                return self.get_user_submissions(user_id, session=db_session)
-        user = session.query(User).get(user_id)
+                return self.get_user_submissions(
+                    user_id, session=db_session, progress=progress
+                )
+        user = cast(User, session.query(User).get(user_id))
         user.set_existing()
         self._current_fetch_object = (
             user.name
         )  # [mine] feat(gui): download status window
+        prefix = f"({progress[0]}/{progress[1]}) " if progress else ""
         Message.send_info(
-            f"Downloading user: {user.name}"
+            f"{prefix}Downloading user: {user.name}"
         )  # [mine] GUI progress logging
         coverage = {"confirmed": False}
 
@@ -753,17 +770,25 @@ class DownloadRunner(QObject):
         return None
 
     @verify_run
-    def get_subreddit_submissions(self, subreddit_id, session=None):
+    def get_subreddit_submissions(
+        self,
+        subreddit_id: int,
+        session: Session | None = None,
+        progress: tuple[int, int] | None = None,
+    ) -> None:
         if session is None:
             with self.db.get_scoped_session() as db_session:
-                return self.get_subreddit_submissions(subreddit_id, session=db_session)
-        subreddit = session.query(Subreddit).get(subreddit_id)
+                return self.get_subreddit_submissions(
+                    subreddit_id, session=db_session, progress=progress
+                )
+        subreddit = cast(Subreddit, session.query(Subreddit).get(subreddit_id))
         subreddit.set_existing()
         self._current_fetch_object = (
             subreddit.name
         )  # [mine] feat(gui): download status window
+        prefix = f"({progress[0]}/{progress[1]}) " if progress else ""
         Message.send_info(
-            f"Downloading subreddit: {subreddit.name}"
+            f"{prefix}Downloading subreddit: {subreddit.name}"
         )  # [mine] GUI progress logging
         coverage = {"confirmed": False}
 

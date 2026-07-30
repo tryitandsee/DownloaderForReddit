@@ -23,7 +23,7 @@ from ..database.models import (
     RedditObjectList,
 )
 from ..messaging.message import Message
-from ..utils import injector
+from ..utils import general_utils, injector
 from ..utils.anonymizer import get_anonymizer
 
 
@@ -440,6 +440,22 @@ class RedditObjectListModel(QAbstractTableModel):
         row_count = self.rowCount()
         self.count_change.emit(row_count)
 
+    def _last_download_tooltip(self, reddit_object):
+        absolute = reddit_object.get_display_datetime(
+            self.last_download_cache.get(reddit_object.id)
+        )
+        if absolute is None:
+            return None
+        return f"{absolute}\nIncludes deleted content"
+
+    def _format_datetime_cell(self, date_time, reddit_object, utc):
+        if not self.settings_manager.relative_time_display:
+            return reddit_object.get_display_datetime(date_time)
+        if date_time is None:
+            return None
+        now = datetime.now(UTC).replace(tzinfo=None) if utc else datetime.now()
+        return general_utils.format_relative_datetime(date_time, now)
+
     def data(self, index, role=Qt.DisplayRole):
         row = index.row()
         if index.isValid():
@@ -448,11 +464,15 @@ class RedditObjectListModel(QAbstractTableModel):
                     field = self.columns[index.column()]
                     reddit_object = self.reddit_objects[row]
                     if field == "last_download":
-                        return reddit_object.get_display_datetime(
-                            self.last_download_cache.get(reddit_object.id)
+                        return self._format_datetime_cell(
+                            self.last_download_cache.get(reddit_object.id),
+                            reddit_object,
+                            utc=False,
                         )
                     if field == "date_last_download_utc":
-                        return getattr(reddit_object, f"{field}_display")
+                        return self._format_datetime_cell(
+                            getattr(reddit_object, field), reddit_object, utc=True
+                        )
                     if field == "expected_new":
                         return (
                             f"{self.expected_new_cache.get(reddit_object.id, 0.0):,.1f}"
@@ -485,7 +505,11 @@ class RedditObjectListModel(QAbstractTableModel):
                         return QColor(r, g, b, 255)
                     return None
                 if role == Qt.ToolTipRole:
-                    return self.set_tooltips(self.reddit_objects[row])
+                    field = self.columns[index.column()]
+                    reddit_object = self.reddit_objects[row]
+                    if self.settings_manager.relative_time_display and field == "last_download":
+                        return self._last_download_tooltip(reddit_object)
+                    return self.set_tooltips(reddit_object)
                 if role == Qt.UserRole:
                     return self.reddit_objects[row]
                 return None

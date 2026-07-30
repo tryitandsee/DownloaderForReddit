@@ -304,6 +304,13 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self._screenshot_mode_action.setCheckable(True)
         self._screenshot_mode_action.toggled.connect(self.toggle_screenshot_mode)
         self.view_menu.addAction(self._screenshot_mode_action)
+        self._relative_time_action = QAction("Relative Time", self)
+        self._relative_time_action.setCheckable(True)
+        self._relative_time_action.setChecked(
+            self.settings_manager.relative_time_display
+        )
+        self._relative_time_action.toggled.connect(self.toggle_relative_time_display)
+        self.view_menu.addAction(self._relative_time_action)
         # endregion
 
         # region Help Menu
@@ -342,7 +349,12 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             lambda x: self.object_tab_widget.setTabText(USER_TAB_INDEX, f"Users ({x})")
         )
         self.user_list_view.setModel(self.user_list_model)
-        self.user_list_view.sortByColumn(0, Qt.AscendingOrder)
+        self.user_list_view.sortByColumn(
+            self.settings_manager.user_list_sort_column,
+            Qt.DescendingOrder
+            if self.settings_manager.user_list_sort_desc
+            else Qt.AscendingOrder,
+        )
         self.subreddit_list_model = RedditObjectListModel("SUBREDDIT")
         self.subreddit_list_model.reddit_object_added.connect(
             self.check_new_object_for_download
@@ -359,7 +371,12 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             )
         )
         self.subreddit_list_view.setModel(self.subreddit_list_model)
-        self.subreddit_list_view.sortByColumn(0, Qt.AscendingOrder)
+        self.subreddit_list_view.sortByColumn(
+            self.settings_manager.subreddit_list_sort_column,
+            Qt.DescendingOrder
+            if self.settings_manager.subreddit_list_sort_desc
+            else Qt.AscendingOrder,
+        )
 
         for view, model in (
             (self.user_list_view, self.user_list_model),
@@ -1053,6 +1070,11 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.content_feed_panel.refresh()
         self.download_status_panel.refresh()
 
+    def toggle_relative_time_display(self, enabled):
+        self.settings_manager.relative_time_display = enabled
+        self.user_list_model.refresh()
+        self.subreddit_list_model.refresh()
+
     def handle_message(self, message):
         self.output_view_model.handle_message(message)
 
@@ -1384,7 +1406,10 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.refresh_list_models()
 
     def delete_reddit_objects(self, reddit_objects, delete_files):
-        count_text = f"{len(reddit_objects)} {reddit_objects[0].object_type.lower()}{'s' if len(reddit_objects) > 1 else ''}"
+        if len(reddit_objects) == 1:
+            count_text = f'{reddit_objects[0].object_type.lower()} "{reddit_objects[0].name}"'
+        else:
+            count_text = f"{len(reddit_objects)} {reddit_objects[0].object_type.lower()}s"
         text = (
             f"Are you sure you want to permanently delete {count_text} from the database?\n"
             f"This action cannot be undone."
@@ -1901,6 +1926,18 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.settings_manager.current_user_list = self.user_lists_combo.currentText()
         self.settings_manager.current_subreddit_list = (
             self.subreddit_list_combo.currentText()
+        )
+        user_header = self.user_list_view.horizontalHeader()
+        self.settings_manager.user_list_sort_column = user_header.sortIndicatorSection()
+        self.settings_manager.user_list_sort_desc = (
+            user_header.sortIndicatorOrder() == Qt.DescendingOrder
+        )
+        subreddit_header = self.subreddit_list_view.horizontalHeader()
+        self.settings_manager.subreddit_list_sort_column = (
+            subreddit_header.sortIndicatorSection()
+        )
+        self.settings_manager.subreddit_list_sort_desc = (
+            subreddit_header.sortIndicatorOrder() == Qt.DescendingOrder
         )
 
         self.settings_manager.download_radio_state = (

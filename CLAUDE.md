@@ -8,6 +8,8 @@ This started as a personal fork of an active upstream project, but no longer tra
 
 Do not commit untracked files, idiot
 
+Very short commit messages! The only one reading these is a future LLM. Only give the absolute bare minimum of clues.
+
 Default to ONE commit for a session's work. Only split into multiple commits when explicitly told to.
 
 One commit per session. Do not split unless told to split.

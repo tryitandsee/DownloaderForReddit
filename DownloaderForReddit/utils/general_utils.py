@@ -136,6 +136,37 @@ def format_date(raw_date: date):
     return raw_date.strftime(date_format)
 
 
+_RELATIVE_UNITS = (
+    (31_536_000, "y"),
+    (2_592_000, "mo"),
+    (86_400, "d"),
+    (3_600, "h"),
+    (60, "m"),
+    (1, "s"),
+)
+
+
+def format_relative_datetime(date_time: datetime, now: datetime):
+    """
+    Compact relative time (e.g. "1m 3s", "5d 7h", "1y") between date_time and now.
+    Caller supplies now explicitly since the reddit object list mixes naive-local and
+    naive-UTC timestamps, so the correct clock depends on which field is being formatted.
+    """
+    seconds = (now - date_time).total_seconds()
+    if seconds < 0:
+        return "now"
+    for i, (size, suffix) in enumerate(_RELATIVE_UNITS):
+        if seconds >= size or suffix == "s":
+            primary = int(seconds // size)
+            if i + 1 < len(_RELATIVE_UNITS):
+                next_size, next_suffix = _RELATIVE_UNITS[i + 1]
+                secondary = int((seconds - primary * size) // next_size)
+                if secondary:
+                    return f"{primary}{suffix} {secondary}{next_suffix}"
+            return f"{primary}{suffix}"
+    raise AssertionError("unreachable")
+
+
 def format_date_path(formatted_date):
     """
     Takes a formatted date string, and returns a version that can be used in a file path (ie: the slashes are replaced

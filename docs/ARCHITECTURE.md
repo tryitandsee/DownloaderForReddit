@@ -99,3 +99,7 @@ All Python-driven Playwright calls (explicit discovery, single-post fetch, galle
 ### Database
 
 SQLAlchemy 1.3 with Alembic migrations. Models live in `database/models.py`. A scoped session helper is available via `injector.get_database_handler().get_scoped_session()` (use as a context manager). The SQLite file lives in the OS app-data directory.
+
+### Settings
+
+`persistence/settings_manager.py`'s `SettingsManager` (a lazily-initialized `injector` singleton) reads/writes a TOML file (`config.toml`, also in the OS app-data directory), organized into `[section]` blocks (e.g. `main_window_gui`, `core`). Each setting is loaded once in `__init__` via `self.get(section, key, default)` and exposed as a plain attribute; callers read/write the attribute directly and `save_all()` persists everything back to disk (called from the main window's `close()`).

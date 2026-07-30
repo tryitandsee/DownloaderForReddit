@@ -304,6 +304,21 @@ class SettingsManager:
         self.download_radio_state = self.get(
             "main_window_gui", "download_radio_state", "USER"
         )
+        self.user_list_sort_column = self.get(
+            "main_window_gui", "user_list_sort_column", 0
+        )
+        self.user_list_sort_desc = self.get(
+            "main_window_gui", "user_list_sort_desc", False
+        )
+        self.subreddit_list_sort_column = self.get(
+            "main_window_gui", "subreddit_list_sort_column", 0
+        )
+        self.subreddit_list_sort_desc = self.get(
+            "main_window_gui", "subreddit_list_sort_desc", False
+        )
+        self.relative_time_display = self.get(
+            "main_window_gui", "relative_time_display", False
+        )
         # endregion
 
         # region Database View Dialog
