@@ -989,7 +989,18 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             **kwargs,
         )
         self.download_runner.request_download.emit(params)
-        self.logger.info("Download requested")
+        # Diagnostic: logged bare before, so two requests firing seconds apart (e.g. one from
+        # "Add User"'s download-on-add, one from a session-start resume) were indistinguishable
+        # -- log what each one actually targets.
+        self.logger.info(
+            "Download requested",
+            extra={
+                "user_id_list": user_id_list,
+                "subreddit_id_list": sub_id_list,
+                "reddit_object_id_list": reddit_object_id_list,
+                "kwargs": {k: v for k, v in kwargs.items() if k != "submissions"},
+            },
+        )
 
     def request_stop(self, hard_stop):
         """
@@ -1693,14 +1704,26 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                 )
                 if user is not None:
                     key = page_owner.lower()
+                    checkpoint = user.date_last_download_utc
                     observed_ids = [post.reddit_id for post in posts]
-                    observed_urls = [post.url for post in posts]
+                    # An empty url means "unknown" (e.g. read before content-href hydrated -- see
+                    # reddit_source._parse_post), not "no url" -- including it here would match
+                    # every such post against every other Post row that also lacks a url.
+                    observed_urls = [post.url for post in posts if post.url]
                     # A post can be fully covered without its own reddit_id ever getting a Post
                     # row: SubmittableCreator.check_duplicate_post also skips creation when the
                     # URL matches an existing post (reposts/crossposts of the same media), so a
                     # reddit_id-only check undercounts coverage on repost-heavy accounts. Match on
                     # either, same as that dedup check does.
-                    known_rows = session.query(Post.reddit_id, Post.url).filter(
+                    #
+                    # A Post row existing is not enough on its own: ambient discovery on another
+                    # page (e.g. the home feed, seen right after the app starts, before this
+                    # profile is ever visited) can create rows for this user's newest posts. Those
+                    # are "known" in the DB but were never actually scrolled past on *this*
+                    # listing, so a run of them sitting at the top of a fresh profile visit would
+                    # falsely confirm coverage without scrolling at all. Only a post already
+                    # covered by the *prior* confirmed checkpoint proves the boundary was reached.
+                    known_rows = session.query(Post.reddit_id, Post.url, Post.date_posted).filter(
                         or_(
                             Post.reddit_id.in_(observed_ids),
                             Post.url.in_(observed_urls),
@@ -1708,13 +1731,18 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                     )
                     known_reddit_ids = set()
                     known_urls = set()
-                    for reddit_id, url in known_rows:
-                        known_reddit_ids.add(reddit_id)
-                        known_urls.add(url)
+                    if checkpoint is not None:
+                        for reddit_id, url, date_posted in known_rows:
+                            if date_posted is None or date_posted > checkpoint:
+                                continue
+                            known_reddit_ids.add(reddit_id)
+                            if url:
+                                known_urls.add(url)
                     known = {
                         post.reddit_id
                         for post in posts
-                        if post.reddit_id in known_reddit_ids or post.url in known_urls
+                        if post.reddit_id in known_reddit_ids
+                        or (post.url and post.url in known_urls)
                     }
                     streak = self._ambient_known_streaks.get(key, 0)
                     for rid in observed_ids:

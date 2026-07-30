@@ -60,12 +60,12 @@ class SubmittableCreator:
         # reddit_id is checked (not just url) because Post.reddit_id is DB-unique: the same post re-encountered
         # under a different url (e.g. a crosspost whose resolved url changed) must still be caught here, or the
         # later insert hits the unique constraint and raises uncaught inside create_post.
-        return (
-            session.query(Post.id)
-            .filter(or_(Post.reddit_id == reddit_id, Post.url == url))
-            .first()
-            is None
-        )
+        # An empty url means "unknown", not "no url" -- matching on it would treat every post read
+        # before content-href hydrates as a duplicate of every other one (see reddit_source._parse_post).
+        filters = [Post.reddit_id == reddit_id]
+        if url:
+            filters.append(Post.url == url)
+        return session.query(Post.id).filter(or_(*filters)).first() is None
 
     @classmethod
     def create_comment(

@@ -8,6 +8,7 @@ import json
 import logging
 import re
 import threading
+import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
@@ -128,8 +129,14 @@ _INJECTED_SCRIPT = """
     window.__dfrExtractPosts = extractPosts;
 
     const seen = new Set();
+    function isReady(p) {
+        // content-href hydrates asynchronously after a shreddit-post element is inserted; reading
+        // it too early yields an empty value indistinguishable from "this post has none" (see
+        // _parse_post). Gallery urls are built from the id alone, so they don't need content-href.
+        return p.id && (p.postType === 'gallery' || p.contentHref);
+    }
     function pushNewPosts() {
-        const fresh = extractPosts().filter((p) => p.id && !seen.has(p.id));
+        const fresh = extractPosts().filter((p) => isReady(p) && !seen.has(p.id));
         if (fresh.length === 0) return;
         fresh.forEach((p) => seen.add(p.id));
         if (window.__dfrPostsFound) window.__dfrPostsFound(fresh);
@@ -158,7 +165,12 @@ _INJECTED_SCRIPT = """
 
     function start() {
         scan();
-        new MutationObserver(scheduleScan).observe(document.body, {childList: true, subtree: true});
+        new MutationObserver(scheduleScan).observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['content-href'],
+        });
     }
 
     if (document.readyState === 'loading') {
@@ -296,7 +308,13 @@ def _parse_post(raw: dict) -> SubmissionData | None:
             # pattern (its url_key includes 'reddit.com/gallery').
             url = f"{REDDIT_BASE_URL}/gallery/{reddit_id}"
         else:
-            url = urljoin(REDDIT_BASE_URL, raw.get("contentHref") or "")
+            # A missing content-href can mean the post genuinely has none, or that
+            # shreddit-post's attributes are still mid-hydration when this was read (see the
+            # injected script's "ready" gate) -- either way, urljoin'ing an empty string into
+            # REDDIT_BASE_URL itself would produce a single fake url every such post shares,
+            # falsely matching each other as duplicates/known. Leave it unset instead.
+            content_href = raw.get("contentHref")
+            url = urljoin(REDDIT_BASE_URL, content_href) if content_href else ""
         permalink = urljoin(REDDIT_BASE_URL, raw.get("permalink") or "")
         return SubmissionData(
             reddit_id=reddit_id,
@@ -397,6 +415,19 @@ class BrowserRedditSource:
         self._on_rate_limited: Callable[[], None] | None = None
         self._on_profile_exhausted: Callable[[str], None] | None = None
         self._scroll_pacer: Callable[[], None] | None = None
+        self._on_posts_collected: Callable[[list[SubmissionData]], None] | None = None
+        # Guards every page.goto -- a scan (_collect_listing/_validate_and_collect_listing) now
+        # submits its reads/scrolls one at a time instead of holding the executor's one worker for
+        # the whole scan (see _run), which frees that worker between steps for gallery metadata
+        # fetches. But it also means an unrelated navigation (e.g. validate_user from an "Add
+        # User" dialog, running on its own thread) could slip into one of those gaps and goto the
+        # one shared page out from under an in-progress scan. Held for a whole scan, or for one
+        # quick call elsewhere (_validate, _get_post_impl, _collect, _open_url_impl) -- acquired
+        # by the caller before it ever touches the executor, so a contended wait blocks that
+        # caller's own thread, not the executor's worker. _fetch_post_json doesn't navigate (just
+        # fetch()es from whatever page is already loaded), so it never needs this lock -- that's
+        # what lets it still interleave with an in-progress scan instead of queuing behind it.
+        self._page_lock = threading.Lock()
         self._rate_limited = threading.Event()
         self._stop_requested: threading.Event | None = None
         # BrowserRedditSource.start() (called from injector.get_reddit_source()) navigates the
@@ -446,6 +477,15 @@ class BrowserRedditSource:
         that already runs between bulk objects keeps this to one pacing mechanism instead of a
         separate one for "between objects" and another for "within one object's scroll"."""
         self._scroll_pacer = callback
+
+    def set_on_posts_collected(self, callback: Callable[[list[SubmissionData]], None] | None):
+        """Registered by DownloadRunner around a single explicit scan (get_validated_submissions),
+        not for the app's lifetime like set_scroll_pacer above -- it closes over the reddit_object
+        being downloaded, which only exists for that one call. Called from _scroll_and_collect
+        with each newly-read batch of posts as the scroll progresses, so the caller can filter and
+        queue them immediately instead of waiting for the whole scroll to finish -- the explicit
+        scan's equivalent of ambient's live per-post reporting."""
+        self._on_posts_collected = callback
 
     def set_on_profile_exhausted(self, callback: Callable[[str], None]):
         """Registered by the GUI to be notified when organic browsing has reached the end of a
@@ -639,6 +679,54 @@ class BrowserRedditSource:
         finally:
             self._suppress_ambient.clear()
 
+    @contextmanager
+    def _locked_page(self, operation: str, target: str):
+        """Wraps every self._page_lock acquisition (see its definition) so a contended wait gets
+        logged with what was waiting and for how long -- diagnostic for a suspected but unproven
+        theory that two navigations raced for the shared page. If this never logs, that theory is
+        ruled out and the wrong-page symptom is coming from somewhere else (e.g. the tab-selection
+        logging added alongside this, or the post-goto url mismatch check)."""
+        start = time.monotonic()
+        with self._page_lock:
+            waited = time.monotonic() - start
+            if waited > 0.5:
+                logger.info(
+                    "Page lock was contended",
+                    extra={
+                        "operation": operation,
+                        "target": target,
+                        "waited_seconds": round(waited, 1),
+                    },
+                )
+            yield
+
+    def _run(self, fn, *args):
+        """Runs fn on the single Playwright-owning worker thread and blocks the calling thread
+        for its result -- the same one-off-submission idiom _pump_loop already uses (see the
+        class docstring), just given a name since _scroll_and_collect below needs many of these
+        instead of one. Every Playwright touch must go through this (or an equivalent submit),
+        never called directly from a method that might itself be running off the worker thread."""
+        return self._executor.submit(fn, *args).result()
+
+    def _goto_and_wait(self, page: Page, url: str, wait_ms: int) -> None:
+        page.goto(url)
+        page.wait_for_timeout(wait_ms)
+        # Diagnostic: goto() is expected to leave page.url matching what was requested. If it
+        # doesn't (a client-side redirect, or -- suspected -- _get_page() having handed back a
+        # tab that wasn't actually navigated), everything downstream (validation, scrolling) runs
+        # against the wrong page silently. Compare path+host only, not query string, since reddit
+        # appends things like ?sort=new consistently but this should still catch a wrong page/host
+        # entirely (e.g. request for /user/x/submitted/ landing on /r/x/ or on reddit.com/).
+        requested, actual = urlsplit(url), urlsplit(page.url)
+        if (requested.netloc, requested.path.rstrip("/")) != (
+            actual.netloc,
+            actual.path.rstrip("/"),
+        ):
+            logger.warning(
+                "Post-goto page.url doesn't match the requested navigation",
+                extra={"requested_url": url, "actual_url": page.url},
+            )
+
     def start(self):
         self._executor.submit(self._start_impl).result()
         self._pump_thread = threading.Thread(target=self._pump_loop, daemon=True)
@@ -666,8 +754,21 @@ class BrowserRedditSource:
         self._context.expose_binding("__dfrPostsFound", self._handle_posts_found)
         self._context.expose_binding("__dfrFeedExhausted", self._handle_feed_exhausted)
         self._context.add_init_script(_INJECTED_SCRIPT)
+        # Diagnostic: a persistent profile can restore more than one tab from the last session.
+        # pages[0] is assumed to be the one this class then drives for the app's lifetime, but
+        # that assumption has never been verified against a multi-tab restore -- log what was
+        # actually there so a wrong-page report can be checked against which tab (by url) got
+        # picked, rather than guessed at after the fact.
+        if len(self._context.pages) > 1:
+            logger.warning(
+                "Persistent context restored more than one tab; using pages[0]",
+                extra={"restored_urls": [p.url for p in self._context.pages]},
+            )
         self._page = (
             self._context.pages[0] if self._context.pages else self._context.new_page()
+        )
+        logger.info(
+            "Browser context (re)launched", extra={"selected_tab_url": self._page.url}
         )
 
     def _pump_loop(self):
@@ -708,10 +809,18 @@ class BrowserRedditSource:
             logger.info("Playwright browser window was closed, relaunching")
             self._launch_context()
         if self._page is None or self._page.is_closed():
+            if len(self._context.pages) > 1:
+                logger.warning(
+                    "Multiple tabs open when replacing a closed/missing page; using pages[0]",
+                    extra={"open_urls": [p.url for p in self._context.pages]},
+                )
             self._page = (
                 self._context.pages[0]
                 if self._context.pages
                 else self._context.new_page()
+            )
+            logger.info(
+                "Replaced closed/missing page", extra={"selected_tab_url": self._page.url}
             )
         return self._page
 
@@ -740,6 +849,13 @@ class BrowserRedditSource:
         for a history that fits on one page. An empty batch is the fallback for listings that never
         render one -- it's a timing guess, since a slow lazy-load looks exactly like a finished one,
         so it takes _MAX_CONSECUTIVE_EMPTY_SCROLLS of them rather than the first.
+
+        Each read/scroll is its own _run submission rather than one call holding the worker thread
+        for the whole scan -- a scan can take minutes (paced deliberately, see set_scroll_pacer),
+        and the worker thread must be free in between for other queued work (e.g. an extractor
+        fetching a gallery's media_metadata) to run at all, not just to avoid slowing it down. This
+        method itself may run on any thread; it never touches `page` directly, only inside a
+        closure handed to _run.
         """
 
         def reached_checkpoint(posts: list[SubmissionData]) -> bool:
@@ -747,10 +863,21 @@ class BrowserRedditSource:
                 return False
             return any(_to_naive_utc(post.created) <= since for post in posts)
 
+        def read_state():
+            return _read_posts(page), _listing_ended(page), page.url
+
+        def scroll_and_read():
+            page.mouse.wheel(0, 15000)
+            page.wait_for_timeout(_SCROLL_PAUSE_MS)
+            return _read_posts(page), _listing_ended(page), page.url
+
+        initial_posts, ended, _url = self._run(read_state)
         collected: dict[str, SubmissionData] = {
-            post.reddit_id: post for post in _read_posts(page)
+            post.reddit_id: post for post in initial_posts
         }
-        if reached_checkpoint(list(collected.values())) or _listing_ended(page):
+        if collected and self._on_posts_collected is not None:
+            self._on_posts_collected(list(collected.values()))
+        if reached_checkpoint(list(collected.values())) or ended:
             return list(collected.values()), True
         empty_scrolls = 0
         for _ in range(_MAX_SCROLL_ITERATIONS):
@@ -760,14 +887,13 @@ class BrowserRedditSource:
                 # The pacer can block for a while (queue-drain wait) -- re-check in case a 429 or
                 # a Stop landed during it rather than scrolling into a listing we shouldn't.
                 self._check_should_continue()
-            page.mouse.wheel(0, 15000)
-            page.wait_for_timeout(_SCROLL_PAUSE_MS)
-            new_posts = [
-                post for post in _read_posts(page) if post.reddit_id not in collected
-            ]
+            batch, ended, url = self._run(scroll_and_read)
+            new_posts = [post for post in batch if post.reddit_id not in collected]
             for post in new_posts:
                 collected[post.reddit_id] = post
-            if _listing_ended(page) or reached_checkpoint(new_posts):
+            if new_posts and self._on_posts_collected is not None:
+                self._on_posts_collected(new_posts)
+            if ended or reached_checkpoint(new_posts):
                 return list(collected.values()), True
             if new_posts:
                 empty_scrolls = 0
@@ -776,7 +902,7 @@ class BrowserRedditSource:
             if empty_scrolls >= _MAX_CONSECUTIVE_EMPTY_SCROLLS:
                 logger.info(
                     "Listing scan stopping without an end-of-listing marker",
-                    extra={"url": page.url, "collected": len(collected)},
+                    extra={"url": url, "collected": len(collected)},
                 )
                 return list(collected.values()), True
         return list(collected.values()), False
@@ -785,36 +911,46 @@ class BrowserRedditSource:
         self, url: str, since: datetime | None
     ) -> tuple[list[SubmissionData], bool]:
         self._check_should_continue()
-        page = self._get_page()
+        page = self._run(self._get_page)
         with self._suppressed_ambient():
-            page.goto(url)
-            page.wait_for_timeout(2000)
+            self._run(self._goto_and_wait, page, url, 2000)
             return self._scroll_and_collect(page, since)
 
     def iter_user_submissions(
         self, name: str, since: datetime | None = None
     ) -> tuple[list[SubmissionData], bool]:
+        # Not wrapped in self._executor.submit -- _collect_listing/_scroll_and_collect submit
+        # each Playwright touch individually now, and this method's own thread is what's free to
+        # pace between them. Wrapping the whole call in one more submission would have it try to
+        # submit those inner steps to the same single-worker executor it's still occupying,
+        # deadlocking on itself. _page_lock (held for the whole scan) is what keeps some other
+        # navigation from slipping into one of the gaps this opens up -- see its definition.
         url = f"https://www.reddit.com/user/{name}/submitted/?sort=new"
-        return self._executor.submit(self._collect_listing, url, since).result()
+        with self._locked_page("iter_user_submissions", name):
+            return self._collect_listing(url, since)
 
     def iter_subreddit_submissions(
         self, name: str, since: datetime | None = None
     ) -> tuple[list[SubmissionData], bool]:
         url = f"https://www.reddit.com/r/{name}/new/"
-        return self._executor.submit(self._collect_listing, url, since).result()
+        with self._locked_page("iter_subreddit_submissions", name):
+            return self._collect_listing(url, since)
 
     def iter_home_feed(self) -> list[SubmissionData]:
-        return self._executor.submit(
-            self._collect, "https://www.reddit.com/new/"
-        ).result()
+        with self._locked_page("iter_home_feed", "-"):
+            return self._executor.submit(
+                self._collect, "https://www.reddit.com/new/"
+            ).result()
 
     def validate_user(self, name: str) -> ValidationResult:
         url = f"https://www.reddit.com/user/{name}/"
-        return self._executor.submit(self._validate, url).result()
+        with self._locked_page("validate_user", name):
+            return self._executor.submit(self._validate, url).result()
 
     def validate_subreddit(self, name: str) -> ValidationResult:
         url = f"https://www.reddit.com/r/{name}/"
-        return self._executor.submit(self._validate, url).result()
+        with self._locked_page("validate_subreddit", name):
+            return self._executor.submit(self._validate, url).result()
 
     def _validate(self, url: str) -> ValidationResult:
         self._check_should_continue()
@@ -854,18 +990,18 @@ class BrowserRedditSource:
     def validate_and_iter_user_submissions(
         self, name: str, since: datetime | None = None
     ) -> tuple[ValidationResult, list[SubmissionData], bool]:
+        # Not wrapped in self._executor.submit -- see the matching comment on
+        # iter_user_submissions above; _validate_and_collect_listing submits its own steps.
         url = f"https://www.reddit.com/user/{name}/submitted/?sort=new"
-        return self._executor.submit(
-            self._validate_and_collect_listing, url, since
-        ).result()
+        with self._locked_page("validate_and_iter_user_submissions", name):
+            return self._validate_and_collect_listing(url, since)
 
     def validate_and_iter_subreddit_submissions(
         self, name: str, since: datetime | None = None
     ) -> tuple[ValidationResult, list[SubmissionData], bool]:
         url = f"https://www.reddit.com/r/{name}/new/"
-        return self._executor.submit(
-            self._validate_and_collect_listing, url, since
-        ).result()
+        with self._locked_page("validate_and_iter_subreddit_submissions", name):
+            return self._validate_and_collect_listing(url, since)
 
     def _validate_and_collect_listing(
         self, url: str, since: datetime | None
@@ -874,10 +1010,10 @@ class BrowserRedditSource:
         # shows the same 404/private/suspended copy as the plain profile page, so there's no need to
         # visit the profile page first just to check it exists.
         self._check_should_continue()
-        page = self._get_page()
+        page = self._run(self._get_page)
         with self._suppressed_ambient():
             try:
-                page.goto(url)
+                self._run(self._goto_and_wait, page, url, 2000)
             except PlaywrightError:
                 logger.warning(
                     "Navigation failed during validation",
@@ -891,15 +1027,15 @@ class BrowserRedditSource:
                     [],
                     False,
                 )
-            page.wait_for_timeout(2000)
-            validation = self._check_validity(page)
+            validation = self._run(self._check_validity, page)
             if not validation.valid:
                 return validation, [], False
             posts, coverage_confirmed = self._scroll_and_collect(page, since)
             return validation, posts, coverage_confirmed
 
     def get_post(self, url: str) -> SubmissionData | None:
-        return self._executor.submit(self._get_post_impl, url).result()
+        with self._locked_page("get_post", url):
+            return self._executor.submit(self._get_post_impl, url).result()
 
     def _get_post_impl(self, url: str) -> SubmissionData | None:
         # A real old.reddit.com URL reached this method and correctly found no <shreddit-post>
@@ -997,7 +1133,8 @@ class BrowserRedditSource:
         # [mine] feat(core): navigate the dedicated account's browser window to a url -- lets the
         # GUI open a user/subreddit profile directly (e.g. to click follow manually), rather than
         # just copying the link for a separate, non-logged-in browser.
-        self._executor.submit(self._open_url_impl, url).result()
+        with self._locked_page("open_url", url):
+            self._executor.submit(self._open_url_impl, url).result()
 
     def _open_url_impl(self, url: str) -> None:
         # Deliberately not wrapped in _suppressed_ambient -- unlike the background fetches

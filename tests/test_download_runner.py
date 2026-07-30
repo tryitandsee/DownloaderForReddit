@@ -9,12 +9,30 @@ from DownloaderForReddit.messaging.message import Message
 
 def make_runner():
     """DownloadRunner.__init__ reaches into injector-backed singletons (DB, settings,
-    reddit_source) that this test has no business touching -- _iter_bulk_targets and _pace only
-    read the instance state set up below. stop_requested is wired up manually since the
+    reddit_source) that this test has no business touching -- run_paced_bulk_download and _pace
+    only read the instance state set up below. stop_requested is wired up manually since the
     continue_run property reads/writes it directly."""
     runner = DownloadRunner.__new__(DownloadRunner)
     runner.stop_requested = Event()
     return runner
+
+
+def make_bulk_download_runner():
+    """run_paced_bulk_download calls self._pace() between objects -- stubbed here since these
+    tests cover which objects get downloaded and in what order, not the queue-drain wait between
+    them (that's test_pace_* below, which needs the real _pace)."""
+    runner = make_runner()
+    runner._pace = lambda: None
+    return runner
+
+
+class FakeDB:
+    def __init__(self, session):
+        self._session = session
+
+    @contextmanager
+    def get_scoped_session(self):
+        yield self._session
 
 
 class FakeObject:
@@ -51,16 +69,18 @@ class FakeQueue:
 NOW = datetime(2026, 7, 29, 12, 0, tzinfo=UTC).replace(tzinfo=None)
 
 
-def test_iter_bulk_targets_yields_objects_never_downloaded():
-    runner = make_runner()
+def test_run_paced_bulk_download_downloads_objects_never_downloaded():
+    runner = make_bulk_download_runner()
     session = FakeSession([FakeObject(1, "alice"), FakeObject(2, "bob")])
+    runner.db = FakeDB(session)
+    calls = []
 
-    result = list(runner._iter_bulk_targets(FakeObject, [1, 2], session))
+    runner.run_paced_bulk_download(FakeObject, [1, 2], lambda obj_id, progress: calls.append((obj_id, progress)))
 
-    assert result == [1, 2]
+    assert calls == [(1, (1, 2)), (2, (2, 2))]
 
 
-def test_iter_bulk_targets_skips_object_within_cooldown_without_counting_toward_cap(
+def test_run_paced_bulk_download_skips_object_within_cooldown_without_counting_toward_cap(
     monkeypatch,
 ):
     monkeypatch.setattr(download_runner_module, "datetime", _FixedDatetime)
@@ -68,41 +88,44 @@ def test_iter_bulk_targets_skips_object_within_cooldown_without_counting_toward_
     warnings = []
     monkeypatch.setattr(Message, "send_warning", lambda message: warnings.append(message))
 
-    runner = make_runner()
+    runner = make_bulk_download_runner()
     recently_downloaded = FakeObject(1, "alice", date_last_download_utc=NOW - timedelta(hours=1))
     never_downloaded = FakeObject(2, "bob")
-    session = FakeSession([recently_downloaded, never_downloaded])
+    runner.db = FakeDB(FakeSession([recently_downloaded, never_downloaded]))
+    calls = []
 
-    result = list(runner._iter_bulk_targets(FakeObject, [1, 2], session))
+    runner.run_paced_bulk_download(FakeObject, [1, 2], lambda obj_id, progress: calls.append((obj_id, progress)))
 
-    assert result == [2]
+    assert calls == [(2, (1, 1))]
     assert len(warnings) == 1
     assert "alice" in warnings[0]
     assert "too recently" in warnings[0]
 
 
-def test_iter_bulk_targets_stops_once_cap_reached(monkeypatch):
+def test_run_paced_bulk_download_stops_once_cap_reached(monkeypatch):
     monkeypatch.setattr(download_runner_module.const, "BULK_DOWNLOAD_LIMIT", 2)
 
-    runner = make_runner()
+    runner = make_bulk_download_runner()
     objects = [FakeObject(i, f"user{i}") for i in range(1, 5)]
-    session = FakeSession(objects)
+    runner.db = FakeDB(FakeSession(objects))
+    calls = []
 
-    result = list(runner._iter_bulk_targets(FakeObject, [1, 2, 3, 4], session))
+    runner.run_paced_bulk_download(FakeObject, [1, 2, 3, 4], lambda obj_id, progress: calls.append((obj_id, progress)))
 
-    assert result == [1, 2]
+    assert calls == [(1, (1, 2)), (2, (2, 2))]
 
 
-def test_iter_bulk_targets_skips_object_past_cooldown(monkeypatch):
+def test_run_paced_bulk_download_downloads_object_whose_cooldown_has_elapsed(monkeypatch):
     monkeypatch.setattr(download_runner_module, "datetime", _FixedDatetime)
 
-    runner = make_runner()
+    runner = make_bulk_download_runner()
     long_ago = FakeObject(1, "alice", date_last_download_utc=NOW - timedelta(days=1))
-    session = FakeSession([long_ago])
+    runner.db = FakeDB(FakeSession([long_ago]))
+    calls = []
 
-    result = list(runner._iter_bulk_targets(FakeObject, [1], session))
+    runner.run_paced_bulk_download(FakeObject, [1], lambda obj_id, progress: calls.append((obj_id, progress)))
 
-    assert result == [1]
+    assert calls == [(1, (1, 1))]
 
 
 class _FixedDatetime(datetime):
