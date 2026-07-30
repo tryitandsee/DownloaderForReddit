@@ -24,6 +24,7 @@ from ..database.models import (
 )
 from ..messaging.message import Message
 from ..utils import injector
+from ..utils.anonymizer import get_anonymizer
 
 
 class RedditObjectListModel(QAbstractTableModel):
@@ -463,6 +464,8 @@ class RedditObjectListModel(QAbstractTableModel):
                         return (
                             f"{self.expected_new_cache.get(reddit_object.id, 0.0):,.1f}"
                         )
+                    if field == "name":
+                        return get_anonymizer().name(reddit_object)
                     return getattr(reddit_object, field)
                 if role == Qt.ForegroundRole:
                     if (
@@ -511,8 +514,9 @@ class RedditObjectListModel(QAbstractTableModel):
         :return: Text formatted to be displayed as a tooltip.
         :rtype: str
         """
+        anonymizer = get_anonymizer()
         tooltip_dict = {
-            "name": f"Name: {reddit_object.name}",
+            "name": f"Name: {anonymizer.name(reddit_object)}",
             "download_enabled": f"Download Enabled: {reddit_object.download_enabled}",
             "last_download_date": f"Last Download: {reddit_object.last_download}",
             "download_naming_method": f"Name Downloads By: {reddit_object.post_download_naming_method}",
@@ -529,7 +533,7 @@ class RedditObjectListModel(QAbstractTableModel):
         tooltip = ""
         for key, value in tooltip_dict.items():
             if self.settings_manager.main_window_tooltip_display_dict[key]:
-                tooltip += f"{value}\n"
+                tooltip += f"{anonymizer.redact(value)}\n"
         return tooltip.strip()
 
     def nsfw_filter_display(self, filter_method):

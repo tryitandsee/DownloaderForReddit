@@ -87,6 +87,7 @@ from ..utils import (
     system_util,
     video_merger,
 )
+from ..utils.anonymizer import get_anonymizer
 from ..utils.updater_checker import DO_NOT_NOTIFY_LEVEL
 from ..version import __version__
 from ..viewmodels.hyperlink_delegate import HyperlinkDelegate
@@ -303,6 +304,17 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self._single_post_action = QAction("Download Posts...", self)
         self._single_post_action.triggered.connect(self.open_single_post_dialog)
         self.menuDownload.addAction(self._single_post_action)
+        # endregion
+
+        # region View Menu
+        # A menu item rather than an in-layout checkbox: a checkbox would sit in frame, visibly
+        # checked, in the screenshots this mode exists to clean.
+        self.view_menu = QMenu("View", self)
+        self.menubar.insertMenu(self.help_menu.menuAction(), self.view_menu)
+        self._screenshot_mode_action = QAction("Screenshot Mode", self)
+        self._screenshot_mode_action.setCheckable(True)
+        self._screenshot_mode_action.toggled.connect(self.toggle_screenshot_mode)
+        self.view_menu.addAction(self._screenshot_mode_action)
         # endregion
 
         # region Help Menu
@@ -1039,6 +1051,14 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     def finish_update(self):
         pass
+
+    def toggle_screenshot_mode(self, enabled):
+        get_anonymizer().set_enabled(enabled)
+        self.user_list_model.refresh()
+        self.subreddit_list_model.refresh()
+        self.output_view_model.refresh()
+        self.content_feed_panel.refresh()
+        self.download_status_panel.refresh()
 
     def handle_message(self, message):
         self.output_view_model.handle_message(message)

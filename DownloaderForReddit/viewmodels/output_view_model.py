@@ -2,6 +2,7 @@ from PyQt5.QtCore import QAbstractListModel, QModelIndex, Qt, QVariant, pyqtSign
 from PyQt5.QtGui import QColor
 
 from ..utils import html_formatting, injector
+from ..utils.anonymizer import get_anonymizer
 
 
 class OutputViewModel(QAbstractListModel):
@@ -46,6 +47,12 @@ class OutputViewModel(QAbstractListModel):
         del self.display_messages[row]
         self.endRemoveRows()
 
+    def refresh(self):
+        row_count = self.rowCount()
+        if row_count == 0:
+            return
+        self.dataChanged.emit(self.index(0), self.index(row_count - 1))
+
     def clear(self, parent=QModelIndex()):
         self.beginRemoveRows(parent, 0, self.rowCount() - 1)
         self.messages.clear()
@@ -59,7 +66,7 @@ class OutputViewModel(QAbstractListModel):
                 text = self.display_messages[row].output
             else:
                 text = self.display_messages[row].message
-            return html_formatting.format_html(text)
+            return html_formatting.format_html(get_anonymizer().redact(text))
         if role == Qt.ForegroundRole and self.settings_manager.use_color_output:
             r, g, b = getattr(
                 self.settings_manager,

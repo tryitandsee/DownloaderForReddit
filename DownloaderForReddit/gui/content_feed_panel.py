@@ -13,11 +13,14 @@ from PyQt5.QtWidgets import (
 )
 
 from ..messaging.message import ContentFoundPayload, ContentSkippedPayload
+from ..utils.anonymizer import get_anonymizer
 from ..viewmodels.hyperlink_delegate import HyperlinkDelegate
 
 MAX_ROWS = 200
 REDDIT_ID_ROLE = Qt.UserRole
-BASE_TEXT_ROLE = Qt.UserRole + 1
+# Unredacted text each row's display text is derived from, so screenshot mode can be toggled
+# after the fact -- a QListWidgetItem holds only its final string, unlike a model's data().
+RAW_TEXT_ROLE = Qt.UserRole + 1
 
 
 class ContentFeedPanel(QWidget):
@@ -58,7 +61,9 @@ class ContentFeedPanel(QWidget):
         by = payload.author or payload.subreddit
         label = html.escape(f"[{status}] {by}: ")
         permalink = html.escape(payload.permalink)
-        item = QListWidgetItem(f'{label}<a href="{permalink}">{permalink}</a>')
+        raw = f'{label}<a href="{permalink}">{permalink}</a>'
+        item = QListWidgetItem(get_anonymizer().redact(raw))
+        item.setData(RAW_TEXT_ROLE, raw)
         item.setData(REDDIT_ID_ROLE, payload.reddit_id)
         if not payload.is_new:
             item.setForeground(Qt.gray)
@@ -85,13 +90,17 @@ class ContentFeedPanel(QWidget):
         if payload.reason in reasons:
             return
         reasons.append(payload.reason)
-        base_text = item.data(BASE_TEXT_ROLE)
-        if base_text is None:
-            base_text = item.text()
-            item.setData(BASE_TEXT_ROLE, base_text)
-        badges = "".join(f" [SKIP-{self._reason_word(r)}]" for r in reasons)
-        item.setText(f"{base_text}{badges}")
+        self._render_item(item)
         item.setToolTip("\n".join(reasons))
+
+    def _render_item(self, item: QListWidgetItem):
+        reasons = self._skip_reasons_by_reddit_id.get(item.data(REDDIT_ID_ROLE), [])
+        badges = "".join(f" [SKIP-{self._reason_word(r)}]" for r in reasons)
+        item.setText(f"{get_anonymizer().redact(item.data(RAW_TEXT_ROLE))}{badges}")
+
+    def refresh(self):
+        for row in range(self.list_widget.count()):
+            self._render_item(self.list_widget.item(row))
 
     @staticmethod
     def _reason_word(reason: str) -> str:

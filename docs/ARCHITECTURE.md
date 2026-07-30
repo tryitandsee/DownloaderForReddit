@@ -52,6 +52,14 @@ Log levels map to GUI visibility: `send_debug` is console-only unless debug outp
 
 `Message`/`MessageReceiver` have no Qt dependency at the emission layer (`Message.send*` just puts onto a plain `queue.Queue`) — only the GUI's consumption of `MessageReceiver`'s signals is Qt-specific, so a future headless mode can drain the same queue directly.
 
+### Screenshot mode
+
+`utils/anonymizer.py` holds a process-wide `Anonymizer` toggled by the View menu's checkable "Screenshot Mode" action. It is strictly a display-layer filter: nothing it produces is ever written to the database or `DownloaderForReddit.log`, so a redacted screenshot and the log still describe the same run. Aliases are `f"{prefix}_{id}"` derived from the object's own database id (`user_17`, `sub_4`), which keeps a handle usable for debugging. The same formatter feeds both the list table's Name column and the free-text substitution, so one object reads identically in every panel.
+
+Redaction has three passes, in order: configured save directories and the home directory collapse to `[downloads]`/`[home]` (square brackets because every surface renders its text as HTML, which would swallow an angle-bracket placeholder as an unknown tag); `/r/<x>/` and `/user/<x>/` are rewritten *structurally*, so an author or subreddit that was never promoted to a tracked object still redacts (to `sub_?`/`user_?`) rather than leaking; then a single compiled alternation over tracked names, built longest-first and bounded by `[A-Za-z0-9_-]` lookarounds rather than `\b`, since reddit names may end in a hyphen and sit flush against `/` and `\`. Anchor `href` values are stashed and restored around all three — only the visible link text is redacted, so a redacted `Saved:` line still opens the real file.
+
+Toggling re-renders rather than only affecting new output. `RedditObjectListModel` and `OutputViewModel` build display text inside `data()`, so both just emit `dataChanged`. `ContentFeedPanel` is the exception: its rows are `QListWidgetItem`s holding one baked string, so each keeps its unredacted source in `RAW_TEXT_ROLE` and re-derives from that. The extractor/downloader status tables need nothing — they are rebuilt from live state on a timer.
+
 ### Ambient downloader
 
 Ambient discovery is push-based, not polled: `core/reddit_source.py:BrowserRedditSource` injects a `MutationObserver` into every page in the persistent browser context (via `context.add_init_script()`, which covers every tab including ones the user opens manually — confirmed empirically) that watches for added `<shreddit-post>` elements and reports them to Python via a Playwright binding (`context.expose_function("__dfrPostsFound", ...)`), not a network request.

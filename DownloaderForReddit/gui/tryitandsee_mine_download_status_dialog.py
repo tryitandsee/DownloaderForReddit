@@ -13,6 +13,8 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
+from ..utils.anonymizer import get_anonymizer
+
 
 class DownloadStatusDialog(QWidget):
     def __init__(self, get_runner):
@@ -114,7 +116,10 @@ class DownloadStatusDialog(QWidget):
             downloader = None
             extractor = None
             fetcher_obj = None
-        self.fetcher_object_label.setText(f"Fetcher: {fetcher_obj or 'idle...'}")
+        anonymizer = get_anonymizer()
+        self.fetcher_object_label.setText(
+            f"Fetcher: {anonymizer.redact(str(fetcher_obj)) if fetcher_obj else 'idle...'}"
+        )
 
         if runner is None or downloader is None:
             self.extraction_status_label.setText("Extractor: no active session")
@@ -145,16 +150,20 @@ class DownloadStatusDialog(QWidget):
         for row, (thread, (user, item_id, info)) in enumerate(active_ext.items()):
             short = thread.rsplit("_", 1)[-1] if "_" in thread else thread
             self.extraction_table.setItem(row, 0, QTableWidgetItem(short))
-            self.extraction_table.setItem(row, 1, QTableWidgetItem(user))
+            self.extraction_table.setItem(
+                row, 1, QTableWidgetItem(anonymizer.redact(user))
+            )
             self.extraction_table.setItem(row, 2, QTableWidgetItem(str(item_id)))
-            self.extraction_table.setItem(row, 3, QTableWidgetItem(info))
+            self.extraction_table.setItem(
+                row, 3, QTableWidgetItem(anonymizer.redact(info))
+            )
 
         active = dict(downloader._active_downloads)
         self.thread_table.setRowCount(len(active))
         for row, (thread, (user, content_id, title)) in enumerate(active.items()):
             short = thread.rsplit("_", 1)[-1] if "_" in thread else thread
             self.thread_table.setItem(row, 0, QTableWidgetItem(short))
-            self.thread_table.setItem(row, 1, QTableWidgetItem(user))
+            self.thread_table.setItem(row, 1, QTableWidgetItem(anonymizer.redact(user)))
             self.thread_table.setItem(row, 2, QTableWidgetItem(str(content_id)))
             self.thread_table.setItem(row, 3, QTableWidgetItem(title))
 
