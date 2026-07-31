@@ -16,6 +16,14 @@ _NAME_EDGE_AFTER = r"(?![A-Za-z0-9_-])"
 # common case in the content feed.
 _URL_OWNER_RE = re.compile(r"/(r|user)/([A-Za-z0-9_-]+)", re.IGNORECASE)
 
+# A post permalink carries the subreddit/user name and title slug in plain text -- collapse the
+# whole thing to reddit's own bare-id shorthand (reddit.com/comments/<id> resolves the same as the
+# full URL) rather than redacting the owner and leaving the title slug exposed.
+_PERMALINK_RE = re.compile(
+    r"reddit\.com/(?:r|user)/[^/\s\"<>]+/comments/([A-Za-z0-9]+)(?:/[^\s\"<>]*)?",
+    re.IGNORECASE,
+)
+
 # Every surface displaying these parses its text as HTML, where an angle-bracket placeholder is an
 # unknown tag and renders as nothing.
 _ROOT_PLACEHOLDER = "[downloads]"
@@ -118,6 +126,7 @@ class Anonymizer:
         text = _HREF_RE.sub(stash, text)
         for pattern, placeholder in self._path_res:
             text = pattern.sub(placeholder, text)
+        text = _PERMALINK_RE.sub(r"reddit.com/comments/\1", text)
         text = _URL_OWNER_RE.sub(self._redact_url_owner, text)
         if self._name_re is not None:
             text = self._name_re.sub(
