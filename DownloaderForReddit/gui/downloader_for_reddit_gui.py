@@ -48,7 +48,7 @@ from PyQt5.QtWidgets import (
 from sqlalchemy import func, or_
 
 from ..core.cli import CLI
-from ..core.reddit_source import classify_listing_url
+from ..core.reddit_source import classify_listing_url, to_naive_utc
 from ..core.update_runner import UpdateRunner
 from ..customwidgets.link_cursor_handler import LinkCursorHandler
 from ..database.model_manager import ModelManger
@@ -1795,13 +1795,30 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                         user.set_date_last_download_utc()
                         self.reddit_object_changed.emit()
 
-    def handle_profile_exhausted(self, page_owner):
+    def handle_profile_exhausted(self, page_owner, posts):
         """Called (from a spawned thread, not the GUI thread -- see
         BrowserRedditSource._handle_profile_pagination_response and _dispatch_feed_exhausted) when
         organic browsing has reached the end of a tracked user's submitted listing, either by
         scrolling to Reddit's end-of-feed marker or by the listing rendering an end-of-listing
-        marker without ever needing to scroll. A direct proof of full coverage, unlike the
-        known-post-streak check above."""
+        marker without ever needing to scroll. The marker itself is a direct proof that nothing
+        more will load, unlike the known-post-streak check above -- but it says nothing about
+        whether every post it's rendering has actually been matched and downloaded yet:
+        _match_and_queue_ambient_posts (which creates the Post row) is dispatched on an
+        independent thread with no ordering guarantee against this one, so a post from the exact
+        batch that triggered this marker can still be un-downloaded when this runs. Stamping the
+        checkpoint anyway would tell every future scan of this user it can stop before reaching
+        that post -- permanently. So this checks the posts itself and only stamps once every one
+        of them already has a Post row; otherwise it does nothing and waits for a later visit
+        (fresh navigation resets the injected script's own dedup) or an explicit scan to confirm
+        coverage instead.
+
+        The injected script's marker report has no latch of its own -- it re-reports on every
+        DOM mutation while the marker is present, precisely so a deferred confirm above can
+        retry once the pending download lands. That means this can get called repeatedly for a
+        page that's already fully confirmed (Reddit's own hover cards, vote-state, and lazy media
+        all mutate the DOM). Re-stamping in that case would push the checkpoint to a later "now"
+        than any scan actually verified -- the same class of bug this whole check exists to
+        remove -- so it's skipped whenever the checkpoint already covers every rendered post."""
         try:
             with self.db_handler.get_scoped_session() as session:
                 user = (
@@ -1813,14 +1830,42 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                     )
                     .first()
                 )
-                if user is not None:
-                    user.set_date_last_download_utc()
-                    self.reddit_object_changed.emit()
-                    self._ambient_known_streaks.pop(page_owner.lower(), None)
-                    self.logger.info(
-                        "Ambient confirmed full coverage via end-of-feed",
-                        extra={"page_owner": page_owner},
+                if user is None:
+                    return
+                checkpoint = user.date_last_download_utc
+                if checkpoint is not None and all(
+                    to_naive_utc(post.created) <= checkpoint for post in posts
+                ):
+                    return
+                observed_ids = [post.reddit_id for post in posts]
+                observed_urls = [post.url for post in posts if post.url]
+                known_rows = session.query(Post.reddit_id, Post.url).filter(
+                    or_(
+                        Post.reddit_id.in_(observed_ids),
+                        Post.url.in_(observed_urls),
                     )
+                )
+                known_reddit_ids = {reddit_id for reddit_id, _ in known_rows}
+                known_urls = {url for _, url in known_rows if url}
+                all_known = all(
+                    post.reddit_id in known_reddit_ids
+                    or (post.url and post.url in known_urls)
+                    for post in posts
+                )
+                if not all_known:
+                    self.logger.info(
+                        "Ambient end-of-feed marker seen but not every rendered post is "
+                        "downloaded yet, deferring checkpoint",
+                        extra={"page_owner": page_owner, "observed_count": len(posts)},
+                    )
+                    return
+                user.set_date_last_download_utc()
+                self.reddit_object_changed.emit()
+                self._ambient_known_streaks.pop(page_owner.lower(), None)
+                self.logger.info(
+                    "Ambient confirmed full coverage via end-of-feed",
+                    extra={"page_owner": page_owner},
+                )
         except Exception:
             self.logger.exception("Failed to handle profile-exhausted signal")
 

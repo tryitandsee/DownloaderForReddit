@@ -79,6 +79,8 @@ Ambient browsing confirms coverage of a user (advancing `date_last_download_utc`
 
 Signal 3 exists because a short history never scrolls, so signals 1–2 are unreachable for it. Gated to `/user/<name>/submitted/` specifically — the same markers render on other profile tabs.
 
+Signals 2 and 3 only prove Reddit rendered nothing further, not that every rendered post has a Post row yet -- their dispatch and `_dispatch_posts_found` run on independent daemon threads with no ordering guarantee. So both pass their own freshly-read posts into `handle_profile_exhausted`, which stamps `date_last_download_utc` only once every one of them is already known; otherwise it defers. Signal 3's marker report has no one-shot latch, so a later DOM mutation (e.g. the pending download landing) lets it retry within the same page load; failing that, an explicit scan confirms coverage instead.
+
 **Known limitation**: no scroll/backfill on ambient discovery — it only sees whatever Reddit renders on initial load, so a newly-tracked object only picks up its most recent batch.
 
 All Python-driven Playwright calls go through one single-worker `ThreadPoolExecutor` in `BrowserRedditSource` (thread-bound sync API, and serializes browser activity). Ambient discovery doesn't use this executor — it never blocks on Playwright.
