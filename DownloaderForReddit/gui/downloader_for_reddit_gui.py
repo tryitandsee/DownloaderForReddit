@@ -49,6 +49,7 @@ from PyQt5.QtWidgets import (
 from sqlalchemy import func, or_
 
 from ..core.cli import CLI
+from ..core.reddit_source import classify_listing_url
 from ..core.update_runner import UpdateRunner
 from ..customwidgets.link_cursor_handler import LinkCursorHandler
 from ..database.model_manager import ModelManger
@@ -125,6 +126,12 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     # session, so the table repaints instead of showing stale values until the next download
     # finishes (finished_download_gui_shift is otherwise the only thing that refreshes it).
     reddit_object_changed = pyqtSignal()
+    # Carries a tracked RedditObject's id from handle_ambient_posts (background thread) to
+    # add_to_download (GUI thread) -- fires when the person manually navigates the shared tab
+    # onto a tracked, download-enabled object's submissions listing themselves, so that gets the
+    # same real download an app-initiated click/Download button gives it (see
+    # docs/ARCHITECTURE.md's "Ambient downloader" section).
+    scroll_eligible_navigation = pyqtSignal(int)
 
     def __init__(self, queue, receiver, download_runner):
         """
@@ -153,6 +160,14 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         # Tracks, per tracked username, the current run of consecutive already-known posts seen
         # in DOM order while ambient-browsing their profile -- see _match_and_queue_ambient_posts.
         self._ambient_known_streaks = {}
+        # The url _trigger_scan_if_tracked_listing last triggered a scan for -- the injected
+        # script's MutationObserver re-fires __dfrPostsFound on every batch of newly-rendered
+        # posts, not once per page load (confirmed by reading its debounced scheduleScan/
+        # pushNewPosts, reddit_source.py's _INJECTED_SCRIPT), so scrolling a listing manually
+        # would otherwise queue a fresh full download of the same object on every batch. Only
+        # triggers once per distinct url, the same way _dispatch_feed_exhausted's own
+        # exhaustedUrl guards its report to once per url.
+        self._last_scroll_trigger_url = None
         self.tray_icon_image = QIcon(
             QPixmap("Resources/Images/RedditDownloaderIcon.png").scaled(48, 48)
         )
@@ -412,6 +427,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.shift_download_buttons()
 
         self.ambient_matches_found.connect(self.start_ambient_download)
+        self.scroll_eligible_navigation.connect(self.add_to_download)
         self.reddit_object_changed.connect(self.user_list_model.refresh_session)
 
         # No Remove button: removal lives in the list's context menu, where it can act on the
@@ -428,9 +444,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         )
 
         self.user_list_view.doubleClicked.connect(
-            lambda: self.open_reddit_object_in_browser(
-                self.get_selected_users()[0], "USER"
-            )
+            lambda: self.add_to_download(self.get_selected_users()[0].id)
         )
         self.user_list_view.setEditTriggers(QAbstractItemView.NoEditTriggers)
 
@@ -445,9 +459,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         )
 
         self.subreddit_list_view.doubleClicked.connect(
-            lambda: self.open_reddit_object_in_browser(
-                self.get_selected_subreddits()[0], "SUBREDDIT"
-            )
+            lambda: self.add_to_download(self.get_selected_subreddits()[0].id)
         )
         self.subreddit_list_view.setEditTriggers(QAbstractItemView.NoEditTriggers)
 
@@ -690,13 +702,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             follow_toggle = menu.addAction(
                 follow_text, lambda: self.toggle_followed(follow_ro_ids)
             )
-        # [mine] feat(gui): "Open in Browser" context menu item for users/subreddits -- opens the
-        # profile/subreddit directly in the dedicated account's browser window
-        menu.addAction(
-            "Open in Browser",
-            lambda: self.open_reddit_object_in_browser(ros[0], object_type),
-        )
-
         for action in menu.actions():
             if action != add_object:
                 action.setDisabled(len(ros) <= 0)
@@ -1623,20 +1628,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         }
         self.display_database_dialog(**kwargs)
 
-    # [mine] feat(gui): "Open in Browser" context menu item for users/subreddits -- navigates the
-    # dedicated account's already-open browser window rather than launching a separate, logged-out
-    # system browser. Run off the GUI thread since page.goto() blocks for a second or two.
-    def open_reddit_object_in_browser(self, reddit_object, object_type):
-        if object_type == "USER":
-            url = (
-                f"https://www.reddit.com/user/{reddit_object.name}/submitted/?sort=new"
-            )
-        else:
-            url = f"https://www.reddit.com/r/{reddit_object.name}/new/"
-        threading.Thread(
-            target=injector.get_reddit_source().open_url, args=(url,), daemon=True
-        ).start()
-
     # Ambient extraction: invoked directly by BrowserRedditSource's push callback (see
     # reddit_source.py) whenever the browser reports newly-seen posts -- runs on the local
     # ambient HTTP server's own request-handling thread, not the GUI thread, so it only touches
@@ -1644,11 +1635,41 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     # rather than touching any widget directly. Matches against the tracked+download_enabled
     # list and queues matches for download onto the same standing self.download_runner as
     # explicit downloads.
-    def handle_ambient_posts(self, posts, page_owner):
+    def handle_ambient_posts(self, posts, page_owner, url):
         try:
             self._match_and_queue_ambient_posts(posts, page_owner)
+            self._trigger_scan_if_tracked_listing(url)
         except Exception:
             self.logger.exception("Ambient extraction failed")
+
+    # A scroll-eligible listing (classify_listing_url) renders <shreddit-post> elements by
+    # definition, so this fires on that exact navigation whether the person clicked Download or
+    # typed/clicked the url into the shared tab themselves -- the only case this doesn't cover is
+    # a genuinely empty listing (classify_listing_url never gets a chance to run, since
+    # reddit_source._dispatch_posts_found returns early with zero posts), but that's moot: an
+    # empty listing already confirms its own coverage via handle_profile_exhausted, independent
+    # of scanning. See "Ambient downloader" in docs/ARCHITECTURE.md.
+    def _trigger_scan_if_tracked_listing(self, url):
+        if url == self._last_scroll_trigger_url:
+            return
+        classified = classify_listing_url(url)
+        if classified is None:
+            return
+        name, object_type = classified
+        model = User if object_type == "USER" else Subreddit
+        with self.db_handler.get_scoped_session() as session:
+            reddit_object = (
+                session.query(model)
+                .filter(
+                    func.lower(model.name) == name.lower(),
+                    model.significant == True,
+                    model.download_enabled == True,
+                )
+                .first()
+            )
+            if reddit_object is not None:
+                self._last_scroll_trigger_url = url
+                self.scroll_eligible_navigation.emit(reddit_object.id)
 
     def _match_and_queue_ambient_posts(self, posts, page_owner):
         authors = {post.author.lower() for post in posts}

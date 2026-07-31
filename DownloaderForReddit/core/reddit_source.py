@@ -70,6 +70,7 @@ _PROFILE_MORE_POSTS_RE = re.compile(
 _SUBMITTED_LISTING_URL_RE = re.compile(
     r"^https://www\.reddit\.com/user/([^/?]+)/submitted/"
 )
+_SUBREDDIT_NEW_LISTING_URL_RE = re.compile(r"^https://www\.reddit\.com/r/([^/?]+)/new/")
 
 # How long each pump iteration blocks the Playwright worker thread waiting for CDP messages.
 # Bounds ambient-push latency (a post can wait up to this long for the pump to notice it) and
@@ -249,8 +250,6 @@ class RedditSource(Protocol):
         self, name: str, since: datetime | None = None
     ) -> tuple[list[SubmissionData], bool]: ...
 
-    def iter_home_feed(self) -> list[SubmissionData]: ...  # following-only aggregation
-
     # Combined single-navigation validate + collect, for the initial fetch of a single user/subreddit
     # -- avoids a separate profile-page visit before the submitted/new-listing visit.
     def validate_and_iter_user_submissions(
@@ -280,6 +279,22 @@ def _strip_fullname_prefix(fullname: str) -> str:
 
 def _strip_subreddit_prefix(prefixed_name: str) -> str:
     return re.sub(r"^(r/|u_)", "", prefixed_name)
+
+
+def classify_listing_url(url: str) -> tuple[str, str] | None:
+    """Does this URL match a scroll-eligible submissions listing -- a user's `/submitted/` or a
+    subreddit's `/new/`? Returns (name, object_type) if so, else None. Used both by the
+    app-initiated download navigation and by the GUI to decide whether a *manually* navigated-to
+    page (the injected script's primer fires on every navigation, not just ones this app
+    initiated) should trigger the same scan -- see the "Ambient downloader" section of
+    docs/ARCHITECTURE.md."""
+    match = _SUBMITTED_LISTING_URL_RE.match(url)
+    if match:
+        return match.group(1), "USER"
+    match = _SUBREDDIT_NEW_LISTING_URL_RE.match(url)
+    if match:
+        return match.group(1), "SUBREDDIT"
+    return None
 
 
 def _normalize_reddit_url(url: str) -> str:
@@ -410,7 +425,7 @@ class BrowserRedditSource:
         self._context = None
         self._page = None
         self._on_posts_found: (
-            Callable[[list[SubmissionData], str | None], None] | None
+            Callable[[list[SubmissionData], str | None, str], None] | None
         ) = None
         self._on_rate_limited: Callable[[], None] | None = None
         self._on_profile_exhausted: Callable[[str], None] | None = None
@@ -422,7 +437,7 @@ class BrowserRedditSource:
         # fetches. But it also means an unrelated navigation (e.g. validate_user from an "Add
         # User" dialog, running on its own thread) could slip into one of those gaps and goto the
         # one shared page out from under an in-progress scan. Held for a whole scan, or for one
-        # quick call elsewhere (_validate, _get_post_impl, _collect, _open_url_impl) -- acquired
+        # quick call elsewhere (_validate, _get_post_impl, _open_url_impl) -- acquired
         # by the caller before it ever touches the executor, so a contended wait blocks that
         # caller's own thread, not the executor's worker. _fetch_post_json doesn't navigate (just
         # fetch()es from whatever page is already loaded), so it never needs this lock -- that's
@@ -434,16 +449,22 @@ class BrowserRedditSource:
         # initial page and fires the injected script's primer scan before the GUI exists to
         # register a consumer via set_on_posts_found -- buffer anything that arrives before then
         # and flush it once a consumer registers, rather than silently dropping that first batch
-        # on every app launch. Each buffered entry is one dispatch's (posts, page_owner) --
-        # page_owner varies per push, so entries can't be merged into a single flushed call.
+        # on every app launch. Each buffered entry is one dispatch's (posts, page_owner, url) --
+        # both vary per push, so entries can't be merged into a single flushed call.
         self._pending_posts_lock = threading.Lock()
-        self._pending_posts: list[tuple[list[SubmissionData], str | None]] = []
+        self._pending_posts: list[tuple[list[SubmissionData], str | None, str]] = []
         self._suppress_ambient = threading.Event()
+        # Set around DownloadRunner.run_paced_bulk_download's loop -- see
+        # suppress_bring_to_front. An automated run over many objects, paced minutes apart,
+        # shouldn't keep stealing the tab back into the foreground while the person is doing
+        # something else; a single deliberate click/scan (_goto_and_wait's normal
+        # bring_to_front) should.
+        self._suppress_bring_to_front = threading.Event()
         self._pump_stop = threading.Event()
         self._pump_thread = None
 
     def set_on_posts_found(
-        self, callback: Callable[[list[SubmissionData], str | None], None]
+        self, callback: Callable[[list[SubmissionData], str | None, str], None]
     ):
         """Registered by the GUI (or a future headless consumer) once it's ready to receive
         ambient matches -- set after construction since BrowserRedditSource is created before
@@ -452,8 +473,8 @@ class BrowserRedditSource:
             self._on_posts_found = callback
             pending = self._pending_posts
             self._pending_posts = []
-        for posts, page_owner in pending:
-            callback(posts, page_owner)
+        for posts, page_owner, url in pending:
+            callback(posts, page_owner, url)
 
     def set_on_rate_limited(self, callback: Callable[[], None]):
         """Registered by DownloadRunner to be notified the moment reddit returns a 429, so the
@@ -560,10 +581,10 @@ class BrowserRedditSource:
             )
         with self._pending_posts_lock:
             if self._on_posts_found is None:
-                self._pending_posts.append((posts, page_owner))
+                self._pending_posts.append((posts, page_owner, url))
                 return
             callback = self._on_posts_found
-        callback(posts, page_owner)
+        callback(posts, page_owner, url)
 
     def _handle_feed_exhausted(self, source: dict, marker_id: str) -> None:
         # Same threading reasoning as _handle_posts_found -- may run on the Playwright worker
@@ -680,6 +701,16 @@ class BrowserRedditSource:
             self._suppress_ambient.clear()
 
     @contextmanager
+    def suppress_bring_to_front(self):
+        """Registered by DownloadRunner around run_paced_bulk_download's whole loop -- see
+        _suppress_bring_to_front's definition."""
+        self._suppress_bring_to_front.set()
+        try:
+            yield
+        finally:
+            self._suppress_bring_to_front.clear()
+
+    @contextmanager
     def _locked_page(self, operation: str, target: str):
         """Wraps every self._page_lock acquisition (see its definition) so a contended wait gets
         logged with what was waiting and for how long -- diagnostic for a suspected but unproven
@@ -710,6 +741,13 @@ class BrowserRedditSource:
 
     def _goto_and_wait(self, page: Page, url: str, wait_ms: int) -> None:
         page.goto(url)
+        # Brings the shared tab to the front so a deliberate single-object download is visible
+        # while it runs -- this used to be exclusive to the now-retired "Open in Browser" action
+        # (open_url). Suppressed during an automated run_paced_bulk_download loop (see
+        # suppress_bring_to_front), which shouldn't keep stealing the tab back into the
+        # foreground, paced minutes apart, while the person is doing something else.
+        if not self._suppress_bring_to_front.is_set():
+            page.bring_to_front()
         page.wait_for_timeout(wait_ms)
         # Diagnostic: goto() is expected to leave page.url matching what was requested. If it
         # doesn't (a client-side redirect, or -- suspected -- _get_page() having handed back a
@@ -824,14 +862,6 @@ class BrowserRedditSource:
             )
         return self._page
 
-    def _collect(self, url: str) -> list[SubmissionData]:
-        self._check_should_continue()
-        page = self._get_page()
-        with self._suppressed_ambient():
-            page.goto(url)
-            page.wait_for_timeout(2000)
-            return _read_posts(page)
-
     def _scroll_and_collect(
         self, page: Page, since: datetime | None
     ) -> tuple[list[SubmissionData], bool]:
@@ -935,12 +965,6 @@ class BrowserRedditSource:
         url = f"https://www.reddit.com/r/{name}/new/"
         with self._locked_page("iter_subreddit_submissions", name):
             return self._collect_listing(url, since)
-
-    def iter_home_feed(self) -> list[SubmissionData]:
-        with self._locked_page("iter_home_feed", "-"):
-            return self._executor.submit(
-                self._collect, "https://www.reddit.com/new/"
-            ).result()
 
     def validate_user(self, name: str) -> ValidationResult:
         url = f"https://www.reddit.com/user/{name}/"
@@ -1130,16 +1154,19 @@ class BrowserRedditSource:
             return None
 
     def open_url(self, url: str) -> None:
-        # [mine] feat(core): navigate the dedicated account's browser window to a url -- lets the
-        # GUI open a user/subreddit profile directly (e.g. to click follow manually), rather than
-        # just copying the link for a separate, non-logged-in browser.
+        # [mine] feat(core): navigate the dedicated account's browser window to an arbitrary url --
+        # used by hyperlink_delegate.py for clicking a link in the output log (a permalink, a
+        # "Saved:" file's containing post, etc). Not the same thing as the retired "Open in
+        # Browser" action -- that peeked at a *tracked object's* listing, which now always goes
+        # through a real download instead (see _goto_and_wait's bring_to_front). This is for an
+        # arbitrary, possibly-untracked url the user clicked, so it stays a plain, unsuppressed nav.
         with self._locked_page("open_url", url):
             self._executor.submit(self._open_url_impl, url).result()
 
     def _open_url_impl(self, url: str) -> None:
-        # Deliberately not wrapped in _suppressed_ambient -- unlike the background fetches
-        # above, this navigates the user's own view to a page they asked to look at, so a real
-        # ambient match there is exactly the behavior "browse naturally, get pushed" implies.
+        # Deliberately not wrapped in _suppressed_ambient -- this navigates the user's own view to
+        # a page they asked to look at, so a real ambient match there is exactly the behavior
+        # "browse naturally, get pushed" implies.
         page = self._get_page()
         try:
             page.goto(_normalize_reddit_url(url))
@@ -1148,3 +1175,4 @@ class BrowserRedditSource:
             logger.warning(
                 "Navigation failed opening url", extra={"url": url}, exc_info=True
             )
+

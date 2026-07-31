@@ -17,12 +17,21 @@ def make_runner():
     return runner
 
 
+class FakeRedditSource:
+    @contextmanager
+    def suppress_bring_to_front(self):
+        yield
+
+
 def make_bulk_download_runner():
     """run_paced_bulk_download calls self._pace() between objects -- stubbed here since these
     tests cover which objects get downloaded and in what order, not the queue-drain wait between
-    them (that's test_pace_* below, which needs the real _pace)."""
+    them (that's test_pace_* below, which needs the real _pace). reddit_source is stubbed too --
+    run_paced_bulk_download wraps its loop in reddit_source.suppress_bring_to_front(), which these
+    tests have no business touching either."""
     runner = make_runner()
     runner._pace = lambda: None
+    runner.reddit_source = FakeRedditSource()
     return runner
 
 

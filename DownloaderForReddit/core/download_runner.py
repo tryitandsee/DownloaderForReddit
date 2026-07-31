@@ -530,25 +530,31 @@ class DownloadRunner(QObject):
         total = min(sum(1 for _, obj in objs if eligible(obj)), const.BULK_DOWNLOAD_LIMIT)
 
         downloaded = 0
-        for obj_id, obj in objs:
-            if not self.continue_run or downloaded >= const.BULK_DOWNLOAD_LIMIT:
-                break
-            if obj is None:
-                continue
-            last = obj.date_last_download_utc
-            if last is not None and now - last < cooldown:
-                remaining = cooldown - (now - last)
-                hours, remainder = divmod(int(remaining.total_seconds()), 3600)
-                minutes = remainder // 60
-                Message.send_warning(
-                    f"{obj.name} was downloaded too recently. Try again in "
-                    f"{hours}h {minutes}m or download manually."
-                )
-                continue
-            downloaded += 1
-            get_submissions(obj_id, progress=(downloaded, total))
-            if downloaded < total:
-                self._pace()
+        # Suppressed for this whole loop, not just each navigation -- an automated run over up to
+        # BULK_DOWNLOAD_LIMIT objects, paced BULK_DOWNLOAD_PACE_SECONDS apart, shouldn't keep
+        # yanking the tab back into the foreground while the person is doing something else, the
+        # same focus-stealing ambient mode otherwise exists to avoid. A deliberate single-object
+        # download (add_to_download, or a manual navigation onto a tracked listing) still does.
+        with self.reddit_source.suppress_bring_to_front():
+            for obj_id, obj in objs:
+                if not self.continue_run or downloaded >= const.BULK_DOWNLOAD_LIMIT:
+                    break
+                if obj is None:
+                    continue
+                last = obj.date_last_download_utc
+                if last is not None and now - last < cooldown:
+                    remaining = cooldown - (now - last)
+                    hours, remainder = divmod(int(remaining.total_seconds()), 3600)
+                    minutes = remainder // 60
+                    Message.send_warning(
+                        f"{obj.name} was downloaded too recently. Try again in "
+                        f"{hours}h {minutes}m or download manually."
+                    )
+                    continue
+                downloaded += 1
+                get_submissions(obj_id, progress=(downloaded, total))
+                if downloaded < total:
+                    self._pace()
 
     def _pace(self):
         """Shared pacing primitive: ticks every BULK_DOWNLOAD_PACE_SECONDS, which also acts as
