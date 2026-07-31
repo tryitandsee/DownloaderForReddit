@@ -84,7 +84,9 @@ def test_run_paced_bulk_download_downloads_objects_never_downloaded():
     runner.db = FakeDB(session)
     calls = []
 
-    runner.run_paced_bulk_download(FakeObject, [1, 2], lambda obj_id, progress: calls.append((obj_id, progress)))
+    runner.run_paced_bulk_download(
+        FakeObject, [1, 2], lambda obj_id, progress: calls.append((obj_id, progress))
+    )
 
     assert calls == [(1, (1, 2)), (2, (2, 2))]
 
@@ -95,15 +97,21 @@ def test_run_paced_bulk_download_skips_object_within_cooldown_without_counting_t
     monkeypatch.setattr(download_runner_module, "datetime", _FixedDatetime)
     monkeypatch.setattr(download_runner_module.const, "BULK_DOWNLOAD_LIMIT", 1)
     warnings = []
-    monkeypatch.setattr(Message, "send_warning", lambda message: warnings.append(message))
+    monkeypatch.setattr(
+        Message, "send_warning", lambda message: warnings.append(message)
+    )
 
     runner = make_bulk_download_runner()
-    recently_downloaded = FakeObject(1, "alice", date_last_download_utc=NOW - timedelta(hours=1))
+    recently_downloaded = FakeObject(
+        1, "alice", date_last_download_utc=NOW - timedelta(hours=1)
+    )
     never_downloaded = FakeObject(2, "bob")
     runner.db = FakeDB(FakeSession([recently_downloaded, never_downloaded]))
     calls = []
 
-    runner.run_paced_bulk_download(FakeObject, [1, 2], lambda obj_id, progress: calls.append((obj_id, progress)))
+    runner.run_paced_bulk_download(
+        FakeObject, [1, 2], lambda obj_id, progress: calls.append((obj_id, progress))
+    )
 
     assert calls == [(2, (1, 1))]
     assert len(warnings) == 1
@@ -119,12 +127,18 @@ def test_run_paced_bulk_download_stops_once_cap_reached(monkeypatch):
     runner.db = FakeDB(FakeSession(objects))
     calls = []
 
-    runner.run_paced_bulk_download(FakeObject, [1, 2, 3, 4], lambda obj_id, progress: calls.append((obj_id, progress)))
+    runner.run_paced_bulk_download(
+        FakeObject,
+        [1, 2, 3, 4],
+        lambda obj_id, progress: calls.append((obj_id, progress)),
+    )
 
     assert calls == [(1, (1, 2)), (2, (2, 2))]
 
 
-def test_run_paced_bulk_download_downloads_object_whose_cooldown_has_elapsed(monkeypatch):
+def test_run_paced_bulk_download_downloads_object_whose_cooldown_has_elapsed(
+    monkeypatch,
+):
     monkeypatch.setattr(download_runner_module, "datetime", _FixedDatetime)
 
     runner = make_bulk_download_runner()
@@ -132,7 +146,9 @@ def test_run_paced_bulk_download_downloads_object_whose_cooldown_has_elapsed(mon
     runner.db = FakeDB(FakeSession([long_ago]))
     calls = []
 
-    runner.run_paced_bulk_download(FakeObject, [1], lambda obj_id, progress: calls.append((obj_id, progress)))
+    runner.run_paced_bulk_download(
+        FakeObject, [1], lambda obj_id, progress: calls.append((obj_id, progress))
+    )
 
     assert calls == [(1, (1, 1))]
 
@@ -212,8 +228,14 @@ def test_stop_requested_set_directly_is_seen_without_calling_stop_download():
 
 
 class FakeSubmission:
-    def __init__(self, reddit_id="abc123", url="https://example.com/x", author="alice",
-                 subreddit="pics", permalink="/r/pics/comments/abc123/x/"):
+    def __init__(
+        self,
+        reddit_id="abc123",
+        url="https://example.com/x",
+        author="alice",
+        subreddit="pics",
+        permalink="/r/pics/comments/abc123/x/",
+    ):
         self.reddit_id = reddit_id
         self.url = url
         self.author = author
@@ -262,7 +284,9 @@ def test_queue_submissions_reports_content_found_and_enqueues_new_post(monkeypat
     -- only ambient matches and explicit single-post downloads did, via prepare_submission. Bulk
     downloads must go through the same _finalize_submission "see content, filter, download" step."""
     found = []
-    monkeypatch.setattr(Message, "send_content_found", lambda payload: found.append(payload))
+    monkeypatch.setattr(
+        Message, "send_content_found", lambda payload: found.append(payload)
+    )
 
     runner = make_runner()
     runner.db = FakeDb(existing_post=None)
@@ -283,7 +307,9 @@ def test_queue_submissions_reports_content_found_and_enqueues_new_post(monkeypat
 
 def test_queue_submissions_reports_but_skips_enqueue_for_duplicate_post(monkeypatch):
     found = []
-    monkeypatch.setattr(Message, "send_content_found", lambda payload: found.append(payload))
+    monkeypatch.setattr(
+        Message, "send_content_found", lambda payload: found.append(payload)
+    )
 
     runner = make_runner()
     runner.db = FakeDb(existing_post=object())

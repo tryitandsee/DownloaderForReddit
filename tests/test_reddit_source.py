@@ -3,11 +3,11 @@ from threading import Event
 
 import pytest
 
+from DownloaderForReddit.core import const
 from DownloaderForReddit.core.reddit_source import (
     _END_OF_LISTING_EXPR,
     _EXTRACT_POSTS_EXPR,
     _INJECTED_SCRIPT,
-    _MAX_SCROLL_ITERATIONS,
     BrowserRedditSource,
     StopRequestedError,
 )
@@ -229,11 +229,13 @@ def test_scroll_and_collect_stops_at_the_checkpoint_without_reading_the_whole_li
 
 
 def test_scroll_and_collect_reports_unconfirmed_when_the_scroll_cap_is_hit():
-    page = FakePage([[raw_post(f"t3_{n}")] for n in range(_MAX_SCROLL_ITERATIONS + 2)])
+    page = FakePage(
+        [[raw_post(f"t3_{n}")] for n in range(const.MAX_SCROLL_ITERATIONS + 2)]
+    )
 
     posts, confirmed = BrowserRedditSource()._scroll_and_collect(page, since=None)
 
-    assert (len(posts), confirmed) == (_MAX_SCROLL_ITERATIONS + 1, False)
+    assert (len(posts), confirmed) == (const.MAX_SCROLL_ITERATIONS + 1, False)
 
 
 def test_scroll_and_collect_paces_every_scroll_when_a_pacer_is_registered():
@@ -266,7 +268,9 @@ def test_scroll_and_collect_raises_immediately_when_stop_is_requested():
     previously had no effect until whatever navigation was already in flight finished on its own.
     set_stop_event gives BrowserRedditSource direct, thread-safe access to the same Event the GUI
     sets, checked at the top of every scroll via _check_should_continue."""
-    page = FakePage([[raw_post(f"t3_{n}")] for n in range(_MAX_SCROLL_ITERATIONS + 2)])
+    page = FakePage(
+        [[raw_post(f"t3_{n}")] for n in range(const.MAX_SCROLL_ITERATIONS + 2)]
+    )
     source = BrowserRedditSource()
     stop_requested = Event()
     source.set_stop_event(stop_requested)

@@ -23,6 +23,7 @@ from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page, sync_playwright
 
 from ..messaging.message import FollowStatePayload, Message
+from . import const
 
 PROFILE_DIR = Path(__file__).resolve().parent.parent.parent / "browser_profile"
 REDDIT_BASE_URL = "https://www.reddit.com"
@@ -77,12 +78,9 @@ _SUBREDDIT_NEW_LISTING_URL_RE = re.compile(r"^https://www\.reddit\.com/r/([^/?]+
 # the worst case an explicit-download task queued behind a pump iteration has to wait.
 PUMP_INTERVAL_MS = 500
 
-# How long to wait after each scroll for shreddit to lazy-load the next batch of posts, and how
-# many scrolls to attempt before giving up (see BrowserRedditSource._scroll_and_collect). Reddit
-# empirically stops loading more posts around 12 scrolls for a normal-sized history -- 42 is a
-# safety cap well above that, not the expected normal stopping point.
+# How long to wait after each scroll for shreddit to lazy-load the next batch of posts. The scroll
+# count safety cap itself lives in const.MAX_SCROLL_ITERATIONS.
 _SCROLL_PAUSE_MS = 1500
-_MAX_SCROLL_ITERATIONS = 42
 
 # Consecutive scrolls that each loaded zero new posts before a listing with no end-of-listing
 # marker is treated as finished anyway -- see BrowserRedditSource._scroll_and_collect.
@@ -297,6 +295,16 @@ def classify_listing_url(url: str) -> tuple[str, str] | None:
     return None
 
 
+def _scroll_label(url: str) -> str:
+    """Human-readable label for scroll-status feedback (e.g. "u/foo", "r/bar") -- falls back to
+    the raw url if it's not a recognized listing shape."""
+    classified = classify_listing_url(url)
+    if classified is None:
+        return url
+    name, object_type = classified
+    return f"{'u' if object_type == 'USER' else 'r'}/{name}"
+
+
 def _normalize_reddit_url(url: str) -> str:
     """Rewrite any reddit domain variant (old./np./amp./m.reddit.com, bare reddit.com) to
     www.reddit.com, since only shreddit renders <shreddit-post>."""
@@ -499,7 +507,9 @@ class BrowserRedditSource:
         separate one for "between objects" and another for "within one object's scroll"."""
         self._scroll_pacer = callback
 
-    def set_on_posts_collected(self, callback: Callable[[list[SubmissionData]], None] | None):
+    def set_on_posts_collected(
+        self, callback: Callable[[list[SubmissionData]], None] | None
+    ):
         """Registered by DownloadRunner around a single explicit scan (get_validated_submissions),
         not for the app's lifetime like set_scroll_pacer above -- it closes over the reddit_object
         being downloaded, which only exists for that one call. Called from _scroll_and_collect
@@ -858,7 +868,8 @@ class BrowserRedditSource:
                 else self._context.new_page()
             )
             logger.info(
-                "Replaced closed/missing page", extra={"selected_tab_url": self._page.url}
+                "Replaced closed/missing page",
+                extra={"selected_tab_url": self._page.url},
             )
         return self._page
 
@@ -901,29 +912,52 @@ class BrowserRedditSource:
             page.wait_for_timeout(_SCROLL_PAUSE_MS)
             return _read_posts(page), _listing_ended(page), page.url
 
-        initial_posts, ended, _url = self._run(read_state)
+        initial_posts, ended, url = self._run(read_state)
+        label = _scroll_label(url)
         collected: dict[str, SubmissionData] = {
             post.reddit_id: post for post in initial_posts
         }
         if collected and self._on_posts_collected is not None:
             self._on_posts_collected(list(collected.values()))
-        if reached_checkpoint(list(collected.values())) or ended:
+        if ended:
+            Message.send_scroll_status(
+                f"{label}: end-of-listing marker present, no scroll needed"
+            )
+            return list(collected.values()), True
+        if reached_checkpoint(list(collected.values())):
+            Message.send_scroll_status(f"{label}: already caught up, no scroll needed")
             return list(collected.values()), True
         empty_scrolls = 0
-        for _ in range(_MAX_SCROLL_ITERATIONS):
-            self._check_should_continue()
-            if self._scroll_pacer is not None:
-                self._scroll_pacer()
-                # The pacer can block for a while (queue-drain wait) -- re-check in case a 429 or
-                # a Stop landed during it rather than scrolling into a listing we shouldn't.
+        for idx in range(const.MAX_SCROLL_ITERATIONS):
+            try:
                 self._check_should_continue()
+                if self._scroll_pacer is not None:
+                    self._scroll_pacer()
+                    # The pacer can block for a while (queue-drain wait) -- re-check in case a
+                    # 429 or a Stop landed during it rather than scrolling into a listing we
+                    # shouldn't.
+                    self._check_should_continue()
+            except (RateLimitedError, StopRequestedError) as e:
+                Message.send_scroll_status(f"{label}: scroll stopped -- {e}")
+                raise
+            Message.send_scroll_status(
+                f"{label}: scrolling ({idx + 1}/{const.MAX_SCROLL_ITERATIONS})..."
+            )
             batch, ended, url = self._run(scroll_and_read)
             new_posts = [post for post in batch if post.reddit_id not in collected]
             for post in new_posts:
                 collected[post.reddit_id] = post
             if new_posts and self._on_posts_collected is not None:
                 self._on_posts_collected(new_posts)
-            if ended or reached_checkpoint(new_posts):
+            if ended:
+                Message.send_scroll_status(
+                    f"{label}: reached end-of-listing marker, stopping"
+                )
+                return list(collected.values()), True
+            if reached_checkpoint(new_posts):
+                Message.send_scroll_status(
+                    f"{label}: reached previously-downloaded posts, stopping"
+                )
                 return list(collected.values()), True
             if new_posts:
                 empty_scrolls = 0
@@ -934,7 +968,11 @@ class BrowserRedditSource:
                     "Listing scan stopping without an end-of-listing marker",
                     extra={"url": url, "collected": len(collected)},
                 )
+                Message.send_scroll_status(
+                    f"{label}: no new posts after {empty_scrolls} scrolls, stopping"
+                )
                 return list(collected.values()), True
+        Message.send_scroll_status(f"{label}: hit scroll safety cap, giving up")
         return list(collected.values()), False
 
     def _collect_listing(
@@ -1175,4 +1213,3 @@ class BrowserRedditSource:
             logger.warning(
                 "Navigation failed opening url", extra={"url": url}, exc_info=True
             )
-

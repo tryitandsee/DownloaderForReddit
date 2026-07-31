@@ -39,6 +39,14 @@ TIMEOUT_INCREMENT = 0.25
 RATE_LIMIT_DOC_URL = "https://github.com/MalloyDelacroix/DownloaderForReddit/wiki/The-Ongoing-Impact-of-Reddits-API-Rate-Limits"
 
 # [mine] feat(core): bulk "download N users/subreddits" pacing. TODO move to settings
-BULK_DOWNLOAD_LIMIT = 20  # objects actually downloaded per bulk run, excluding cooldown skips
-BULK_DOWNLOAD_COOLDOWN_HOURS = 12  # skip an object whose date_last_download_utc is within this window
-BULK_DOWNLOAD_PACE_SECONDS = 10  # poll tick between objects; also the queue-drain check interval
+# objects actually downloaded per bulk run, excluding cooldown skips
+BULK_DOWNLOAD_LIMIT = 20
+# skip an object whose date_last_download_utc is within this window
+BULK_DOWNLOAD_COOLDOWN_HOURS = 12
+# poll tick between objects; also the queue-drain check interval
+BULK_DOWNLOAD_PACE_SECONDS = 5
+
+# Safety cap on scroll iterations per listing scan (see BrowserRedditSource._scroll_and_collect).
+# Reddit empirically stops loading more posts around 25 scrolls for a normal-sized history -- 42
+# is well above that, not the expected normal stopping point.
+MAX_SCROLL_ITERATIONS = 42

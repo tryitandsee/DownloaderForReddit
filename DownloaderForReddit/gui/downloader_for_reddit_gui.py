@@ -26,7 +26,6 @@ import io
 import logging
 import os
 import platform
-import threading
 from datetime import datetime
 
 from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
@@ -1097,6 +1096,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     def handle_content_found(self, message):
         if message.message_type == MessageType.CONTENT_SKIPPED:
             self.content_feed_panel.mark_skipped(message.payload)
+        elif message.message_type == MessageType.SCROLL_STATUS:
+            self.content_feed_panel.add_status(message.payload.text)
         elif self.content_feed_store.add(message.payload):
             self.content_feed_panel.add_entry(message.payload)
 
@@ -1423,9 +1424,13 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     def delete_reddit_objects(self, reddit_objects, delete_files):
         if len(reddit_objects) == 1:
-            count_text = f'{reddit_objects[0].object_type.lower()} "{reddit_objects[0].name}"'
+            count_text = (
+                f'{reddit_objects[0].object_type.lower()} "{reddit_objects[0].name}"'
+            )
         else:
-            count_text = f"{len(reddit_objects)} {reddit_objects[0].object_type.lower()}s"
+            count_text = (
+                f"{len(reddit_objects)} {reddit_objects[0].object_type.lower()}s"
+            )
         text = (
             f"Are you sure you want to permanently delete {count_text} from the database?\n"
             f"This action cannot be undone."
@@ -1744,7 +1749,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                     # listing, so a run of them sitting at the top of a fresh profile visit would
                     # falsely confirm coverage without scrolling at all. Only a post already
                     # covered by the *prior* confirmed checkpoint proves the boundary was reached.
-                    known_rows = session.query(Post.reddit_id, Post.url, Post.date_posted).filter(
+                    known_rows = session.query(
+                        Post.reddit_id, Post.url, Post.date_posted
+                    ).filter(
                         or_(
                             Post.reddit_id.in_(observed_ids),
                             Post.url.in_(observed_urls),

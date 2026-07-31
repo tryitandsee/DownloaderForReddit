@@ -15,6 +15,7 @@ class MessageType(Enum):
     CONTENT_FOUND = 6
     FOLLOW_STATE_CHANGED = 7
     CONTENT_SKIPPED = 8
+    SCROLL_STATUS = 9
 
 
 @dataclass
@@ -32,6 +33,13 @@ class ContentFoundPayload:
 class FollowStatePayload:
     username: str
     followed: bool
+
+
+@dataclass
+class ScrollStatusPayload:
+    # Free text (e.g. "Scrolling u/name (3/42)...") rather than a code -- this is a transient
+    # progress line in the content feed, not something any caller branches on.
+    text: str
 
 
 @dataclass
@@ -64,6 +72,7 @@ class Message:
         payload: ContentFoundPayload
         | FollowStatePayload
         | ContentSkippedPayload
+        | ScrollStatusPayload
         | None = None,
     ):
         self.message_type = message_type
@@ -84,6 +93,7 @@ class Message:
         payload: ContentFoundPayload
         | FollowStatePayload
         | ContentSkippedPayload
+        | ScrollStatusPayload
         | None = None,
     ) -> None:
         m = cls(message_type, message, priority, payload)
@@ -124,6 +134,10 @@ class Message:
     @classmethod
     def send_content_skipped(cls, payload: ContentSkippedPayload) -> None:
         cls.send(MessageType.CONTENT_SKIPPED, payload=payload)
+
+    @classmethod
+    def send_scroll_status(cls, text: str) -> None:
+        cls.send(MessageType.SCROLL_STATUS, payload=ScrollStatusPayload(text))
 
     @classmethod
     def send_extraction_error(cls, message: str):

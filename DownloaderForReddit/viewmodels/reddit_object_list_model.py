@@ -507,7 +507,10 @@ class RedditObjectListModel(QAbstractTableModel):
                 if role == Qt.ToolTipRole:
                     field = self.columns[index.column()]
                     reddit_object = self.reddit_objects[row]
-                    if self.settings_manager.relative_time_display and field == "last_download":
+                    if (
+                        self.settings_manager.relative_time_display
+                        and field == "last_download"
+                    ):
                         return self._last_download_tooltip(reddit_object)
                     return self.set_tooltips(reddit_object)
                 if role == Qt.UserRole:

@@ -502,7 +502,9 @@ class DownloadRunner(QObject):
                 self.filter_subreddits = True
                 self.validate_subreddit_list()
             if self.user_id_list is not None:
-                self.run_paced_bulk_download(User, self.user_id_list, self.get_user_submissions)
+                self.run_paced_bulk_download(
+                    User, self.user_id_list, self.get_user_submissions
+                )
             else:
                 self.run_paced_bulk_download(
                     Subreddit, self.subreddit_id_list, self.get_subreddit_submissions
@@ -519,7 +521,9 @@ class DownloadRunner(QObject):
         cooldown = timedelta(hours=const.BULK_DOWNLOAD_COOLDOWN_HOURS)
         now = datetime.now(UTC).replace(tzinfo=None)
         with self.db.get_scoped_session() as session:
-            objs = [(obj_id, session.query(model_class).get(obj_id)) for obj_id in id_list]
+            objs = [
+                (obj_id, session.query(model_class).get(obj_id)) for obj_id in id_list
+            ]
 
         def eligible(obj):
             if obj is None:
@@ -527,7 +531,9 @@ class DownloadRunner(QObject):
             last = obj.date_last_download_utc
             return last is None or now - last >= cooldown
 
-        total = min(sum(1 for _, obj in objs if eligible(obj)), const.BULK_DOWNLOAD_LIMIT)
+        total = min(
+            sum(1 for _, obj in objs if eligible(obj)), const.BULK_DOWNLOAD_LIMIT
+        )
 
         downloaded = 0
         # Suppressed for this whole loop, not just each navigation -- an automated run over up to
@@ -733,7 +739,9 @@ class DownloadRunner(QObject):
                 .first()
             )
             if object_type[0] == "USER":
-                self.get_user_submissions(reddit_object_id, session=session, progress=progress)
+                self.get_user_submissions(
+                    reddit_object_id, session=session, progress=progress
+                )
             else:
                 self.get_subreddit_submissions(
                     reddit_object_id, session=session, progress=progress

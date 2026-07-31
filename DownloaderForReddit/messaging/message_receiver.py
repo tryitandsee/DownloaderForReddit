@@ -31,6 +31,7 @@ class MessageReceiver(QObject):
                     if message.message_type in (
                         MessageType.CONTENT_FOUND,
                         MessageType.CONTENT_SKIPPED,
+                        MessageType.SCROLL_STATUS,
                     ):
                         self.content_output.emit(message)
                     elif message.message_type == MessageType.FOLLOW_STATE_CHANGED:

@@ -67,11 +67,24 @@ class ContentFeedPanel(QWidget):
         item.setData(REDDIT_ID_ROLE, payload.reddit_id)
         if not payload.is_new:
             item.setForeground(Qt.gray)
+        self._append_item(item)
+        self._items_by_reddit_id[payload.reddit_id] = item
+
+    def add_status(self, text: str):
+        # Not tied to a reddit_id, but the label (u/name, r/name) still needs redaction like
+        # any other row -- RAW_TEXT_ROLE lets refresh() re-render it if Screenshot Mode toggles
+        # later.
+        raw = html.escape(text)
+        item = QListWidgetItem(get_anonymizer().redact(raw))
+        item.setData(RAW_TEXT_ROLE, raw)
+        item.setForeground(Qt.darkGray)
+        self._append_item(item)
+
+    def _append_item(self, item: QListWidgetItem):
         bar = self.list_widget.verticalScrollBar()
         pos, max_ = bar.value(), bar.maximum()
         at_bottom = max_ == 0 or pos == max_ or (pos / max_) * 100 >= 96
         self.list_widget.addItem(item)
-        self._items_by_reddit_id[payload.reddit_id] = item
         while self.list_widget.count() > MAX_ROWS:
             evicted = self.list_widget.takeItem(0)
             self._items_by_reddit_id.pop(evicted.data(REDDIT_ID_ROLE), None)
