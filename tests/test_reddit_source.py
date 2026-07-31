@@ -269,6 +269,20 @@ def test_scroll_and_collect_stops_at_the_checkpoint_without_reading_the_whole_li
     assert (len(posts), confirmed, page.scrolls) == (2, True, 1)
 
 
+def test_scroll_and_collect_keeps_scrolling_past_an_out_of_order_old_post():
+    # shreddit's render order isn't guaranteed strictly newest-first (pinned posts, promoted/
+    # resurfaced items) -- an old post sitting ahead of a still-undiscovered new one in the same
+    # batch must not be read as "reached the checkpoint, nothing left to find".
+    since = POST_TIME.replace(tzinfo=None)
+    old_post = raw_post("t3_1ug7l94", created=POST_TIME - timedelta(days=1))
+    new_post = raw_post("t3_1ug7iba", created=POST_TIME + timedelta(days=1))
+    page = FakePage([[old_post, new_post]], ended_after=1)
+
+    posts, confirmed = BrowserRedditSource()._scroll_and_collect(page, since=since)
+
+    assert (len(posts), confirmed, page.scrolls) == (2, True, 1)
+
+
 def test_scroll_and_collect_reports_unconfirmed_when_the_scroll_cap_is_hit():
     page = FakePage(
         [[raw_post(f"t3_{n}")] for n in range(const.MAX_SCROLL_ITERATIONS + 2)]

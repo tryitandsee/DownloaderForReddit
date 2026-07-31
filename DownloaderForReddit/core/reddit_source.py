@@ -959,9 +959,17 @@ class BrowserRedditSource:
         """
 
         def reached_checkpoint(posts: list[SubmissionData]) -> bool:
-            if since is None:
+            # Every post, not any: shreddit's render order isn't guaranteed strictly
+            # newest-first (pinned posts, promoted/resurfaced items), so a single old-dated post
+            # anywhere in a batch used to prove nothing about the rest of it -- it could sit ahead
+            # of posts that are still genuinely undiscovered. An explicit scan can scroll, so it
+            # can prove the boundary instead of guessing at it: only stop once nothing in the
+            # batch is still newer than the checkpoint. `not posts` guards a lazy-load stall (an
+            # empty batch) from vacuously satisfying all() and confirming coverage too early --
+            # the empty_scrolls fallback below is what's supposed to catch that case instead.
+            if since is None or not posts:
                 return False
-            return any(to_naive_utc(post.created) <= since for post in posts)
+            return all(to_naive_utc(post.created) <= since for post in posts)
 
         def read_state():
             return _read_posts(page), _listing_ended(page), page.url
