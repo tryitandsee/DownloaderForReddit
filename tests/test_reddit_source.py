@@ -47,7 +47,9 @@ SUBREDDIT_LISTING_URL = "https://www.reddit.com/r/example_subreddit/new/"
 
 def make_source(calls):
     source = BrowserRedditSource()
-    source.set_on_profile_exhausted(calls.append)
+    source.set_on_profile_exhausted(
+        lambda page_owner, posts: calls.append((page_owner, posts))
+    )
     return source
 
 
@@ -104,9 +106,11 @@ def test_dispatch_feed_exhausted_confirms_coverage_of_the_submitted_listing():
     source._dispatch_feed_exhausted(
         SUBMITTED_LISTING_URL,
         "end-of-feed-tracker",
+        [raw_post("t3_1ug7l94")],
     )
 
-    assert calls == ["example_user"]
+    assert [page_owner for page_owner, _ in calls] == ["example_user"]
+    assert [post.reddit_id for post in calls[0][1]] == ["1ug7l94"]
 
 
 def test_dispatch_feed_exhausted_confirms_coverage_of_a_profile_with_no_visible_posts():
@@ -116,9 +120,10 @@ def test_dispatch_feed_exhausted_confirms_coverage_of_a_profile_with_no_visible_
     source._dispatch_feed_exhausted(
         SUBMITTED_LISTING_URL,
         "empty-feed-content",
+        [],
     )
 
-    assert calls == ["example_user"]
+    assert calls == [("example_user", [])]
 
 
 def test_dispatch_feed_exhausted_ignores_other_tabs_of_the_same_profile():
@@ -131,7 +136,7 @@ def test_dispatch_feed_exhausted_ignores_other_tabs_of_the_same_profile():
         "https://www.reddit.com/user/example_user/upvoted/",
         SUBREDDIT_LISTING_URL,
     ):
-        source._dispatch_feed_exhausted(url, "end-of-feed-tracker")
+        source._dispatch_feed_exhausted(url, "end-of-feed-tracker", [])
 
     assert calls == []
 
@@ -144,7 +149,43 @@ def test_dispatch_feed_exhausted_ignores_a_marker_seen_during_explicit_navigatio
         source._dispatch_feed_exhausted(
             SUBMITTED_LISTING_URL,
             "end-of-feed-tracker",
+            [],
         )
+
+    assert calls == []
+
+
+def test_dispatch_profile_pagination_exhausted_confirms_coverage_of_rendered_posts():
+    calls = []
+    source = make_source(calls)
+    page = FakePage([[raw_post("t3_1ug7l94")]])
+
+    source._dispatch_profile_pagination_exhausted(page)
+
+    assert [page_owner for page_owner, _ in calls] == ["example_user"]
+    assert [post.reddit_id for post in calls[0][1]] == ["1ug7l94"]
+
+
+def test_dispatch_profile_pagination_exhausted_skips_a_stale_empty_read():
+    # Unlike signal 3's empty-feed-content, an empty read here means the read raced the page
+    # rather than a genuinely empty profile (a pagination response only fires because more posts
+    # were loading) -- confirming coverage over it would be the exact premature confirm this
+    # check exists to prevent.
+    calls = []
+    source = make_source(calls)
+    page = FakePage([[]])
+
+    source._dispatch_profile_pagination_exhausted(page)
+
+    assert calls == []
+
+
+def test_dispatch_profile_pagination_exhausted_skips_a_page_that_navigated_elsewhere():
+    calls = []
+    source = make_source(calls)
+    page = FakePage([[raw_post("t3_1ug7l94")]], url=SUBREDDIT_LISTING_URL)
+
+    source._dispatch_profile_pagination_exhausted(page)
 
     assert calls == []
 

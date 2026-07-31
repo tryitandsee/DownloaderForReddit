@@ -2,9 +2,7 @@ import logging
 import re
 from queue import Queue
 
-import prawcore.exceptions
 from bs4 import BeautifulSoup, SoupStrainer
-from praw.models import Submission
 from sqlalchemy.orm.session import Session
 
 from ..database.models import Post
@@ -15,8 +13,8 @@ from ..extractors.self_post_extractor import SelfPostExtractor
 from ..messaging.message import ContentSkippedPayload, Message
 from ..utils import injector
 from . import const
-from .comment_handler import CommentHandler
 from .errors import Error
+from .reddit_source import SubmissionData
 from .runner import Runner, verify_run
 
 # [mine] fix(submission_handler): skip subreddit/post permalinks instead of failing extraction as an
@@ -33,7 +31,7 @@ REDDIT_LINK_RE = re.compile(
 class SubmissionHandler(Runner):
     def __init__(
         self,
-        submission: Submission | None,
+        submission: SubmissionData | None,
         post: Post,
         download_session_id: int,
         session: Session,
@@ -90,35 +88,15 @@ class SubmissionHandler(Runner):
 
     @verify_run
     def extract_comments(self):
-        # Comment extraction is PRAW-tree-walking end to end and stays that way indefinitely (not
-        # ported to the browser source). self.submission is no longer a live PRAW object for
-        # browser-discovered posts, so CommentHandler would crash rather than silently do nothing
-        # if allowed through.
-        if not isinstance(self.submission, Submission):
-            self.logger.debug(
-                "Skipping comment extraction: not yet implemented for the browser-based source",
-                extra={"post_id": self.post.id},
-            )
-            return
-        comment_handler = CommentHandler(
-            self.submission,
-            self.post,
-            self.download_session_id,
-            self.stop_run,
-            self.session,
+        # TODO: reimplement against the browser source instead of praw. Reddit's API is gone, but
+        # a signed-out /user/<name>/comments/?sort=new page still renders a flat "new comments"
+        # feed the same way BrowserRedditSource already scrapes submission listings -- see
+        # docs/ARCHITECTURE.md. SubmittableCreator/CommentExtractor still take plain values, so a
+        # browser-scraped comment writes through them unchanged.
+        self.logger.debug(
+            "Skipping comment extraction: not yet implemented for the browser-based source",
+            extra={"post_id": self.post.id},
         )
-        comment_handler.run()
-        for comment in comment_handler.comments_to_download:
-            self.download_comment(comment)
-        for comment in comment_handler.comments_to_extract_links:
-            self.extract_text_links(
-                comment.body_html,
-                comment=comment,
-                user=comment.author,
-                subreddit=comment.subreddit,
-                significant_reddit_object=self.post.significant_reddit_object,
-                creation_date=comment.date_posted,
-            )
 
     @verify_run
     def download_comment(self, comment):
@@ -228,8 +206,6 @@ class SubmissionHandler(Runner):
             self.handle_unsupported_domain()
         elif isinstance(exception, ConnectionError):
             self.handle_connection_error()
-        elif isinstance(exception, prawcore.exceptions.TooManyRequests):
-            self.handle_too_many_requests_error()
         else:
             self.handle_unknown_error()
 
@@ -244,16 +220,6 @@ class SubmissionHandler(Runner):
         self.log_error(message, **kwargs)
         self.post.set_extraction_failed(Error.CONNECTION_ERROR, message)
         self.output_error(message, **kwargs)
-
-    def handle_too_many_requests_error(self, **kwargs):
-        message = "Reddit rate limit reached"
-        self.log_error(message, **kwargs)
-        self.post.set_extraction_failed(Error.RATE_LIMIT_ERROR, message)
-        output_message = (
-            f"{message}\nFor more information about this error, please see the link below\n"
-            f"{const.RATE_LIMIT_DOC_URL}"
-        )
-        self.output_error(output_message, **kwargs)
 
     def handle_unknown_error(self, **kwargs):
         message = "Unknown error occurred"

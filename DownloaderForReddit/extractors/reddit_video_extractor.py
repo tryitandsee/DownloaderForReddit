@@ -28,7 +28,7 @@ from typing import ClassVar
 import requests
 
 from ..core.errors import Error
-from ..utils import reddit_utils, video_merger
+from ..utils import video_merger
 from .base_extractor import BaseExtractor
 
 
@@ -38,30 +38,10 @@ class RedditVideoExtractor(BaseExtractor):
     def __init__(self, post, **kwargs):
         super().__init__(post, **kwargs)
         self.post = post
-        self.host_vid = self.get_host_vid()
+        self.host_vid = self.submission
         self.url = None
         self.audio_url = None
         self.get_vid_url()
-
-    def get_host_vid(self):
-        """
-        Finds the actual submission that holds the video file to be extracted.  If the post is the original post that
-        the video was uploaded to, then None is returned.  If the post is a crosspost from another location,
-        the parent crosspost is returned as it is the post which holds the full video information.
-        :return: The top level post which holds the video information to be downloaded if the supplied post is a
-                 crosspost, otherwise None.
-        """
-        if hasattr(self.submission, "crosspost_parent"):
-            try:
-                r = reddit_utils.get_reddit_instance()
-                parent_submission = r.submission(
-                    self.submission.crosspost_parrent.split("_")[1]
-                )
-                parent_submission.title  # noqa: B018 -- fetch info from server to load submission
-                return parent_submission
-            except AttributeError:
-                pass
-        return self.submission
 
     def get_vid_url(self):
         """

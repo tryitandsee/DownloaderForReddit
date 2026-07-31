@@ -73,8 +73,6 @@ def check_hold(method):
 
 class DatabaseDialog(QWidget, Ui_DatabaseDialog):
     download_signal = pyqtSignal(list)
-    update_post_score_signal = pyqtSignal(list)
-    update_post_comments_signal = pyqtSignal(list)
 
     def __init__(self, save_settings=False, **setup_kwargs):
         """
@@ -823,11 +821,6 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
         )
 
         menu.addSeparator()
-        update_score = menu.addAction("Update Score", self.update_post_scores)
-        update_comments = menu.addAction(
-            "Fetch New Comments", self.update_post_comments
-        )
-        menu.addSeparator()
         menu.addAction("Export All Posts", self.export_all_posts)
         menu.addAction("Export Selected Posts", self.export_selected_posts)
         menu.addSeparator()
@@ -842,20 +835,12 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
         menu.addAction("Select All", lambda: self.post_table_view.selectAll())
 
         open_post.setDisabled(post is None)
-        update_score.setDisabled(post is None)
-        update_comments.setDisabled(post is None)
         menu.exec_(QCursor.pos())
 
     def copy_to_clipboard(self, text):
         cb = QApplication.clipboard()
         cb.clear(mode=cb.Clipboard)
         cb.setText(text)
-
-    def update_post_scores(self):
-        self.update_post_score_signal.emit(self.current_post_id)
-
-    def update_post_comments(self):
-        self.update_post_comments_signal.emit(self.current_post_id)
 
     def export_all_posts(self):
         self.export_posts(self.get_post_data().all())

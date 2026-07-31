@@ -48,8 +48,7 @@ from PyQt5.QtWidgets import (
 from sqlalchemy import func, or_
 
 from ..core.cli import CLI
-from ..core.reddit_source import classify_listing_url
-from ..core.update_runner import UpdateRunner
+from ..core.reddit_source import classify_listing_url, to_naive_utc
 from ..customwidgets.link_cursor_handler import LinkCursorHandler
 from ..database.model_manager import ModelManger
 from ..database.models import (
@@ -1027,56 +1026,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         """
         self.run(user_id_list=None, sub_id_list=None, reddit_object_id_list=args)
 
-    def update_post_scores(self, post_id_list):
-        post_count = len(post_id_list)
-        if post_count < 200 or self.large_post_update_alert(post_count):
-            self.update_runner = UpdateRunner(
-                run_method="UPDATE_SCORES", post_id_list=post_id_list
-            )
-            self.run_update(self.update_runner)
-
-    def fetch_new_post_comments(self, post_id_list):
-        post_count = len(post_id_list)
-        if post_count < 200 or self.large_post_update_alert(post_count):
-            self.update_runner = UpdateRunner(
-                run_method="UPDATE_COMMENTS", post_id_list=post_id_list
-            )
-            self.run_update(self.update_runner)
-
-    def large_post_update_alert(self, count):
-        """
-        Alerts the user when a large number of posts are about to be updated and asks if they want to proceed.  The
-        answer to that question is returned.  The settings manager is checked before displaying the dialog to see if
-        the ignore flag for this dialog is set.  If it is set to be ignored, True is always returned.
-        :param count: The number of posts that are about to be updated.  Supplied so it can be displayed to the user.
-        :return: True if the update action should proceed, False if it should not.
-        """
-        if self.settings_manager.large_post_update_warning:
-            accepted, do_not_show = message_dialogs.optional_question_dialog(
-                self,
-                "Update Posts?",
-                f"There are {f'{count:,}'} posts in this selection to be updated.  It "
-                f"could take a while to update this many posts.\n\n"
-                f"Are you sure you want to proceed?",
-            )
-            self.settings_manager.large_post_update_warning = not do_not_show
-            return accepted
-        return True
-
-    def run_update(self, update_runner):
-        self.update_check_thread = QThread()
-        update_runner.moveToThread(self.update_check_thread)
-        self.stop_download_signal.connect(update_runner.stop)
-        update_runner.finished.connect(self.update_check_thread.quit)
-        update_runner.finished.connect(self.update_runner.deleteLater)
-        self.update_check_thread.finished.connect(self.update_check_thread.deleteLater)
-        self.update_check_thread.finished.connect(self.finish_update)
-        self.update_check_thread.started.connect(update_runner.run)
-        self.update_check_thread.start()
-
-    def finish_update(self):
-        pass
-
     def toggle_screenshot_mode(self, enabled):
         get_anonymizer().set_enabled(enabled)
         self.user_list_model.refresh()
@@ -1512,10 +1461,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         dialog to be used by the caller.
         """
         database_dialog = DatabaseDialog(**kwargs)
-        database_dialog.update_post_score_signal.connect(self.update_post_scores)
-        database_dialog.update_post_comments_signal.connect(
-            self.fetch_new_post_comments
-        )
         database_dialog.show()
 
     def open_database_view_dialog(self):
@@ -1795,13 +1740,30 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                         user.set_date_last_download_utc()
                         self.reddit_object_changed.emit()
 
-    def handle_profile_exhausted(self, page_owner):
+    def handle_profile_exhausted(self, page_owner, posts):
         """Called (from a spawned thread, not the GUI thread -- see
         BrowserRedditSource._handle_profile_pagination_response and _dispatch_feed_exhausted) when
         organic browsing has reached the end of a tracked user's submitted listing, either by
         scrolling to Reddit's end-of-feed marker or by the listing rendering an end-of-listing
-        marker without ever needing to scroll. A direct proof of full coverage, unlike the
-        known-post-streak check above."""
+        marker without ever needing to scroll. The marker itself is a direct proof that nothing
+        more will load, unlike the known-post-streak check above -- but it says nothing about
+        whether every post it's rendering has actually been matched and downloaded yet:
+        _match_and_queue_ambient_posts (which creates the Post row) is dispatched on an
+        independent thread with no ordering guarantee against this one, so a post from the exact
+        batch that triggered this marker can still be un-downloaded when this runs. Stamping the
+        checkpoint anyway would tell every future scan of this user it can stop before reaching
+        that post -- permanently. So this checks the posts itself and only stamps once every one
+        of them already has a Post row; otherwise it does nothing and waits for a later visit
+        (fresh navigation resets the injected script's own dedup) or an explicit scan to confirm
+        coverage instead.
+
+        The injected script's marker report has no latch of its own -- it re-reports on every
+        DOM mutation while the marker is present, precisely so a deferred confirm above can
+        retry once the pending download lands. That means this can get called repeatedly for a
+        page that's already fully confirmed (Reddit's own hover cards, vote-state, and lazy media
+        all mutate the DOM). Re-stamping in that case would push the checkpoint to a later "now"
+        than any scan actually verified -- the same class of bug this whole check exists to
+        remove -- so it's skipped whenever the checkpoint already covers every rendered post."""
         try:
             with self.db_handler.get_scoped_session() as session:
                 user = (
@@ -1813,14 +1775,42 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                     )
                     .first()
                 )
-                if user is not None:
-                    user.set_date_last_download_utc()
-                    self.reddit_object_changed.emit()
-                    self._ambient_known_streaks.pop(page_owner.lower(), None)
-                    self.logger.info(
-                        "Ambient confirmed full coverage via end-of-feed",
-                        extra={"page_owner": page_owner},
+                if user is None:
+                    return
+                checkpoint = user.date_last_download_utc
+                if checkpoint is not None and all(
+                    to_naive_utc(post.created) <= checkpoint for post in posts
+                ):
+                    return
+                observed_ids = [post.reddit_id for post in posts]
+                observed_urls = [post.url for post in posts if post.url]
+                known_rows = session.query(Post.reddit_id, Post.url).filter(
+                    or_(
+                        Post.reddit_id.in_(observed_ids),
+                        Post.url.in_(observed_urls),
                     )
+                )
+                known_reddit_ids = {reddit_id for reddit_id, _ in known_rows}
+                known_urls = {url for _, url in known_rows if url}
+                all_known = all(
+                    post.reddit_id in known_reddit_ids
+                    or (post.url and post.url in known_urls)
+                    for post in posts
+                )
+                if not all_known:
+                    self.logger.info(
+                        "Ambient end-of-feed marker seen but not every rendered post is "
+                        "downloaded yet, deferring checkpoint",
+                        extra={"page_owner": page_owner, "observed_count": len(posts)},
+                    )
+                    return
+                user.set_date_last_download_utc()
+                self.reddit_object_changed.emit()
+                self._ambient_known_streaks.pop(page_owner.lower(), None)
+                self.logger.info(
+                    "Ambient confirmed full coverage via end-of-feed",
+                    extra={"page_owner": page_owner},
+                )
         except Exception:
             self.logger.exception("Failed to handle profile-exhausted signal")
 

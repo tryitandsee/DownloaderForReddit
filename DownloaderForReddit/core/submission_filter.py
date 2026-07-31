@@ -30,7 +30,7 @@ class SubmissionFilter:
         """
         Filters a submission by calling various methods to see if the submission meets the methods criteria based on
         global and reddit object settings and returns True of False depending on if the submission passed all criteria.
-        :param submission: A praw submission item that is tested to see if it will be extracted.
+        :param submission: A submission item that is tested to see if it will be extracted.
         :param reddit_object: The reddit object to which the submission belongs.
         :return: True or False depending on if the submission passed the filter criteria.
         """

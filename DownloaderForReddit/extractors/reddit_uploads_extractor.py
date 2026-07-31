@@ -28,29 +28,12 @@ from urllib.parse import parse_qs, urlparse
 
 from ..core import const
 from ..core.errors import Error
-from ..utils import injector, reddit_utils
+from ..utils import injector
 from .base_extractor import BaseExtractor
 
 
 class RedditUploadsExtractor(BaseExtractor):
     url_key: ClassVar[list[str]] = ["reddituploads", "i.redd.it", "reddit.com/gallery"]
-
-    def __init__(self, post, **kwargs):
-        super().__init__(post, **kwargs)
-        self.submission = self.get_host_submission()
-
-    def get_host_submission(self):
-        if hasattr(self.submission, "crosspost_parent"):
-            try:
-                r = reddit_utils.get_reddit_instance()
-                parent_submission = r.submission(
-                    self.submission.crosspost_parent.split("_")[1]
-                )
-                parent_submission.title  # noqa: B018 -- fetch info from server to load submission
-                return parent_submission
-            except AttributeError:
-                pass
-        return self.submission
 
     def extract_content(self):
         try:

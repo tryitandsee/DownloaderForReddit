@@ -141,14 +141,17 @@ _INJECTED_SCRIPT = """
         if (window.__dfrPostsFound) window.__dfrPostsFound(fresh);
     }
 
-    let exhaustedUrl = null;
     function reportIfExhausted() {
-        if (exhaustedUrl === location.href) return;
         const marker = document.querySelector('__END_OF_LISTING_SELECTOR__');
         if (!marker) return;
         if (!window.__dfrFeedExhausted) return;
-        exhaustedUrl = location.href;
-        window.__dfrFeedExhausted(marker.id);
+        // No one-shot latch on location.href here (there used to be one): the Python side may
+        // defer confirming coverage if a rendered post hasn't been matched/downloaded yet (see
+        // _dispatch_feed_exhausted's comment), and it needs this to re-report on the next
+        // mutation once that catches up rather than going silent for the rest of this page load.
+        // Posts travel with the marker itself rather than relying on __dfrPostsFound's own
+        // separate binding call having already landed.
+        window.__dfrFeedExhausted(marker.id, extractPosts());
     }
 
     let debounceHandle = null;
@@ -263,7 +266,7 @@ class RedditSource(Protocol):
     def open_url(self, url: str) -> None: ...
 
 
-def _to_naive_utc(value: datetime) -> datetime:
+def to_naive_utc(value: datetime) -> datetime:
     """SQLite silently drops tzinfo on write (see RedditObject.date_last_download_utc), so
     anything compared against a value read back from that column must be naive UTC too."""
     if value.tzinfo is not None:
@@ -436,7 +439,9 @@ class BrowserRedditSource:
             Callable[[list[SubmissionData], str | None, str], None] | None
         ) = None
         self._on_rate_limited: Callable[[], None] | None = None
-        self._on_profile_exhausted: Callable[[str], None] | None = None
+        self._on_profile_exhausted: (
+            Callable[[str, list[SubmissionData]], None] | None
+        ) = None
         self._scroll_pacer: Callable[[], None] | None = None
         self._on_posts_collected: Callable[[list[SubmissionData]], None] | None = None
         # Guards every page.goto -- a scan (_collect_listing/_validate_and_collect_listing) now
@@ -518,14 +523,21 @@ class BrowserRedditSource:
         scan's equivalent of ambient's live per-post reporting."""
         self._on_posts_collected = callback
 
-    def set_on_profile_exhausted(self, callback: Callable[[str], None]):
+    def set_on_profile_exhausted(
+        self, callback: Callable[[str, list[SubmissionData]], None]
+    ):
         """Registered by the GUI to be notified when organic browsing has reached the end of a
         tracked user's submitted listing -- either by scrolling to Reddit's own end-of-feed marker
         in a pagination response (_handle_profile_pagination_response) or by the listing rendering
         an end-of-listing marker in its initial DOM (_dispatch_feed_exhausted), which is the only
         signal a profile short enough to never scroll ever produces. Complements the ambient
         known-post-streak check in DownloaderForRedditGUI._match_and_queue_ambient_posts, which
-        confirms early once browsing has scrolled *past* previously-covered content."""
+        confirms early once browsing has scrolled *past* previously-covered content.
+
+        Called with the posts currently rendered on the page, not just the username: the marker
+        only proves Reddit rendered nothing further, not that every post it's rendering has a
+        Post row yet (see both dispatch sites' comments on the race with __dfrPostsFound), so the
+        callback must check DB coverage of these posts itself before trusting the marker."""
         self._on_profile_exhausted = callback
 
     def is_rate_limited(self) -> bool:
@@ -596,27 +608,45 @@ class BrowserRedditSource:
             callback = self._on_posts_found
         callback(posts, page_owner, url)
 
-    def _handle_feed_exhausted(self, source: dict, marker_id: str) -> None:
+    def _handle_feed_exhausted(
+        self, source: dict, marker_id: str, raw_posts: list[dict]
+    ) -> None:
         # Same threading reasoning as _handle_posts_found -- may run on the Playwright worker
         # thread's own call stack, so nothing but a hand-off happens here.
         url = source["page"].url
         threading.Thread(
-            target=self._dispatch_feed_exhausted, args=(url, marker_id), daemon=True
+            target=self._dispatch_feed_exhausted,
+            args=(url, marker_id, raw_posts),
+            daemon=True,
         ).start()
 
-    def _dispatch_feed_exhausted(self, url: str, marker_id: str) -> None:
+    def _dispatch_feed_exhausted(
+        self, url: str, marker_id: str, raw_posts: list[dict]
+    ) -> None:
         if self._suppress_ambient.is_set():
             return
         match = _SUBMITTED_LISTING_URL_RE.match(url)
         if match is None:
             return
         page_owner = match.group(1)
+        # Posts come from the same binding call as the marker, not from a separate
+        # __dfrPostsFound push: _handle_posts_found and _handle_feed_exhausted each spawn their
+        # own independent daemon thread with no ordering guarantee between them, so a post
+        # rendered in the same batch that triggered this marker could still be unprocessed by
+        # _match_and_queue_ambient_posts (and therefore have no Post row yet) by the time this
+        # runs. The callback checks these posts against the DB itself rather than trusting that
+        # the other thread already ran.
+        posts = parse_posts_payload(raw_posts or [])
         logger.info(
             "Ambient listing rendered an end-of-listing marker",
-            extra={"page_owner": page_owner, "marker_id": marker_id},
+            extra={
+                "page_owner": page_owner,
+                "marker_id": marker_id,
+                "rendered_posts": len(posts),
+            },
         )
         if self._on_profile_exhausted is not None:
-            self._on_profile_exhausted(page_owner)
+            self._on_profile_exhausted(page_owner, posts)
 
     def _handle_follow_state_response(self, response) -> None:
         # Confirmed empirically (PLAN_follow_status_sync.md): reading the response body directly
@@ -695,10 +725,39 @@ class BrowserRedditSource:
         )
         if end_of_feed and self._on_profile_exhausted is not None:
             # Mirrors _handle_posts_found's own reasoning: hand off rather than risk DB work
-            # directly on whatever thread this event fires on.
+            # directly on whatever thread this event fires on. Reads the page's current posts
+            # itself (see _dispatch_feed_exhausted's comment on the same race) rather than
+            # trusting that whatever __dfrPostsFound push covers this batch already landed.
             threading.Thread(
-                target=self._on_profile_exhausted, args=(page_owner,), daemon=True
+                target=self._dispatch_profile_pagination_exhausted,
+                args=(response.frame.page,),
+                daemon=True,
             ).start()
+
+    def _dispatch_profile_pagination_exhausted(self, page: Page) -> None:
+        # page_owner isn't threaded through from the response -- by the time this runs the page
+        # may have navigated elsewhere entirely, so both the posts and the owner are re-read from
+        # the page's current state rather than trusted from when the response arrived.
+        def read_current():
+            return _read_posts(page), page.url
+
+        try:
+            posts, current_url = self._run(read_current)
+        except PlaywrightError:
+            logger.warning(
+                "Failed to read rendered posts before confirming profile exhaustion",
+                exc_info=True,
+            )
+            return
+        match = _SUBMITTED_LISTING_URL_RE.match(current_url)
+        # An empty read here isn't "no posts" the way empty-feed-content is for signal 3 -- a
+        # pagination response only fires because more posts were loading, so an empty result
+        # means the read was stale or wrong, not a genuinely empty profile. Confirming coverage
+        # over it would be the exact premature confirm this whole check exists to prevent.
+        if match is None or not posts:
+            return
+        if self._on_profile_exhausted is not None:
+            self._on_profile_exhausted(match.group(1), posts)
 
     @contextmanager
     def _suppressed_ambient(self):
@@ -902,7 +961,7 @@ class BrowserRedditSource:
         def reached_checkpoint(posts: list[SubmissionData]) -> bool:
             if since is None:
                 return False
-            return any(_to_naive_utc(post.created) <= since for post in posts)
+            return any(to_naive_utc(post.created) <= since for post in posts)
 
         def read_state():
             return _read_posts(page), _listing_ended(page), page.url

@@ -26,21 +26,8 @@ import logging
 from collections import namedtuple
 from urllib.parse import urlsplit
 
-import praw
-
-from ..version import __version__
-from . import system_util
-
-USER_AGENT = (
-    f"{system_util.get_platform_str()}:DownloaderForReddit:{__version__} "
-    f"(by /u/MalloyDelacroix; contact: downloaderforreddit@gmail.com)"
-)
-CLIENT_ID = "frGEUVAuHGL2PQ"
-
-
 logger = logging.getLogger(f"DownloaderForReddit.{__name__}")
 ValidationSet = namedtuple("ValidationSet", "name date_created valid")
-_token = None
 
 
 def extract_name_from_text(text, object_type):
@@ -56,37 +43,6 @@ def extract_name_from_text(text, object_type):
     if len(segments) >= 2 and segments[0] in prefixes:
         return segments[1]
     return text
-
-
-def get_reddit_instance():
-    if _token is not None:
-        return praw.Reddit(
-            client_id=CLIENT_ID,
-            user_agent=USER_AGENT,
-            client_secret=None,
-            refresh_token=_token,
-        )
-    return praw.Reddit(client_id=CLIENT_ID, user_agent=USER_AGENT, client_secret=None)
-
-
-def get_post_author_name(praw_post):
-    """
-    Handles an exception thrown in the event that a post retrieved from reddit does not have an author attribute.
-    """
-    try:
-        return praw_post.author.name
-    except AttributeError:
-        return "Unable to find author name"
-
-
-def get_post_sub_name(praw_post):
-    """
-    Handles an exception thrown in the event that a post retrieved from reddit does not have a subreddit attribute.
-    """
-    try:
-        return praw_post.subreddit.display_name
-    except AttributeError:
-        return "Unable to find subreddit name"
 
 
 class NameChecker:
