@@ -316,6 +316,12 @@ class SettingsManager:
         self.subreddit_list_sort_desc = self.get(
             "main_window_gui", "subreddit_list_sort_desc", False
         )
+        self.user_list_column_order = self.get(
+            "main_window_gui", "user_list_column_order", []
+        )
+        self.subreddit_list_column_order = self.get(
+            "main_window_gui", "subreddit_list_column_order", []
+        )
         self.relative_time_display = self.get(
             "main_window_gui", "relative_time_display", False
         )

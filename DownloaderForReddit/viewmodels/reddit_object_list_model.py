@@ -33,8 +33,20 @@ class RedditObjectListModel(QAbstractTableModel):
     new_object_in_list = pyqtSignal(int)
     count_change = pyqtSignal(int)
 
-    columns = ("name", "last_download", "date_last_download_utc", "expected_new")
-    column_headers = ("Name", "Last Download", "Last Checked", "Expected")
+    columns = (
+        "name",
+        "date_added",
+        "last_download",
+        "date_last_download_utc",
+        "expected_new",
+    )
+    column_headers = (
+        "Name",
+        "Date Added",
+        "Last Download",
+        "Last Checked",
+        "Expected",
+    )
 
     velocity_window_days = 30
     velocity_window_lag_days = 7
@@ -476,6 +488,10 @@ class RedditObjectListModel(QAbstractTableModel):
                     if field == "expected_new":
                         return (
                             f"{self.expected_new_cache.get(reddit_object.id, 0.0):,.1f}"
+                        )
+                    if field == "date_added":
+                        return self._format_datetime_cell(
+                            reddit_object.date_added, reddit_object, utc=False
                         )
                     if field == "name":
                         return get_anonymizer().name(reddit_object)

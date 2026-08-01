@@ -43,6 +43,7 @@ from PyQt5.QtWidgets import (
     QProgressBar,
     QPushButton,
     QSystemTrayIcon,
+    QToolButton,
     QWidget,
 )
 from sqlalchemy import func, or_
@@ -392,16 +393,30 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             else Qt.AscendingOrder,
         )
 
-        for view, model in (
-            (self.user_list_view, self.user_list_model),
-            (self.subreddit_list_view, self.subreddit_list_model),
+        for view, model, column_order in (
+            (
+                self.user_list_view,
+                self.user_list_model,
+                self.settings_manager.user_list_column_order,
+            ),
+            (
+                self.subreddit_list_view,
+                self.subreddit_list_model,
+                self.settings_manager.subreddit_list_column_order,
+            ),
         ):
             header = view.horizontalHeader()
             header.setSectionResizeMode(0, QHeaderView.Stretch)
             for column in range(1, model.columnCount()):
                 header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
+            header.setSectionsMovable(True)
+            if sorted(column_order) == list(range(model.columnCount())):
+                for visual_index, logical_index in enumerate(column_order):
+                    header.moveSection(header.visualIndex(logical_index), visual_index)
 
         self.setup_expected_new_refresh_button()
+        self.setup_column_toggle_button()
+        self.setup_column_context_menu()
 
         self.load_state()
 
@@ -540,6 +555,60 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             button.setToolTip("Recalculate Expected new posts")
             button.clicked.connect(model.refresh_expected_new)
             layout.addWidget(button)
+
+    def setup_column_toggle_button(self):
+        for layout, view in (
+            (self.horizontalLayout_4, self.user_list_view),
+            (self.horizontalLayout_5, self.subreddit_list_view),
+        ):
+            button = QToolButton()
+            button.setArrowType(Qt.DownArrow)
+            button.setToolTip("Choose columns")
+            button.setPopupMode(QToolButton.InstantPopup)
+            header = view.horizontalHeader()
+            menu = QMenu(button)
+            actions = {}
+            for column, title in enumerate(RedditObjectListModel.column_headers):
+                if column == 0:
+                    continue
+                action = menu.addAction(title)
+                action.setCheckable(True)
+                action.setChecked(True)
+                action.toggled.connect(
+                    lambda checked, header=header, column=column: (
+                        header.setSectionHidden(column, not checked)
+                    )
+                )
+                actions[column] = action
+            menu.aboutToShow.connect(
+                lambda header=header, actions=actions: self.sync_column_toggle_actions(
+                    header, actions
+                )
+            )
+            button.setMenu(menu)
+            layout.addWidget(button)
+
+    def sync_column_toggle_actions(self, header, actions):
+        for column, action in actions.items():
+            action.setChecked(not header.isSectionHidden(column))
+
+    def setup_column_context_menu(self):
+        for view in (self.user_list_view, self.subreddit_list_view):
+            header = view.horizontalHeader()
+            header.setContextMenuPolicy(Qt.CustomContextMenu)
+            header.customContextMenuRequested.connect(
+                lambda pos, header=header: self.show_column_context_menu(header, pos)
+            )
+
+    def show_column_context_menu(self, header, pos):
+        column = header.logicalIndexAt(pos)
+        if column <= 0:
+            return
+        title = RedditObjectListModel.column_headers[column]
+        menu = QMenu(header)
+        action = menu.addAction(f"Hide {title}")
+        action.triggered.connect(lambda: header.setSectionHidden(column, True))
+        menu.exec_(header.mapToGlobal(pos))
 
     def scroll_output(self):
         """
@@ -1981,6 +2050,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.settings_manager.user_list_sort_desc = (
             user_header.sortIndicatorOrder() == Qt.DescendingOrder
         )
+        self.settings_manager.user_list_column_order = [
+            user_header.logicalIndex(i) for i in range(user_header.count())
+        ]
         subreddit_header = self.subreddit_list_view.horizontalHeader()
         self.settings_manager.subreddit_list_sort_column = (
             subreddit_header.sortIndicatorSection()
@@ -1988,6 +2060,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.settings_manager.subreddit_list_sort_desc = (
             subreddit_header.sortIndicatorOrder() == Qt.DescendingOrder
         )
+        self.settings_manager.subreddit_list_column_order = [
+            subreddit_header.logicalIndex(i) for i in range(subreddit_header.count())
+        ]
 
         self.settings_manager.download_radio_state = (
             "SUBREDDIT"
