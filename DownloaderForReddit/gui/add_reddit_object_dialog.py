@@ -25,18 +25,18 @@ class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
         self.tab_widget.setCurrentIndex(0)
 
         self.download_on_add_checkbox.setChecked(self.settings_manager.download_on_add)
-        self.download_on_add_checkbox.stateChanged.connect(
-            lambda checked: setattr(self.settings_manager, "download_on_add", checked)
-        )
+        self.download_on_add_checkbox.stateChanged.connect(self.set_download_on_add)
 
         self.validate_names_checkbox.setChecked(
             self.settings_manager.validate_names_before_add
         )
-        self.validate_names_checkbox.stateChanged.connect(
-            lambda checked: setattr(
-                self.settings_manager, "validate_names_before_add", checked
-            )
-        )
+        self.validate_names_checkbox.stateChanged.connect(self.set_validate_names)
+
+        if (
+            self.download_on_add_checkbox.isChecked()
+            and self.validate_names_checkbox.isChecked()
+        ):
+            self.validate_names_checkbox.setChecked(False)
 
         self.add_button.clicked.connect(self.add_object_to_list)
         self.remove_button.clicked.connect(self.remove_object_from_list)
@@ -50,6 +50,16 @@ class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
         self.added = []
         self.imported = []
         self.exclude = []
+
+    def set_download_on_add(self, checked):
+        self.settings_manager.download_on_add = bool(checked)
+        if checked and self.validate_names_checkbox.isChecked():
+            self.validate_names_checkbox.setChecked(False)
+
+    def set_validate_names(self, checked):
+        self.settings_manager.validate_names_before_add = bool(checked)
+        if checked and self.download_on_add_checkbox.isChecked():
+            self.download_on_add_checkbox.setChecked(False)
 
     def tab_change(self):
         if self.tab_widget.currentIndex() == 0:

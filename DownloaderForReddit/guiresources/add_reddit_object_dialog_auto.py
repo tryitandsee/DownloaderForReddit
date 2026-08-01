@@ -137,8 +137,8 @@ class Ui_AddRedditObjectDialog:
             _translate("AddRedditObjectDialog", "Multi-Add"),
         )
         self.download_on_add_checkbox.setText(
-            _translate("AddRedditObjectDialog", "Download on add")
+            _translate("AddRedditObjectDialog", "Validate and download")
         )
         self.validate_names_checkbox.setText(
-            _translate("AddRedditObjectDialog", "Validate names")
+            _translate("AddRedditObjectDialog", "Validate only")
         )

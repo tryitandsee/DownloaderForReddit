@@ -146,14 +146,14 @@
      <item>
       <widget class="QCheckBox" name="download_on_add_checkbox">
        <property name="text">
-        <string>Download on add</string>
+        <string>Validate and download</string>
        </property>
       </widget>
      </item>
      <item>
       <widget class="QCheckBox" name="validate_names_checkbox">
        <property name="text">
-        <string>Validate names</string>
+        <string>Validate only</string>
        </property>
       </widget>
      </item>
