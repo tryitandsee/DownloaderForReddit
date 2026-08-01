@@ -155,7 +155,7 @@ class Filter:
 class RedditObjectListFilter(Filter):
     model = RedditObjectList
     default_order = "name"
-    filter_include: ClassVar[list[str]] = ["all", "reddit_object_count", "total_score"]
+    filter_include: ClassVar[list[str]] = ["all", "reddit_object_count"]
     filter_exclude: ClassVar[list[str]] = [
         "post_score_limit_operator",
         "comment_score_limit_operator",
@@ -165,7 +165,6 @@ class RedditObjectListFilter(Filter):
         "date_created",
         "list_type",
         "reddit_object_count",
-        "total_score",
         "date_limit",
     ]
     choices: ClassVar[dict[str, list[str]]] = {"list_type": ["USER", "SUBREDDIT"]}
@@ -180,9 +179,6 @@ class RedditObjectListFilter(Filter):
             ),
             "post_count": CustomItem(
                 self.filter_post_count, self.order_by_post_count, Integer
-            ),
-            "total_score": CustomItem(
-                self.filter_total_score, self.order_by_total_score, Integer
             ),
         }
 
@@ -211,21 +207,6 @@ class RedditObjectListFilter(Filter):
             .subquery()
         )
 
-    def get_total_score_sub(self):
-        return (
-            self.session.query(
-                ListAssociation.reddit_object_list_id,
-                Post.significant_reddit_object_id,
-                func.sum(Post.score).label("total_score"),
-            )
-            .join(
-                Post,
-                Post.significant_reddit_object_id == ListAssociation.reddit_object_id,
-            )
-            .group_by(ListAssociation.reddit_object_list_id)
-            .subquery()
-        )
-
     def join_query(self, query, sub):
         return query.outerjoin(sub, RedditObjectList.id == sub.c.reddit_object_list_id)
 
@@ -239,11 +220,6 @@ class RedditObjectListFilter(Filter):
         f = self.op_map[operator](sub.c.post_count, value)
         return self.join_query(query, sub).filter(f)
 
-    def filter_total_score(self, query, operator, value):
-        sub = self.get_total_score_sub()
-        f = self.op_map[operator](sub.c.total_score, value)
-        return self.join_query(query, sub).filter(f)
-
     def order_by_reddit_object_count(self, query):
         sub = self.get_reddit_object_count_sub()
         query = self.join_query(query, sub)
@@ -254,20 +230,13 @@ class RedditObjectListFilter(Filter):
         query = self.join_query(query, sub)
         return query, sub.c.post_count
 
-    def order_by_total_score(self, query):
-        sub = self.get_total_score_sub()
-        query = self.join_query(query, sub)
-        return query, sub.c.total_score
-
 
 class RedditObjectFilter(Filter):
     model = RedditObject
     default_order = "name"
     filter_include: ClassVar[list[str]] = [
         "all",
-        "post_score",
         "post_count",
-        "comment_score",
         "comment_count",
         "download_count",
         "last_post_date",
@@ -285,7 +254,6 @@ class RedditObjectFilter(Filter):
         "date_added",
         "absolute_date_limit",
         "date_created",
-        "post_score",
         "post_count",
         "content_count",
         "comment_count",
@@ -298,14 +266,8 @@ class RedditObjectFilter(Filter):
     def __init__(self):
         super().__init__()
         self.custom_filter_map = {
-            "post_score": CustomItem(
-                self.filter_post_score, self.order_by_score, Integer
-            ),
             "post_count": CustomItem(
                 self.filter_post_count, self.order_by_post_count, Integer
-            ),
-            "comment_score": CustomItem(
-                self.filter_comment_score, self.order_by_comment_score, Integer
             ),
             "comment_count": CustomItem(
                 self.filter_comment_count, self.order_by_comment_count, Integer
@@ -324,33 +286,12 @@ class RedditObjectFilter(Filter):
             ),
         }
 
-    def get_score_sum_sub(self):
-        return (
-            self.session.query(
-                Post.significant_reddit_object_id,
-                func.sum(Post.score).label("total_score"),
-            )
-            .group_by(Post.significant_reddit_object_id)
-            .subquery()
-        )
-
     def get_post_count_sub(self):
         return (
             self.session.query(
                 Post.significant_reddit_object_id,
                 func.count(Post.id).label("post_count"),
             )
-            .group_by(Post.significant_reddit_object_id)
-            .subquery()
-        )
-
-    def get_comment_score_sub(self):
-        return (
-            self.session.query(
-                Post.significant_reddit_object_id,
-                func.sum(Comment.score).label("total_score"),
-            )
-            .join(Post)
             .group_by(Post.significant_reddit_object_id)
             .subquery()
         )
@@ -414,19 +355,9 @@ class RedditObjectFilter(Filter):
             sub, RedditObject.id == sub.c.significant_reddit_object_id
         )
 
-    def filter_post_score(self, query, operator, value):
-        sub = self.get_score_sum_sub()
-        f = self.op_map[operator](sub.c.total_score, value)
-        return self.join_queries(query, sub).filter(f)
-
     def filter_post_count(self, query, operator, value):
         sub = self.get_post_count_sub()
         f = self.op_map[operator](sub.c.post_count, value)
-        return self.join_queries(query, sub).filter(f)
-
-    def filter_comment_score(self, query, operator, value):
-        sub = self.get_comment_score_sub()
-        f = self.op_map[operator](sub.c.total_score, value)
         return self.join_queries(query, sub).filter(f)
 
     def filter_comment_count(self, query, operator, value):
@@ -454,20 +385,10 @@ class RedditObjectFilter(Filter):
         f = self.op_map[operator](sub.c.list_count, value)
         return query.outerjoin(sub, RedditObject.id == sub.c.reddit_object_id).filter(f)
 
-    def order_by_score(self, query):
-        sub = self.get_score_sum_sub()
-        query = self.join_queries(query, sub)
-        return query, sub.c.total_score
-
     def order_by_post_count(self, query):
         sub = self.get_post_count_sub()
         query = self.join_queries(query, sub)
         return query, sub.c.post_count
-
-    def order_by_comment_score(self, query):
-        sub = self.get_comment_score_sub()
-        query = self.join_queries(query, sub)
-        return query, sub.c.comment_score
 
     def order_by_comment_count(self, query):
         sub = self.get_comment_count_sub()
@@ -771,7 +692,6 @@ class CommentFilter(Filter):
     default_order = "id"
     include: ClassVar[list[str]] = [
         "all",
-        "post_score",
         "post_date",
         "nsfw",
         "author_name",
@@ -793,9 +713,6 @@ class CommentFilter(Filter):
         self.custom_filter_map = {
             "post_title": CustomItem(
                 self.filter_post_title, self.order_by_post_title, String
-            ),
-            "post_score": CustomItem(
-                self.filter_post_score, self.order_by_post_score, Integer
             ),
             "post_date": CustomItem(
                 self.filter_post_date, self.order_by_post_date, DateTime
@@ -829,10 +746,6 @@ class CommentFilter(Filter):
         f = self.op_map[operator](Post.title, value)
         return query.join(Post).filter(f)
 
-    def filter_post_score(self, query, operator, value):
-        f = self.op_map[operator](Post.score, value)
-        return query.join(Post).filter(f)
-
     def filter_post_date(self, query, operator, value):
         f = self.op_map[operator](Post.date_posted, value)
         return query.join(Post).filter(f)
@@ -857,9 +770,6 @@ class CommentFilter(Filter):
     def order_by_post_title(self, query):
         return query.join(Post), Post.title
 
-    def order_by_post_score(self, query):
-        return query.join(Post), Post.score
-
     def order_by_post_date(self, query):
         return query.join(Post), Post.date_posted
 
@@ -882,7 +792,6 @@ class ContentFilter(Filter):
     default_order = "title"
     include: ClassVar[list[str]] = [
         "all",
-        "post_score",
         "post_date",
         "nsfw",
         "domain",
@@ -904,9 +813,6 @@ class ContentFilter(Filter):
     def __init__(self):
         super().__init__()
         self.custom_filter_map = {
-            "post_score": CustomItem(
-                self.filter_post_score, self.order_by_post_score, Integer
-            ),
             "post_date": CustomItem(
                 self.filter_date_posted, self.order_by_date_posted, DateTime
             ),
@@ -923,10 +829,6 @@ class ContentFilter(Filter):
                 self.filter_subreddit_name, self.order_by_subreddit_name, String
             ),
         }
-
-    def filter_post_score(self, query, operator, value):
-        f = self.op_map[operator](Post.score, value)
-        return query.join(Post).filter(f)
 
     def filter_date_posted(self, query, operator, value):
         f = self.op_map[operator](Post.date_posted, value)
@@ -947,9 +849,6 @@ class ContentFilter(Filter):
     def filter_subreddit_name(self, query, operator, value):
         f = self.op_map[operator](Subreddit.name, value)
         return query.join(Subreddit, Subreddit.id == Content.subreddit_id).filter(f)
-
-    def order_by_post_score(self, query):
-        return query.join(Post, Post.id == Content.post_id), Post.score
 
     def order_by_date_posted(self, query):
         return query.join(Post, Post.id == Content.post_id), Post.date_posted

@@ -469,27 +469,6 @@ class Ui_ObjectSettingsWidget:
         self.comment_download_form.setLayout(
             7, QtWidgets.QFormLayout.FieldRole, self.horizontalLayout_8
         )
-        self.label_24 = QtWidgets.QLabel(ObjectSettingsWidget)
-        self.label_24.setObjectName("label_24")
-        self.comment_download_form.setWidget(
-            8, QtWidgets.QFormLayout.LabelRole, self.label_24
-        )
-        self.comment_score_limit_spinbox = QtWidgets.QSpinBox(ObjectSettingsWidget)
-        self.comment_score_limit_spinbox.setMaximum(10000000)
-        self.comment_score_limit_spinbox.setObjectName("comment_score_limit_spinbox")
-        self.comment_download_form.setWidget(
-            8, QtWidgets.QFormLayout.FieldRole, self.comment_score_limit_spinbox
-        )
-        self.label_25 = QtWidgets.QLabel(ObjectSettingsWidget)
-        self.label_25.setObjectName("label_25")
-        self.comment_download_form.setWidget(
-            9, QtWidgets.QFormLayout.LabelRole, self.label_25
-        )
-        self.comment_score_operator_combo = QtWidgets.QComboBox(ObjectSettingsWidget)
-        self.comment_score_operator_combo.setObjectName("comment_score_operator_combo")
-        self.comment_download_form.setWidget(
-            9, QtWidgets.QFormLayout.FieldRole, self.comment_score_operator_combo
-        )
         self.label_2 = QtWidgets.QLabel(ObjectSettingsWidget)
         self.label_2.setObjectName("label_2")
         self.comment_download_form.setWidget(
@@ -705,8 +684,6 @@ class Ui_ObjectSettingsWidget:
         self.comment_depth_max_button.setText(_translate("ObjectSettingsWidget", "Max"))
         self.label_4.setText(_translate("ObjectSettingsWidget", "Comment Reply Limit:"))
         self.comment_reply_max_button.setText(_translate("ObjectSettingsWidget", "Max"))
-        self.label_24.setText(_translate("ObjectSettingsWidget", "Score Limit:"))
-        self.label_25.setText(_translate("ObjectSettingsWidget", "Score Limit Eval:"))
         self.label_2.setText(_translate("ObjectSettingsWidget", "Comment File Format:"))
         self.comment_download_naming_label.setText(
             _translate("ObjectSettingsWidget", "Download Naming:")

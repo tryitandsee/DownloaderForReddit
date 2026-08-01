@@ -51,7 +51,7 @@
     <item>
      <widget class="QLabel" name="label">
       <property name="text">
-       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;How would you like nested objects?  ie: When exporting a list of users would you like the users posts to be exported with full attributes such as score, date posted, title, etc. or would you like the post to be exported as the title of the post only?&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;How would you like nested objects?  ie: When exporting a list of users would you like the users posts to be exported with full attributes such as date posted, title, etc. or would you like the post to be exported as the title of the post only?&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
       </property>
       <property name="wordWrap">
        <bool>true</bool>

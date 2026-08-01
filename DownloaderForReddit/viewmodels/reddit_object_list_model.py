@@ -561,7 +561,6 @@ class RedditObjectListModel(QAbstractTableModel):
             "download_videos": f"Download Videos: {reddit_object.download_videos}",
             "download_nsfw": f"NSFW Filter: {reddit_object.download_nsfw.display_name}",
             "date_added": f"Date Added: {reddit_object.date_added_display}",
-            "total_score": f"Total Score: {reddit_object.total_score_display}",
             "post_count": f"Post Count: {reddit_object.post_count}",
             "content_count": f"Content Count: {reddit_object.content_count}",
             "comment_count": f"Comment Count: {reddit_object.comment_count}",

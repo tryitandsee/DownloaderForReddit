@@ -503,11 +503,6 @@ QListView::item:active {
     <string>Sort reddit objects by the date that the item was created on reddit</string>
    </property>
   </action>
-  <action name="sort_list_by_score_menu_item">
-   <property name="text">
-    <string>Total Score</string>
-   </property>
-  </action>
   <action name="database_view_menu_item">
    <property name="text">
     <string>Database View</string>

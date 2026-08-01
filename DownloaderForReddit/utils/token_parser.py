@@ -39,7 +39,6 @@ class TokenParser:
         "post_subreddit_id": lambda x: TokenParser.tokenize(
             x, "post.subreddit.id", "subreddit.id"
         ),
-        "post_score": lambda x: TokenParser.tokenize(x, "post.score", "score"),
         "post_domain": lambda x: TokenParser.tokenize(x, "post.domain", "domain"),
         "date_posted": lambda x: TokenParser.tokenize(
             x, "post.date_posted_path", "date_posted_path"

@@ -1,4 +1,4 @@
-# Form implementation generated from reading ui file 'Resources/ui_files/downloader_for_reddit_gui.ui'
+# Form implementation generated from reading ui file 'Resources\ui_files\downloader_for_reddit_gui.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.11
 #
@@ -18,7 +18,7 @@ class Ui_MainWindow:
         MainWindow.setFont(font)
         icon = QtGui.QIcon()
         icon.addPixmap(
-            QtGui.QPixmap("Resources/ui_files\\../images/RedditDownloaderIcon.png"),
+            QtGui.QPixmap("Resources\\ui_files\\../images/RedditDownloaderIcon.png"),
             QtGui.QIcon.Normal,
             QtGui.QIcon.Off,
         )
@@ -265,8 +265,6 @@ class Ui_MainWindow:
         self.sort_list_by_date_created_menu_item.setObjectName(
             "sort_list_by_date_created_menu_item"
         )
-        self.sort_list_by_score_menu_item = QtWidgets.QAction(MainWindow)
-        self.sort_list_by_score_menu_item.setObjectName("sort_list_by_score_menu_item")
         self.database_view_menu_item = QtWidgets.QAction(MainWindow)
         self.database_view_menu_item.setObjectName("database_view_menu_item")
         self.download_sessions_view_menu_item = QtWidgets.QAction(MainWindow)
@@ -503,9 +501,6 @@ class Ui_MainWindow:
                 "MainWindow",
                 "Sort reddit objects by the date that the item was created on reddit",
             )
-        )
-        self.sort_list_by_score_menu_item.setText(
-            _translate("MainWindow", "Total Score")
         )
         self.database_view_menu_item.setText(_translate("MainWindow", "Database View"))
         self.download_sessions_view_menu_item.setText(

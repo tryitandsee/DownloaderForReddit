@@ -239,8 +239,6 @@ class RedditObjectList(BaseModel):
         return {
             "lock_settings": self.lock_settings,
             "post_limit": self.post_limit,
-            "post_score_limit": self.post_score_limit,
-            "post_score_limit_operator": self.post_score_limit_operator,
             "post_sort_method": self.post_sort_method,
             "avoid_duplicates": self.avoid_duplicates,
             "hash_duplicates": self.hash_duplicates,
@@ -261,8 +259,6 @@ class RedditObjectList(BaseModel):
             "comment_limit": self.comment_limit,
             "comment_depth": self.comment_depth,
             "comment_reply_limit": self.comment_reply_limit,
-            "comment_score_limit": self.comment_score_limit,
-            "comment_score_limit_operator": self.comment_score_limit_operator,
             "comment_sort_method": self.comment_sort_method,
             "date_limit": self.date_limit,
             "update_date_limit": self.update_date_limit,
@@ -451,22 +447,6 @@ class RedditObject(BaseModel):
                 self.download_comment_content != CommentDownload.DO_NOT_DOWNLOAD,
             )
         )
-
-    @property
-    def total_score(self):
-        score = (
-            self.get_session()
-            .query(func.sum(Post.score))
-            .filter(Post.significant_reddit_object_id == self.id)
-            .first()[0]
-        )
-        if score is None:
-            score = 0
-        return score
-
-    @property
-    def total_score_display(self):
-        return f"{self.total_score:,}"
 
     @property
     def post_count(self):
@@ -757,10 +737,6 @@ class Post(BaseModel):
         return self.get_path_datetime(self.date_posted)
 
     @property
-    def score_display(self):
-        return f"{self.score:,}"
-
-    @property
     def extraction_date_display(self):
         return self.get_display_datetime(self.extraction_date)
 
@@ -833,10 +809,6 @@ class Comment(BaseModel):
     @property
     def date_posted_export(self):
         return self.get_display_datetime(self.date_posted)
-
-    @property
-    def score_display(self):
-        return f"{self.score:,}"
 
     @property
     def extraction_date_display(self):

@@ -64,7 +64,6 @@ def raw_post(reddit_id, created=POST_TIME):
         "author": "example_user",
         "subredditPrefixedName": "r/example_subreddit",
         "createdTimestamp": created.isoformat(),
-        "score": "12",
         "nsfw": "",
         "moreCursor": "dDNfMXY4a2d5aQ",
     }

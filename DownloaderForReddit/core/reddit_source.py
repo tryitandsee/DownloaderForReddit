@@ -118,7 +118,6 @@ _INJECTED_SCRIPT = """
             author: el.getAttribute('author'),
             subredditPrefixedName: el.getAttribute('subreddit-prefixed-name'),
             createdTimestamp: el.getAttribute('created-timestamp'),
-            score: el.getAttribute('score'),
             nsfw: el.getAttribute('nsfw'),
             // Diagnostic only, not part of SubmissionData -- investigating whether an absent/empty
             // cursor on the last rendered post reliably signals "no more pages" for a profile
@@ -226,7 +225,6 @@ class SubmissionData:
     author: str
     subreddit: str
     created: datetime
-    score: int
     nsfw: bool
     is_self: bool
     permalink: str
@@ -351,7 +349,6 @@ def _parse_post(raw: dict) -> SubmissionData | None:
             author=raw.get("author") or "",
             subreddit=_strip_subreddit_prefix(raw.get("subredditPrefixedName") or ""),
             created=datetime.fromisoformat(raw.get("createdTimestamp")),
-            score=int(raw.get("score") or 0),
             nsfw=raw.get("nsfw") is not None,
             is_self=post_type == "text",
             permalink=permalink,

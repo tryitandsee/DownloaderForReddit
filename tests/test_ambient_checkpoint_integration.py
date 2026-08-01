@@ -34,7 +34,6 @@ def post_for(post_id, created):
         "author": "example_user",
         "subredditPrefixedName": "r/example_subreddit",
         "createdTimestamp": created.isoformat(),
-        "score": "12",
         "nsfw": "",
         "moreCursor": None,
     }

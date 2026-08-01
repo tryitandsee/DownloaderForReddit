@@ -163,7 +163,6 @@ class PostTableModel(QAbstractTableModel, CustomItemModel):
     header_map: ClassVar[dict[str, Callable[[Any], Any]]] = {
         "title": lambda x: x.title,
         "date_posted": lambda x: x.date_posted_display,
-        "score": lambda x: x.score_display,
         "self_post": lambda x: x.is_self,
         "text": lambda x: x.text,
         "url": lambda x: x.url,
@@ -183,7 +182,6 @@ class PostTableModel(QAbstractTableModel, CustomItemModel):
         self.headers = [
             "title",
             "date_posted",
-            "score",
             "self_post",
             "text",
             "url",
@@ -299,7 +297,6 @@ class CommentTreeModel(QAbstractItemModel, CustomItemModel):
             "subreddit",
             "body",
             "body_html",
-            "score",
             "date_posted",
             "reddit_id",
         ]
@@ -444,7 +441,6 @@ class TreeItem:
         "subreddit": lambda x: x.subreddit.name,
         "body": lambda x: x.body,
         "body_html": lambda x: x.body_html,
-        "score": lambda x: x.score,
         "date_posted": lambda x: x.date_posted_display,
         "reddit_id": lambda x: x.reddit_id,
     }
@@ -459,7 +455,6 @@ class TreeItem:
             "subreddit",
             "body",
             "body_html",
-            "score",
             "date_posted",
             "reddit_id",
         ]

@@ -36,7 +36,6 @@ class SubmittableCreator:
                 title=submission.title,
                 date_posted=submission.created,
                 domain=submission.domain,
-                score=submission.score,
                 nsfw=submission.nsfw,
                 reddit_id=submission.reddit_id,
                 url=submission.url,

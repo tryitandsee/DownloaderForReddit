@@ -94,7 +94,6 @@ class DatabaseStatisticsDialog(QDialog):
                 ]
 
                 post_count = session.query(Post.id).count()
-                total_score = session.query(func.sum(Post.score)).scalar()
 
                 total_users = session.query(User.id).count()
                 total_significant_users = (
@@ -121,32 +120,6 @@ class DatabaseStatisticsDialog(QDialog):
                         user_count_sub.c.significant_reddit_object_id == User.id,
                     )
                     .order_by(desc("count"))
-                    .first()
-                )
-
-                user_score = (
-                    session.query(User, func.sum(Post.score).label("score"))
-                    .join(Post, Post.author_id == User.id)
-                    .group_by(User.id)
-                )
-                significant_user_high_score = (
-                    user_score.filter(User.significant == True)
-                    .order_by(desc("score"))
-                    .first()
-                )
-                non_sig_user_high_score = (
-                    user_score.filter(User.significant == False)
-                    .order_by(desc("score"))
-                    .first()
-                )
-                significant_user_low_score = (
-                    user_score.filter(User.significant == True)
-                    .order_by("score")
-                    .first()
-                )
-                non_sig_user_low_score = (
-                    user_score.filter(User.significant == False)
-                    .order_by("score")
                     .first()
                 )
 
@@ -242,27 +215,6 @@ class DatabaseStatisticsDialog(QDialog):
                         self.get(user_comment_query, "User.name"),
                     ),
                     ("Comment Count", self.get(user_comment_query, "count")),
-                    ("SEPARATOR", None),
-                    (
-                        "Significant User With Highest Score",
-                        self.get(significant_user_high_score, "User.name"),
-                    ),
-                    ("High Score", self.get(significant_user_high_score, "score")),
-                    (
-                        "Non-Significant User With Highest Score",
-                        self.get(non_sig_user_high_score, "User.name"),
-                    ),
-                    ("High Score", self.get(non_sig_user_high_score, "score")),
-                    (
-                        "Significant User With Lowest Score",
-                        self.get(significant_user_low_score, "User.name"),
-                    ),
-                    ("Low Score", self.get(significant_user_low_score, "score")),
-                    (
-                        "Non-Significant User With Lowest Score",
-                        self.get(non_sig_user_low_score, "User.name"),
-                    ),
-                    ("Low Score", self.get(non_sig_user_low_score, "score")),
                 ]
 
                 total_subreddits = session.query(Subreddit.id).count()
@@ -333,32 +285,6 @@ class DatabaseStatisticsDialog(QDialog):
                     .first()
                 )
 
-                sub_score = (
-                    session.query(Subreddit, func.sum(Post.score).label("score"))
-                    .join(Post, Post.subreddit_id == Subreddit.id)
-                    .group_by(Subreddit.id)
-                )
-                significant_sub_high_score = (
-                    sub_score.filter(Subreddit.significant == True)
-                    .order_by(desc("score"))
-                    .first()
-                )
-                non_sig_sub_high_score = (
-                    sub_score.filter(Subreddit.significant == False)
-                    .order_by(desc("score"))
-                    .first()
-                )
-                significant_sub_low_score = (
-                    sub_score.filter(Subreddit.significant == True)
-                    .order_by("score")
-                    .first()
-                )
-                non_sig_sub_low_score = (
-                    sub_score.filter(Subreddit.significant == False)
-                    .order_by("score")
-                    .first()
-                )
-
                 self.subreddit_map = [
                     (
                         "Total Subreddits",
@@ -424,27 +350,6 @@ class DatabaseStatisticsDialog(QDialog):
                         self.get(sub_comment_query, "Subreddit.name"),
                     ),
                     ("Comment Count", self.get(sub_comment_query, "count")),
-                    ("SEPARATOR", None),
-                    (
-                        "Significant Subreddit With Highest Score",
-                        self.get(significant_sub_high_score, "Subreddit.name"),
-                    ),
-                    ("High Score", self.get(significant_sub_high_score, "score")),
-                    (
-                        "Non-Significant Subreddit With Highest Score",
-                        self.get(non_sig_sub_high_score, "Subreddit.name"),
-                    ),
-                    ("High Score", self.get(non_sig_sub_high_score, "score")),
-                    (
-                        "Significant Subreddit With Lowest Score",
-                        self.get(significant_sub_low_score, "Subreddit.name"),
-                    ),
-                    ("Low Score", self.get(significant_sub_low_score, "score")),
-                    (
-                        "Non-Significant Subreddit With Lowest Score",
-                        self.get(non_sig_sub_low_score, "Subreddit.name"),
-                    ),
-                    ("Low Score", self.get(non_sig_sub_low_score, "score")),
                 ]
 
                 total_lists = session.query(RedditObjectList.id).count()
@@ -506,29 +411,6 @@ class DatabaseStatisticsDialog(QDialog):
                 list_with_most_posts = list_post_base.order_by(desc("count")).first()
                 list_with_fewest_posts = list_post_base.order_by("count").first()
 
-                list_score_sub = (
-                    session.query(
-                        ListAssociation.reddit_object_list_id,
-                        Post.significant_reddit_object_id,
-                        func.sum(Post.score).label("score"),
-                    )
-                    .join(
-                        Post,
-                        Post.significant_reddit_object_id
-                        == ListAssociation.reddit_object_id,
-                    )
-                    .group_by(ListAssociation.reddit_object_list_id)
-                    .subquery()
-                )
-                list_score_base = session.query(RedditObjectList, "score").outerjoin(
-                    list_score_sub,
-                    RedditObjectList.id == list_score_sub.c.reddit_object_list_id,
-                )
-                list_with_highest_score = list_score_base.order_by(
-                    desc("score")
-                ).first()
-                list_with_lowest_score = list_score_base.order_by("score").first()
-
                 self.list_map = [
                     ("Total Number of Lists", total_lists),
                     ("Total User Lists", user_lists),
@@ -573,32 +455,6 @@ class DatabaseStatisticsDialog(QDialog):
                         (
                             f"{self.format_number(self.get(list_with_fewest_posts, 'count'))}  "
                             f"({self.get_percentage(self.get(list_with_most_posts, 'count'), post_count)} of all posts)"
-                        ),
-                    ),
-                    (
-                        "List With Highest Score",
-                        self.get(
-                            list_with_highest_score, "RedditObjectList.display_name"
-                        ),
-                    ),
-                    (
-                        "Total Score",
-                        (
-                            f"{self.format_number(self.get(list_with_highest_score, 'score'))}  "
-                            f"({self.get_percentage(self.get(list_with_highest_score, 'score'), total_score)} of total score)"
-                        ),
-                    ),
-                    (
-                        "List With Lowest Score",
-                        self.get(
-                            list_with_lowest_score, "RedditObjectList.display_name"
-                        ),
-                    ),
-                    (
-                        "Total Score",
-                        (
-                            f"{self.format_number(self.get(list_with_lowest_score, 'score'))}  "
-                            f"({self.get_percentage(self.get(list_with_lowest_score, 'score'), total_score)} of total score)"
                         ),
                     ),
                 ]
@@ -769,13 +625,6 @@ class DatabaseStatisticsDialog(QDialog):
                             f"{self.format_number(self_post_count)}  "
                             f"({self.get_percentage(self_post_count, post_count)} of all posts)"
                         ),
-                    ),
-                    ("Total Score", total_score),
-                    ("Highest Score", session.query(func.max(Post.score)).first()[0]),
-                    ("Lowest Score", session.query(func.min(Post.score)).first()[0]),
-                    (
-                        "Average Score",
-                        round(session.query(func.avg(Post.score)).first()[0]),
                     ),
                     ("Most Common Title", self.get(common_title_query, "title")),
                     ("Times Title Used", self.get(common_title_query, "count")),

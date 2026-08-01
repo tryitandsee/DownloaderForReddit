@@ -20,7 +20,6 @@ def raw_post(reddit_id):
         "author": "example_user",
         "subredditPrefixedName": "r/example_subreddit",
         "createdTimestamp": "2026-07-20T12:00:00+00:00",
-        "score": "12",
         "nsfw": "",
         "moreCursor": None,
     }
@@ -40,7 +39,6 @@ def post_for(post_id):
         "author": "example_user",
         "subredditPrefixedName": "r/example_subreddit",
         "createdTimestamp": "2026-07-20T12:00:00+00:00",
-        "score": "12",
         "nsfw": "",
         "moreCursor": None,
     }

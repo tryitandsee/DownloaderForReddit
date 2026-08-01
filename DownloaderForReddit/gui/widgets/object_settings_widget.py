@@ -23,8 +23,6 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
             self.sync_widgets_to_object()
 
     def setup_widgets(self):
-        for value in LimitOperator:
-            self.comment_score_operator_combo.addItem(value.display_name, value)
         for ext in ["txt", "html"]:
             self.self_post_file_format_combo.addItem(f".{ext}", ext)
             self.comment_file_format_combo.addItem(f".{ext}", ext)
@@ -184,15 +182,6 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
         self.comment_reply_limit_spinbox.valueChanged.connect(
             lambda x: self.set_object_value("comment_reply_limit", x)
         )
-        self.comment_score_limit_spinbox.valueChanged.connect(
-            lambda x: self.set_object_value("comment_score_limit", x)
-        )
-        self.comment_score_operator_combo.currentIndexChanged.connect(
-            lambda x: self.set_object_value(
-                "comment_score_limit_operator",
-                self.comment_score_operator_combo.itemData(x),
-            )
-        )
         self.comment_file_format_combo.currentIndexChanged.connect(
             lambda: self.set_object_value(
                 "comment_file_format",
@@ -249,10 +238,6 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
         self.sync_spin_box(self.comment_limit_spinbox, "comment_limit")
         self.sync_spin_box(self.comment_depth_spinbox, "comment_depth")
         self.sync_spin_box(self.comment_reply_limit_spinbox, "comment_reply_limit")
-        self.sync_spin_box(self.comment_score_limit_spinbox, "comment_score_limit")
-        self.sync_combo(
-            self.comment_score_operator_combo, "comment_score_limit_operator"
-        )
         self.sync_combo(self.comment_file_format_combo, "comment_file_format")
         self.sync_line_edit(
             self.comment_download_naming_line_edit, "comment_naming_method"
