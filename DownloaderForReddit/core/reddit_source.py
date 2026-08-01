@@ -23,9 +23,10 @@ from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page, sync_playwright
 
 from ..messaging.message import FollowStatePayload, Message
+from ..utils.system_util import get_data_directory
 from . import const
 
-PROFILE_DIR = Path(__file__).resolve().parent.parent.parent / "browser_profile"
+PROFILE_DIR = Path(get_data_directory()) / "browser_profile"
 REDDIT_BASE_URL = "https://www.reddit.com"
 
 # GraphQL operation fired when the dedicated account follows/unfollows a user by clicking

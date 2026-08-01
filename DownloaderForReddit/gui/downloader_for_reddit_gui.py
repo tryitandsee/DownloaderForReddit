@@ -47,6 +47,7 @@ from PyQt5.QtWidgets import (
 )
 from sqlalchemy import func, or_
 
+from ..core import const
 from ..core.cli import CLI
 from ..core.reddit_source import classify_listing_url, to_naive_utc
 from ..customwidgets.link_cursor_handler import LinkCursorHandler
@@ -404,13 +405,16 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
         self.load_state()
 
+        self.user_list_search_edit.setClearButtonEnabled(True)
         self.user_list_search_edit.textChanged.connect(
             lambda text: self.user_list_model.search_list(text)
         )
+        self.subreddit_list_search_edit.setClearButtonEnabled(True)
         self.subreddit_list_search_edit.textChanged.connect(
             lambda text: self.subreddit_list_model.search_list(text)
         )
 
+        self.download_button.setText(f"Download ({const.BULK_DOWNLOAD_LIMIT})")
         self.download_button.clicked.connect(self.run_full_download)
         self.soft_stop_download_button.clicked.connect(lambda: self.request_stop(False))
         self.terminate_download_button.clicked.connect(lambda: self.request_stop(True))
@@ -880,11 +884,10 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     def output_context_menu(self):
         menu = QMenu()
+        menu.addAction("Clear Output", lambda: self.output_view_model.clear())
         menu.addAction(
             "Output Settings", lambda: self.open_settings_dialog(open_display="Output")
         )
-        menu.addSeparator()
-        menu.addAction("Clear Output", lambda: self.output_view_model.clear())
         menu.addAction("Open Log File", self.open_log_file)
         menu.exec_(QCursor.pos())
 

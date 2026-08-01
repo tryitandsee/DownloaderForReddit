@@ -42,7 +42,7 @@ RATE_LIMIT_DOC_URL = "https://github.com/MalloyDelacroix/DownloaderForReddit/wik
 # objects actually downloaded per bulk run, excluding cooldown skips
 BULK_DOWNLOAD_LIMIT = 20
 # skip an object whose date_last_download_utc is within this window
-BULK_DOWNLOAD_COOLDOWN_HOURS = 12
+BULK_DOWNLOAD_COOLDOWN_HOURS = 10
 # poll tick between objects; also the queue-drain check interval
 BULK_DOWNLOAD_PACE_SECONDS = 5
 

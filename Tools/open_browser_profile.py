@@ -3,18 +3,21 @@ Opens the persistent Playwright browser profile used by the dedicated Reddit
 downloader account.
 
 Run this once to log into the dedicated account manually. The session is
-saved into browser_profile/ (gitignored) and reused by the app going forward
-without needing to log in again.
+saved into the app's data directory (see get_data_directory()) and reused by
+the app going forward without needing to log in again.
 
 Usage:
     .venv/Scripts/python.exe Tools/open_browser_profile.py
 """
 
+import sys
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-PROFILE_DIR = Path(__file__).resolve().parent.parent / "browser_profile"
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from DownloaderForReddit.core.reddit_source import PROFILE_DIR
 
 
 def main():

@@ -13,12 +13,16 @@ Usage:
 """
 
 import json
+import sys
 import time
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-PROFILE_DIR = Path(__file__).resolve().parent.parent / "browser_profile"
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from DownloaderForReddit.core.reddit_source import PROFILE_DIR
+
 OPERATION = "UpdateProfileFollowState"
 
 
