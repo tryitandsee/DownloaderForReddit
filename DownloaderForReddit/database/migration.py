@@ -1,12 +1,11 @@
 import logging
 import os
 
+import alembic.command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from sqlalchemy import desc
 from sqlalchemy.exc import IntegrityError, OperationalError
-
-from alembic import command
 
 from .. import version
 from ..utils import injector, system_util
@@ -71,7 +70,7 @@ class Migrator:
         config = self.get_config()
         with self.db.engine.begin() as connection:
             config.attributes["connection"] = connection
-            command.upgrade(config, "head")
+            alembic.command.upgrade(config, "head")
 
     def write_current_version(self, cache_version):
         """

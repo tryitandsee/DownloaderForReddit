@@ -1,6 +1,7 @@
 import os
 import sqlite3
 from contextlib import contextmanager
+from typing import Any
 
 import sqlalchemy
 from sqlalchemy.ext.declarative import declarative_base
@@ -9,9 +10,11 @@ from sqlalchemy.orm import sessionmaker
 from ..core import const
 from ..utils import system_util
 
+Base: Any = declarative_base()
+
 
 class DatabaseHandler:
-    base = declarative_base()
+    base = Base
 
     def __init__(self, *, in_memory=False):
         self.database_path = os.path.join(

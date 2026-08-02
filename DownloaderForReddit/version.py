@@ -22,9 +22,7 @@ def get_version_parts(version_string):
 
 
 def is_updated(tested_for: str, tested_against: str) -> bool:
-    tested_against = compile_version(tested_against)
-    tested_for = compile_version(tested_for)
-    return tested_for > tested_against
+    return compile_version(tested_for) > compile_version(tested_against)
 
 
 def compile_version(ver: str) -> int:

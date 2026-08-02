@@ -17,7 +17,7 @@ class InvalidRedditObjectDialog(QDialog, Ui_InvalidRedditObjectDialog):
         QDialog.__init__(self)
         self.setupUi(self)
         self.invalid_ros = invalid_ros
-        self.checkbox_list = []
+        self.checkbox_list: list[QCheckBox] = []
         self.button_box.accepted.connect(self.close)
         self.setup_decision_box()
         self.select_all_checkbox.toggled.connect(self.toggle_all)

@@ -31,6 +31,8 @@ dev = [
     "ruff",
     "mypy",
     "pytest",
+    "ty>=0.0.65",
+    "pyqt5-stubs>=5.15.6.0",
 ]
 
 [tool.ruff.lint]
@@ -87,3 +89,9 @@ extend-select = [
 [tool.mypy]
 ignore_missing_imports = true
 warn_unused_ignores = true
+explicit_package_bases = true
+mypy_path = "."
+exclude = ["alembic/", "DownloaderForReddit/guiresources/"]
+
+[tool.ty.src]
+exclude = ["**/guiresources/**", "**/alembic/**"]

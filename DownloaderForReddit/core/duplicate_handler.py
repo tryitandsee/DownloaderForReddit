@@ -1,7 +1,8 @@
 import os
 
-from DownloaderForReddit.database import Content
+from DownloaderForReddit.database import Content, Post
 from DownloaderForReddit.database.model_enums import DuplicateControlMethod
+from DownloaderForReddit.database.models import RedditObject
 from DownloaderForReddit.messaging.message import Message
 from DownloaderForReddit.utils import general_utils, injector, system_util
 from DownloaderForReddit.utils.filename_generator import FilenameGenerator
@@ -53,14 +54,12 @@ class DuplicateHandler:
         """
         self.settings_manager = injector.get_settings_manager()
         self.content = content
-        self.post = None
-        self.sig_ro = None
         self.setup()
         self.duplicate_deleted = False
 
     def setup(self) -> None:
-        self.post = self.content.post
-        self.sig_ro = self.post.significant_reddit_object
+        self.post: Post = self.content.post
+        self.sig_ro: RedditObject = self.post.significant_reddit_object
 
     def handle_duplicate(self) -> None:
         """

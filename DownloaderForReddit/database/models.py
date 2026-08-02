@@ -21,7 +21,7 @@ from sqlalchemy.sql import func
 from ..core import const
 from ..core.errors import Error
 from ..utils import general_utils, injector, system_util
-from .database_handler import DatabaseHandler
+from .database_handler import Base
 from .model_enums import (
     CommentDownload,
     CommentSortMethod,
@@ -30,8 +30,6 @@ from .model_enums import (
     NsfwFilter,
     PostSortMethod,
 )
-
-Base = DatabaseHandler.base
 
 
 class BaseModel(Base):

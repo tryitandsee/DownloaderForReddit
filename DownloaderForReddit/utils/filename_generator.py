@@ -1,4 +1,4 @@
-from ..database.models import Comment, Content, Post
+from ..database.models import Comment, Content, Post, RedditObject
 from . import TokenParser, injector, system_util
 
 
@@ -25,9 +25,6 @@ class FilenameGenerator:
 
     def __init__(self, obj: Post | Content | Comment, is_duplicate: bool = False):
         self.settings_manager = injector.get_settings_manager()
-        self.post = None
-        self.reddit_object = None
-        self.comment = None
         self.is_duplicate = is_duplicate
         self.setup(obj)
 
@@ -40,6 +37,9 @@ class FilenameGenerator:
                     containing a 'post' or 'significant_reddit_object' attribute.
         :type obj: Union[Comment, Content, Any]
         """
+        self.post: Post
+        self.reddit_object: RedditObject
+        self.comment: Comment | None
         if isinstance(obj, Comment):
             self.comment = obj
             self.post = obj.post

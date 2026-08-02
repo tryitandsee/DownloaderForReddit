@@ -23,6 +23,7 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import logging
+from typing import ClassVar
 
 import requests
 
@@ -36,7 +37,7 @@ from ..utils.filename_generator import FilenameGenerator
 
 
 class BaseExtractor:
-    url_key = (None,)
+    url_key: ClassVar[list[str] | None] = None
 
     def __init__(self, post, **kwargs):
         """
@@ -253,7 +254,7 @@ class BaseExtractor:
     def handle_failed_extract(
         self,
         error: Error,
-        message: str | None = None,
+        message: str,
         log: bool = True,
         log_exception: bool = False,
         **kwargs,

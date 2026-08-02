@@ -8,6 +8,7 @@ from sqlalchemy.sql import func
 
 from .model_enums import NsfwFilter
 from .models import (
+    Base,
     Comment,
     Content,
     DownloadSession,
@@ -38,7 +39,7 @@ class Filter:
         "contains": lambda attr, value: attr.contains(value),
     }
 
-    model = None
+    model: ClassVar[type[Base]]
     default_order = "id"
     filter_include: ClassVar[list[str]] = []
     filter_exclude: ClassVar[list[str]] = []

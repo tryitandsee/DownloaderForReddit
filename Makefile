@@ -1,5 +1,10 @@
 DB='${HOME}/Library/Application Support/SomeGuySoftware/DownloaderForReddit/dfr.db'
 
+lint:
+	.venv/bin/python -m ruff check .
+	.venv/bin/python -m ruff format --check .
+	.venv/bin/python -m mypy .
+
 tdd:
 	nodemon -e py -x "python -W ignore::DeprecationWarning -m unittest --failfast"
 

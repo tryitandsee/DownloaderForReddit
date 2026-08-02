@@ -283,6 +283,9 @@ def _parse_post(raw: dict) -> SubmissionData | None:
             content_href = raw.get("contentHref")
             url = urljoin(REDDIT_BASE_URL, content_href) if content_href else ""
         permalink = urljoin(REDDIT_BASE_URL, raw.get("permalink") or "")
+        created_timestamp = raw.get("createdTimestamp")
+        if created_timestamp is None:
+            raise ValueError("missing createdTimestamp")
         return SubmissionData(
             reddit_id=reddit_id,
             title=raw.get("postTitle") or "",
@@ -290,7 +293,7 @@ def _parse_post(raw: dict) -> SubmissionData | None:
             domain=raw.get("domain") or "",
             author=raw.get("author") or "",
             subreddit=_strip_subreddit_prefix(raw.get("subredditPrefixedName") or ""),
-            created=datetime.fromisoformat(raw.get("createdTimestamp")),
+            created=datetime.fromisoformat(created_timestamp),
             nsfw=raw.get("nsfw") is not None,
             is_self=post_type == "text",
             permalink=permalink,

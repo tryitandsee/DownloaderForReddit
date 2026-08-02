@@ -22,7 +22,7 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import datetime
+import datetime as dt
 import logging
 import os
 import re
@@ -257,13 +257,13 @@ def import_data_file(directory, file):
         shutil.copy(source, dest)
 
 
-def epoch_to_datetime(epoch_time):
+def epoch_todt(epoch_time):
     if type(epoch_time) == int or type(epoch_time) == float:
-        return datetime.datetime.fromtimestamp(epoch_time)
+        return dt.datetime.fromtimestamp(epoch_time)
     return None
 
 
-def format_time_delta(td: datetime.timedelta):
+def format_time_delta(td: dt.timedelta):
     if td.days > 0:
         return f"{td.days} days, {format_duration_full(td.seconds)}"
     return format_duration_full(td.seconds)

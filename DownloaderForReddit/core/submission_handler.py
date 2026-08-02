@@ -47,8 +47,6 @@ class SubmissionHandler(Runner):
         self.session = session
         self.download_queue = download_queue
 
-        self.content = []
-
     @verify_run
     def extract_submission(self):
         if not self.post.is_self:

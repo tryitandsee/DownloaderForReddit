@@ -35,7 +35,7 @@ ffmpeg_valid = shutil.which("ffmpeg") is not None
 
 
 # A list of MergeSet's containing the path of the video and audio files that are to be merged.
-videos_to_merge = []
+videos_to_merge: list[MergeSet] = []
 
 
 class MergeSet:

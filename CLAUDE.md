@@ -32,6 +32,10 @@ while the app is running, and handles the schema's mixed UTC/local datetime conv
 Grepping `DownloaderForReddit.log` directly returns whole embedded tracebacks and will
 blow the read cap; `dfr_query.py log` filters before including them.
 
+## Lint
+
+mypy must pass too, not just ruff. No `type: ignore`.
+
 ## Architecture
 
 @docs/ARCHITECTURE.md
