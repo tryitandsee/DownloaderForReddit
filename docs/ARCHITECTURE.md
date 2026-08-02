@@ -27,6 +27,24 @@ Stop is responsive mid-navigation, not just between objects/scrolls: `DownloadRu
 
 `BrowserRedditSource` watches every response in the shared browser context for an HTTP 429 (`context.on("response", ...)`). On the first 429 it sets a `threading.Event` and calls back into `DownloadRunner` (`set_on_rate_limited`), which messages the user and cancels the session (`stop_download(hard_stop=True)`). Independently, every navigation-triggering method and scroll iteration checks that event first and raises `RateLimitedError` instead of navigating. There's no auto-resume — the event is cleared at the top of the next `start_batch`.
 
+### Outbound HTTP identity
+
+Downloads and extractor fetches use `requests`, outside the browser. `core/download/request_context.py`'s `request_args(url, referer)` returns `headers`/`cookies` kwargs lending them the browser's user agent and cookies, snapshotted from `BrowserRedditSource.get_request_context()` and TTL-cached (reading it occupies the single Playwright worker). It uses `injector.peek_reddit_source()` so a download never launches a browser, and never raises — `Downloader.download`'s bare `except` would misreport that as a content error.
+
+Cookies go in a domain-scoped `RequestsCookieJar` so reddit's aren't sent to imgur. Playwright's `expires=-1` session cookies are translated to `None`, which `http.cookiejar` would otherwise drop as expired.
+
+`HEADERS` entries (redgifs auth) are layered on top and win.
+
+### Download retries
+
+Three independent layers, none with any backoff:
+
+1. **Transport** — none. Every call is a bare `requests.get`, so `HTTPAdapter(max_retries=0)`. No `Retry` is mounted anywhere; a status code would never trigger one regardless.
+2. **Within-call** — multipart only. `MultipartDownloader.download_part` retries a chunk up to 3 times on any non-206, 404 included. The single-file path has no loop.
+3. **Across sessions** — `Content.retry_attempts`, incremented by `set_download_error`. `DownloadRunner.run_undownloaded_content` requeues undownloaded content whose error isn't in `errors.NON_DOWNLOADABLE` and whose `retry_attempts <= 3`.
+
+`Downloader.handle_unsuccessful_response` maps 404/410 to `DOES_NOT_EXIST` and 403 to `FORBIDDEN`, both `NON_DOWNLOADABLE`, so those get one attempt. Everything else stays `UNSUCCESSFUL_RESPONSE` and is retried — including 429, which burns all 4 attempts against a rate limit. Rows predating that mapping still carry `UNSUCCESSFUL_RESPONSE` with a 404 message.
+
 ### Extractor system
 
 `SubmissionHandler` (`core/submission_handler.py`) calls `assign_extractor(url)` which matches the URL against each extractor's `url_key` list. Each extractor inherits `BaseExtractor` and implements `extract_content()`. The result is one or more `Content` DB records.

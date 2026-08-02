@@ -8,8 +8,6 @@ import requests
 from DownloaderForReddit.core.runner import Runner, verify_run
 from DownloaderForReddit.utils import injector
 
-from . import HEADERS
-
 
 class MultipartDownloader(Runner):
     def __init__(self, stop_run):
@@ -23,10 +21,10 @@ class MultipartDownloader(Runner):
         self.part_count = 0
         self.failed_parts = 0
 
-    def run(self, content, path, size):
+    def run(self, content, path, size, request_args):
         loop = asyncio.new_event_loop()
         try:
-            loop.run_until_complete(self.download(content, path, size))
+            loop.run_until_complete(self.download(content, path, size, request_args))
         except:
             self.logger.exception(
                 "Multi-part download failed", extra={"url": content.url, "path": path}
@@ -35,7 +33,7 @@ class MultipartDownloader(Runner):
             loop.close()
 
     @verify_run
-    async def download(self, content, path, file_size):
+    async def download(self, content, path, file_size, request_args):
         loop = asyncio.get_event_loop()
         chunks = range(0, file_size, self.chunk_size)
         self.part_count = len(chunks)
@@ -47,6 +45,7 @@ class MultipartDownloader(Runner):
                 start,
                 start + self.chunk_size - 1,
                 f"{path}.part{x}",
+                request_args,
             )
             for x, start in enumerate(chunks)
         ]
@@ -68,14 +67,14 @@ class MultipartDownloader(Runner):
                     )
 
     @verify_run
-    def download_part(self, content, start, end, path):
+    def download_part(self, content, start, end, path, request_args):
         retry = True
         tries = 0
         url = content.url
 
         def download():
-            headers = self.get_headers(content, start, end)
-            response = requests.get(url, headers=headers, stream=True, timeout=10)
+            args = self.chunk_request_args(request_args, start, end)
+            response = requests.get(url, stream=True, timeout=10, **args)
             if response.status_code == 206:
                 with open(path, "wb") as file:
                     file.writelines(response.iter_content(self.chunk_size))
@@ -118,12 +117,11 @@ class MultipartDownloader(Runner):
                     log=tries >= 3,
                 )
 
-    def get_headers(self, content, start, end):
-        headers = {"Range": f"bytes={start}-{end}"}
-        download_headers = HEADERS.get(content.id, None)
-        if download_headers is not None:
-            headers.update(download_headers)
-        return headers
+    def chunk_request_args(self, request_args, start, end):
+        return {
+            **request_args,
+            "headers": {**request_args["headers"], "Range": f"bytes={start}-{end}"},
+        }
 
     def log_part_error(self, message, extra=None, exc_info=True, log=True):
         if log:

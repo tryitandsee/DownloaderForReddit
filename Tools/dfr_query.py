@@ -6,6 +6,7 @@ inspected, and local_logging.logger attaches handlers on import.
 
     python Tools/dfr_query.py object <name>
     python Tools/dfr_query.py objects --order-by expected
+    python Tools/dfr_query.py downloads --error UNSUCCESSFUL_RESPONSE
     python Tools/dfr_query.py log --level ERROR --since 2h
 """
 
@@ -15,6 +16,7 @@ import os
 import sqlite3
 import sys
 from datetime import UTC, datetime, timedelta
+from urllib.parse import urlsplit
 
 VELOCITY_WINDOW_DAYS = 30
 VELOCITY_WINDOW_LAG_DAYS = 7
@@ -341,6 +343,90 @@ def coverage_stats(connection: sqlite3.Connection, all_objects: bool) -> dict:
     }
 
 
+DOWNLOAD_TOTALS_SQL = """
+SELECT COUNT(*) AS total,
+       SUM(CASE WHEN downloaded = 1 THEN 1 ELSE 0 END) AS downloaded,
+       SUM(CASE WHEN downloaded = 0 THEN 1 ELSE 0 END) AS unfinished
+FROM content
+"""
+
+DOWNLOAD_ERRORS_SQL = """
+SELECT COALESCE(download_error, ?) AS error, COUNT(*) AS count
+FROM content
+WHERE downloaded = 0
+GROUP BY download_error
+ORDER BY count DESC
+"""
+
+UNFINISHED_SQL = """
+SELECT c.id, c.url, c.title, c.download_error, c.error_message, c.retry_attempts,
+       u.name AS user_name, s.name AS subreddit_name, p.reddit_id
+-- user/subreddit are joined-table inheritance over reddit_object and hold only an id.
+FROM content c
+LEFT JOIN reddit_object u ON u.id = c.user_id
+LEFT JOIN reddit_object s ON s.id = c.subreddit_id
+LEFT JOIN post p ON p.id = c.post_id
+WHERE c.downloaded = 0
+"""
+
+NO_ERROR = "(no error recorded)"
+
+
+def url_host(url: str | None) -> str:
+    if not url:
+        return "(no url)"
+    return urlsplit(url).netloc.lower() or "(unparseable)"
+
+
+def download_stats(
+    connection: sqlite3.Connection, error: str | None, host: str | None, limit: int
+) -> dict:
+    """Unfinished content, i.e. rows the download pipeline never marked downloaded.
+
+    An unfinished row with no download_error was extracted but never got a result written
+    back -- queued and interrupted, not failed.
+    """
+    totals = connection.execute(DOWNLOAD_TOTALS_SQL).fetchone()
+    errors = connection.execute(DOWNLOAD_ERRORS_SQL, (NO_ERROR,)).fetchall()
+
+    sql = UNFINISHED_SQL
+    params: list[object] = []
+    if error is not None:
+        sql += " AND c.download_error = ?"
+        params.append(error)
+    rows = connection.execute(sql, params).fetchall()
+    if host is not None:
+        rows = [row for row in rows if url_host(row["url"]) == host.lower()]
+
+    hosts: dict[str, int] = {}
+    for row in rows:
+        name = url_host(row["url"])
+        hosts[name] = hosts.get(name, 0) + 1
+
+    return {
+        "total_content": totals["total"] or 0,
+        "downloaded": totals["downloaded"] or 0,
+        "unfinished": totals["unfinished"] or 0,
+        "by_error": {row["error"]: row["count"] for row in errors},
+        "filter": {"error": error, "host": host, "matched": len(rows)},
+        "by_host": [
+            {"host": name, "count": count}
+            for name, count in sorted(hosts.items(), key=lambda item: -item[1])[:limit]
+        ],
+        "samples": [
+            {
+                "user": row["user_name"] or row["subreddit_name"],
+                "reddit_id": row["reddit_id"],
+                "url": row["url"],
+                "download_error": row["download_error"] or NO_ERROR,
+                "error_message": row["error_message"],
+                "retry_attempts": row["retry_attempts"],
+            }
+            for row in rows[:limit]
+        ],
+    }
+
+
 def parse_since(value: str) -> datetime:
     units = {"m": "minutes", "h": "hours", "d": "days"}
     if value and value[-1] in units and value[:-1].replace(".", "", 1).isdigit():
@@ -432,6 +518,11 @@ def build_parser() -> argparse.ArgumentParser:
     coverage = subparsers.add_parser("coverage", help="checkpoint and post coverage")
     coverage.add_argument("--all", action="store_true")
 
+    downloads = subparsers.add_parser("downloads", help="unfinished content downloads")
+    downloads.add_argument("--error", default=None, help="filter to one download_error")
+    downloads.add_argument("--host", default=None, help="filter to one url host")
+    downloads.add_argument("--limit", type=int, default=DEFAULT_ROW_CAP)
+
     log = subparsers.add_parser("log", help="filtered log records")
     log.add_argument("--level", choices=sorted(LEVEL_ORDER), default=None)
     log.add_argument("--since", default=None, help="30m, 2h, 7d, or an ISO timestamp")
@@ -479,6 +570,8 @@ def main() -> int:
                     args.all,
                 )
             )
+        elif args.command == "downloads":
+            emit(download_stats(connection, args.error, args.host, args.limit))
         else:
             emit(coverage_stats(connection, args.all))
     finally:

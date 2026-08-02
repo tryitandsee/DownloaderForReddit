@@ -125,7 +125,7 @@ class RedditVideoExtractor(BaseExtractor):
         audio.
         :return: True if the audio link is valid, False if not.
         """
-        response = requests.head(audio_url)
+        response = requests.head(audio_url, timeout=10, **self.request_args(audio_url))
         return response.status_code == 200
 
     def get_audio_content(self):

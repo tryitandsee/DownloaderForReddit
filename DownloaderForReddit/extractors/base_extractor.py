@@ -27,6 +27,7 @@ import logging
 import requests
 
 from ..core.content_filter import ContentFilter
+from ..core.download import request_context
 from ..core.errors import Error
 from ..database import Content
 from ..messaging.message import ContentSkippedPayload, Message
@@ -112,9 +113,16 @@ class BaseExtractor:
         _media_id, extension = id_with_ext.rsplit(".", 1)
         self.make_content(self.url, extension)
 
+    def request_args(self, url):
+        """See core/download/request_context.py -- an api/page fetch during extraction gets the
+        same borrowed browser identity the eventual download will use."""
+        return request_context.request_args(
+            url, request_context.origin_referer(self.url)
+        )
+
     def get_json(self, url):
         """Makes sure that a request is valid and handles without errors if the connection is not successful"""
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, timeout=10, **self.request_args(url))
         if response.status_code == 200 and "json" in response.headers["Content-Type"]:
             return response.json()
         self.handle_failed_extract(
@@ -126,7 +134,7 @@ class BaseExtractor:
 
     def get_text(self, url):
         """See get_json"""
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, timeout=10, **self.request_args(url))
         if response.status_code == 200 and "text" in response.headers["Content-Type"]:
             return response.text
         self.handle_failed_extract(

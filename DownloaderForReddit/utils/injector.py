@@ -67,3 +67,12 @@ def get_reddit_source():
         reddit_source = BrowserRedditSource()
         reddit_source.start()
     return reddit_source
+
+
+def peek_reddit_source():
+    """
+    Returns the BrowserRedditSource only if one is already running, never launching one. For
+    callers that want to borrow the browser's identity (core/download/request_context.py) but
+    must not pop a Chromium window open to get it.
+    """
+    return reddit_source

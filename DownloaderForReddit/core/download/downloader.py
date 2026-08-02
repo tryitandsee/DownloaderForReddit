@@ -13,7 +13,7 @@ from DownloaderForReddit.messaging.message import Message
 from DownloaderForReddit.utils import general_utils, injector, system_util
 
 from ..duplicate_handler import DuplicateHandler
-from . import HEADERS
+from . import HEADERS, request_context
 from .multipart_downloader import MultipartDownloader
 
 
@@ -118,11 +118,12 @@ class Downloader(Runner):
                 content.download_title = general_utils.ensure_content_download_path(
                     content
                 )
+                request_args = self.request_args(content)
                 response = requests.get(
                     content.url,
                     stream=True,
                     timeout=10,
-                    headers=self.check_headers(content),
+                    **request_args,
                 )
                 if response.status_code == 200:
                     file_size = int(response.headers["Content-Length"])
@@ -137,6 +138,7 @@ class Downloader(Runner):
                             content.get_full_file_path(),
                             file_size,
                             download_session_id,
+                            request_args,
                         )
                     else:
                         if self.should_use_hash(content):
@@ -157,19 +159,19 @@ class Downloader(Runner):
         finally:
             self._active_downloads.pop(thread, None)
 
-    def check_headers(self, content):
+    def request_args(self, content):
         """
-        This is a helper method to add a necessary header entry for erome downloads.  It is just a patch for a problem
-        at the moment.  This can be expanded as further need arises, or replaced by a different better system.
-
-        Checks the HEADER dict for the supplied content's id and, if found, returns the associated header data that will
-        be necessary for the request to be successful.
+        The browser's identity (see core/download/request_context.py) with extractor-supplied
+        headers layered on top -- HEADERS carries redgifs' auth token and its own user agent,
+        which the borrowed identity must not clobber.
         :param content: The content object that is in the process of being downloaded.
-        :return: A dict to be used as a request header where applicable, None if there is no applicable header.
+        :return: A dict of kwargs to unpack into a requests call.
         """
-        if "erome" in content.url:
-            return {"Referer": "https://www.erome.com/"}
-        return HEADERS.get(content.id, None)
+        args = request_context.request_args(
+            content.url, request_context.content_referer(content)
+        )
+        args["headers"].update(HEADERS.get(content.id) or {})
+        return args
 
     def should_use_multi_part(self, file_size: int) -> bool:
         settings = self.settings_manager
@@ -179,10 +181,17 @@ class Downloader(Runner):
         )
 
     def download_with_multipart(
-        self, content: Content, file_path: str, file_size: int, download_session_id: int
+        self,
+        content: Content,
+        file_path: str,
+        file_size: int,
+        download_session_id: int,
+        request_args: dict,
     ) -> None:
+        # request_args is computed by the caller, which still holds the scoped session: it reads
+        # content.post, and the multipart chunk threads have no session of their own.
         multi_part_downloader = MultipartDownloader(self.stop_run)
-        multi_part_downloader.run(content, file_path, file_size)
+        multi_part_downloader.run(content, file_path, file_size, request_args)
         self.finish_multi_part_download(
             content, multi_part_downloader, download_session_id
         )

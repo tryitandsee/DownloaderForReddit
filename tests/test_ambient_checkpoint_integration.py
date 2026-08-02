@@ -69,7 +69,12 @@ class FakePage:
 
 def read_checkpoint(db):
     with db.get_scoped_session() as session:
-        return session.query(User).filter(User.name == "example_user").first().date_last_download_utc
+        return (
+            session.query(User)
+            .filter(User.name == "example_user")
+            .first()
+            .date_last_download_utc
+        )
 
 
 def test_unconfirmed_ambient_checkpoint_does_not_hide_content_from_a_later_scan():
@@ -92,7 +97,9 @@ def test_unconfirmed_ambient_checkpoint_does_not_hide_content_from_a_later_scan(
     assert checkpoint is None
 
     page = FakePage([[raw]])
-    found_posts, _confirmed = BrowserRedditSource()._scroll_and_collect(page, since=checkpoint)
+    found_posts, _confirmed = BrowserRedditSource()._scroll_and_collect(
+        page, since=checkpoint
+    )
 
     # The point isn't *how* the scan decided it was done (no end marker here, so it's the
     # empty-scroll fallback) -- it's that a None checkpoint never short-circuits reached_checkpoint,
@@ -120,7 +127,9 @@ def test_confirmed_ambient_checkpoint_lets_a_later_scan_stop_without_rescrolling
     assert checkpoint is not None
 
     page = FakePage([[raw]])
-    found_posts, confirmed = BrowserRedditSource()._scroll_and_collect(page, since=checkpoint)
+    found_posts, confirmed = BrowserRedditSource()._scroll_and_collect(
+        page, since=checkpoint
+    )
 
     assert (len(found_posts), confirmed, page.scrolls) == (1, True, 0)
 
@@ -150,7 +159,9 @@ def test_confirmed_ambient_checkpoint_still_finds_a_new_post_rendered_out_of_ord
     new_raw = post_for("new_post", checkpoint.replace(tzinfo=UTC) + timedelta(days=1))
     page = FakePage([[old_raw, new_raw]])
 
-    found_posts, _confirmed = BrowserRedditSource()._scroll_and_collect(page, since=checkpoint)
+    found_posts, _confirmed = BrowserRedditSource()._scroll_and_collect(
+        page, since=checkpoint
+    )
 
     # Both posts are read on the very first pass: reached_checkpoint requires the *whole* batch
     # to be at or before the checkpoint (all(), not any()), so old_post alone doesn't trigger an
