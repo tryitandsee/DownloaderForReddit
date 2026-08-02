@@ -28,10 +28,13 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 # ~1000-entry list of short yt-dlp site keys via substring containment, which can coincidentally match URLs meant
 # for a dedicated extractor (e.g. a redgifs slug containing a 2-letter key like "dw"). It must be imported last so
 # assign_extractor's first-match-wins iteration always prefers a dedicated extractor when one applies.
+# DirectExtractor and SelfPostExtractor have no url_key so assign_extractor's loop skips them, but they must be
+# imported here anyway: SettingsManager builds extractor_dict from __subclasses__() and now drops keys outside it.
+from .direct_extractor import DirectExtractor
 from .erome_extractor import EromeExtractor
-from .gfycat_extractor import GfycatExtractor
 from .imgur_extractor import ImgurExtractor
 from .reddit_uploads_extractor import RedditUploadsExtractor
 from .reddit_video_extractor import RedditVideoExtractor
 from .redgifs_extractor import RedgifsExtractor
+from .self_post_extractor import SelfPostExtractor
 from .generic_video_extractor import GenericVideoExtractor

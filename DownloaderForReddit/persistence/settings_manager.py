@@ -77,7 +77,13 @@ class SettingsManager:
         default_extractor_dict = {
             extractor.__name__: True for extractor in BaseExtractor.__subclasses__()
         }
-        self.extractor_dict = self.get("core", "extractor_dict", default_extractor_dict)
+        stored_extractor_dict = self.get(
+            "core", "extractor_dict", default_extractor_dict
+        )
+        self.extractor_dict = {
+            name: stored_extractor_dict.get(name, enabled)
+            for name, enabled in default_extractor_dict.items()
+        }
         # endregion
 
         # region Download Defaults
