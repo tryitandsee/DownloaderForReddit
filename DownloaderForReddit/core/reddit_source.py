@@ -901,13 +901,24 @@ class BrowserRedditSource:
         Message.send_scroll_status(f"{label}: hit scroll safety cap, giving up")
         return list(collected.values()), False
 
+    @staticmethod
+    def _same_listing(page: Page, url: str) -> bool:
+        """Host+path only, since reddit appends its own query strings (matches the
+        post-goto diagnostic in _goto_and_wait)."""
+        requested, actual = urlsplit(url), urlsplit(page.url)
+        return (requested.netloc, requested.path.rstrip("/")) == (
+            actual.netloc,
+            actual.path.rstrip("/"),
+        )
+
     def _collect_listing(
         self, url: str, since: datetime | None
     ) -> tuple[list[SubmissionData], bool]:
         self._check_should_continue()
         page = self._run(self._get_page)
         with self._suppressed_ambient():
-            self._run(self._goto_and_wait, page, url, 2000)
+            if not self._run(self._same_listing, page, url):
+                self._run(self._goto_and_wait, page, url, 2000)
             return self._scroll_and_collect(page, since)
 
     def iter_user_submissions(
@@ -995,7 +1006,8 @@ class BrowserRedditSource:
         page = self._run(self._get_page)
         with self._suppressed_ambient():
             try:
-                self._run(self._goto_and_wait, page, url, 2000)
+                if not self._run(self._same_listing, page, url):
+                    self._run(self._goto_and_wait, page, url, 2000)
             except PlaywrightError:
                 logger.warning(
                     "Navigation failed during validation",

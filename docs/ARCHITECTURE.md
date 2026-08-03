@@ -15,6 +15,8 @@ A download session creates a `DownloadRunner` (`core/download_runner.py`) which 
 
 Users and subreddits share one scrape path: `BrowserRedditSource._collect_listing`/`_validate_and_collect_listing` scroll the listing until it renders its own end-of-listing marker or a post older than the object's `date_last_download_utc` checkpoint is reached. That checkpoint only advances when the scan confirmed coverage, not when it hit the scroll safety cap. Ambient browsing's coverage signals (see Ambient downloader) are profile-page-only, so a subreddit's checkpoint only ever advances from an explicit download.
 
+Both methods skip navigating if the page is already on that listing (`_same_listing`), so a scan cut short by a 429 resumes scrolling in place instead of reloading to the top.
+
 An explicit scan queues each batch of posts as the scroll finds them rather than waiting for the whole listing: `_scroll_and_collect` calls back into `queue_submissions`/`_finalize_submission` per batch via `set_on_posts_collected`. Each read/scroll is submitted individually to `BrowserRedditSource`'s single-worker executor (`_run`), pacing between them (`set_scroll_pacer`) — this keeps the worker free for other queued Playwright work (e.g. gallery metadata fetches) instead of holding it for the whole scan.
 
 `submission_queue` uses `None` as a stop sentinel. There's no queue-level pause; a rate limit cancels the current `DownloadSession` outright (see Rate limiting).
