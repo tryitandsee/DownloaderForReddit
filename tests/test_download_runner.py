@@ -323,3 +323,44 @@ def test_queue_submissions_reports_but_skips_enqueue_for_duplicate_post(monkeypa
     assert len(found) == 1
     assert found[0].is_new is False
     assert runner.submission_queue.put_calls == []
+
+
+class FakeDbSingle:
+    def __init__(self, existing_post=None):
+        self._existing_post = existing_post
+
+    @contextmanager
+    def get_scoped_session(self):
+        yield FakeUpdateSession(self._existing_post)
+
+
+class ExplodingRedditSource:
+    def get_post(self, _url):
+        raise AssertionError(
+            "get_post should not be called for an already-downloaded post"
+        )
+
+
+def test_prepare_single_submission_skips_navigation_for_already_downloaded_post(
+    monkeypatch,
+):
+    """Regression test: the reddit_id parsed straight out of the pasted url is enough to know a
+    post is a duplicate, so prepare_single_submission must never spend a browser navigation
+    fetching one that's already in the database."""
+    found = []
+    monkeypatch.setattr(
+        Message, "send_content_found", lambda payload: found.append(payload)
+    )
+
+    runner = make_runner()
+    runner.db = FakeDbSingle(existing_post=object())
+    runner.reddit_source = ExplodingRedditSource()
+
+    result = runner.prepare_single_submission(
+        "https://www.reddit.com/r/pics/comments/abc123/x/"
+    )
+
+    assert result is None
+    assert len(found) == 1
+    assert found[0].is_new is False
+    assert found[0].reddit_id == "abc123"

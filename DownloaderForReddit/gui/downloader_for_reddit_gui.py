@@ -985,11 +985,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     def open_single_post_dialog(self):
         # [mine] feat(gui): prompt for post URLs (one per line) and start a download
-        if self.running:
-            Message.send_warning(
-                "Finish the current download before downloading posts."
-            )
-            return
         text, ok = QInputDialog.getMultiLineText(
             self, "Download Posts", "Post URLs (one per line):"
         )

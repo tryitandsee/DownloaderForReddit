@@ -1,5 +1,6 @@
 import logging
 import platform
+import re
 import time
 from collections import namedtuple
 from datetime import UTC, datetime, timedelta
@@ -36,6 +37,11 @@ ExtractionSet = namedtuple(
     "ExtractionSet",
     "extraction_type extraction_object significant_id download_session_id",
 )
+
+# Matches the base36 post id out of any reddit permalink/comments url, the same id
+# Post.reddit_id stores -- lets prepare_single_submission check for a duplicate before
+# spending a browser navigation on a post already in the database.
+_POST_ID_RE = re.compile(r"/comments/([A-Za-z0-9]+)")
 
 # [mine] TODO: stub for a future "force download" GUI toggle -- hardcoded on for now to
 # re-test RedditUploadsExtractor's mp4 fetch against an already-downloaded post without
@@ -583,6 +589,27 @@ class DownloadRunner(QObject):
 
     # [mine] feat(core): fetch a single post by URL and build its SUBMISSION ExtractionSet, or None if invalid
     def prepare_single_submission(self, url):
+        match = _POST_ID_RE.search(url)
+        if match is not None and not FORCE_DOWNLOAD:
+            reddit_id = match.group(1)
+            with self.db.get_scoped_session() as session:
+                already_downloaded = (
+                    session.query(Post.id).filter(Post.reddit_id == reddit_id).first()
+                    is not None
+                )
+            if already_downloaded:
+                # Skip the navigation entirely -- the reddit_id parsed straight out of the url
+                # is enough to know this is a duplicate without fetching the post.
+                Message.send_content_found(
+                    ContentFoundPayload(
+                        reddit_id=reddit_id,
+                        author="",
+                        subreddit="",
+                        permalink=url,
+                        is_new=False,
+                    )
+                )
+                return None
         try:
             submission = self.reddit_source.get_post(url)
         except RateLimitedError:
