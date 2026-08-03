@@ -60,6 +60,7 @@ class SettingsManager:
         )
         self.multi_part_thread_count = self.get("core", "multi_part_thread_count", 4)
         self.download_on_add = self.get("core", "download_on_add", False)
+        self.slow_mode = self.get("core", "slow_mode", False)
         self.finish_incomplete_extractions_at_session_start = self.get(
             "core", "finish_incomplete_extractions_at_session_start", False
         )

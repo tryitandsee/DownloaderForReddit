@@ -24,7 +24,7 @@ RAW_TEXT_ROLE = Qt.UserRole + 1
 
 
 class ContentFeedPanel(QWidget):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._items_by_reddit_id: dict[str, QListWidgetItem] = {}
         # Distinct reasons seen per post -- a multi-item post (e.g. a gallery) can report the same

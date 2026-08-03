@@ -49,7 +49,7 @@ def _path_pattern(path: str) -> str:
 
 
 class Anonymizer:
-    def __init__(self):
+    def __init__(self) -> None:
         self.enabled = False
         self._aliases: dict[str, str] = {}
         self._name_re: re.Pattern | None = None

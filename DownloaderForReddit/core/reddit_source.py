@@ -22,6 +22,7 @@ from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page, sync_playwright
 
 from ..messaging.message import FollowStatePayload, Message
+from ..utils import injector
 from ..utils.system_util import get_data_directory
 from . import const
 
@@ -53,12 +54,6 @@ _SUBMITTED_LISTING_URL_RE = re.compile(
     r"^https://www\.reddit\.com/user/([^/?]+)/submitted/"
 )
 _SUBREDDIT_NEW_LISTING_URL_RE = re.compile(r"^https://www\.reddit\.com/r/([^/?]+)/new/")
-
-# Bounds both ambient-push latency and how long a queued explicit-download task waits.
-PUMP_INTERVAL_MS = 500
-
-# Wait for shreddit to lazy-load the next batch. Scroll count cap: const.MAX_SCROLL_ITERATIONS.
-_SCROLL_PAUSE_MS = 1500
 
 # Empty scrolls before a listing with no end-of-listing marker is treated as finished.
 _MAX_CONSECUTIVE_EMPTY_SCROLLS = 2
@@ -352,7 +347,7 @@ class BrowserRedditSource:
     at a time so a queued explicit-download job waits at most one pump interval.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._executor = ThreadPoolExecutor(max_workers=1)
         self._playwright = None
         self._context = None
@@ -680,12 +675,17 @@ class BrowserRedditSource:
         called directly from a method that might be running off the worker thread."""
         return self._executor.submit(fn, *args).result()
 
-    def _goto_and_wait(self, page: Page, url: str, wait_ms: int) -> None:
+    @staticmethod
+    def _pick_wait(normal_ms: int, slow_ms: int) -> int:
+        """Checked live so slow mode can be toggled mid-session."""
+        return slow_ms if injector.get_settings_manager().slow_mode else normal_ms
+
+    def _goto_and_wait(self, page: Page, url: str) -> None:
         page.goto(url)
         # A deliberate single-object download should be visible while it runs.
         if not self._suppress_bring_to_front.is_set():
             page.bring_to_front()
-        page.wait_for_timeout(wait_ms)
+        page.wait_for_timeout(const.GOTO_LISTING_WAIT_MS)
         # Diagnostic: if goto() didn't land where asked, everything downstream runs against the
         # wrong page silently. Host+path only, since reddit appends its own query strings.
         requested, actual = urlsplit(url), urlsplit(page.url)
@@ -758,13 +758,13 @@ class BrowserRedditSource:
             pumped = self._executor.submit(self._pump_once).result()
             if not pumped:
                 # Nothing to wait on yet (starting up, or the window is closed) -- don't spin.
-                self._pump_stop.wait(PUMP_INTERVAL_MS / 1000)
+                self._pump_stop.wait(const.PUMP_INTERVAL_MS / 1000)
 
     def _pump_once(self) -> bool:
         if self._context is None or not self._context.pages:
             return False
         try:
-            self._context.pages[0].wait_for_timeout(PUMP_INTERVAL_MS)
+            self._context.pages[0].wait_for_timeout(const.PUMP_INTERVAL_MS)
         except PlaywrightError:
             return False
         return True
@@ -786,6 +786,7 @@ class BrowserRedditSource:
         if self._context is None:
             logger.info("Playwright browser window was closed, relaunching")
             self._launch_context()
+        assert self._context is not None
         if self._page is None or self._page.is_closed():
             if len(self._context.pages) > 1:
                 logger.warning(
@@ -837,7 +838,9 @@ class BrowserRedditSource:
 
         def scroll_and_read():
             page.mouse.wheel(0, 15000)
-            page.wait_for_timeout(_SCROLL_PAUSE_MS)
+            page.wait_for_timeout(
+                self._pick_wait(const.SCROLL_PAUSE_MS, const.SCROLL_PAUSE_MS_SLOW)
+            )
             return _read_posts(page), _listing_ended(page), page.url
 
         initial_posts, ended, url = self._run(read_state)
@@ -918,7 +921,7 @@ class BrowserRedditSource:
         page = self._run(self._get_page)
         with self._suppressed_ambient():
             if not self._run(self._same_listing, page, url):
-                self._run(self._goto_and_wait, page, url, 2000)
+                self._run(self._goto_and_wait, page, url)
             return self._scroll_and_collect(page, since)
 
     def iter_user_submissions(
@@ -963,7 +966,7 @@ class BrowserRedditSource:
                 return ValidationResult(
                     valid=False, error=ValidationError.CONNECTION_ERROR
                 )
-            page.wait_for_timeout(1500)
+            page.wait_for_timeout(const.VALIDATE_WAIT_MS)
             return self._check_validity(page)
 
     @staticmethod
@@ -1007,7 +1010,7 @@ class BrowserRedditSource:
         with self._suppressed_ambient():
             try:
                 if not self._run(self._same_listing, page, url):
-                    self._run(self._goto_and_wait, page, url, 2000)
+                    self._run(self._goto_and_wait, page, url)
             except PlaywrightError:
                 logger.warning(
                     "Navigation failed during validation",
@@ -1047,7 +1050,7 @@ class BrowserRedditSource:
                     exc_info=True,
                 )
                 return None
-            page.wait_for_timeout(2000)
+            page.wait_for_timeout(const.SINGLE_POST_WAIT_MS)
             posts = _read_posts(page)
             if not posts:
                 logger.warning("No shreddit-post found at url", extra={"url": url})

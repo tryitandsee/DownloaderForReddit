@@ -194,6 +194,8 @@ class DownloadRunner(QObject):
         session left open, and reports the pool as idle. Coarse-grained by design -- see
         PLAN_background_download.md -- exact per-item timing isn't needed by anything.
         """
+        assert self.extractor is not None
+        assert self.downloader is not None
         idle = (
             not self._batch_in_progress
             and not self.extractor.futures
@@ -543,7 +545,7 @@ class DownloadRunner(QObject):
 
         downloaded = 0
         # Suppressed for this whole loop, not just each navigation -- an automated run over up to
-        # BULK_DOWNLOAD_LIMIT objects, paced BULK_DOWNLOAD_PACE_SECONDS apart, shouldn't keep
+        # BULK_DOWNLOAD_LIMIT objects, paced BULK_DOWNLOAD_PACE_MS apart, shouldn't keep
         # yanking the tab back into the foreground while the person is doing something else, the
         # same focus-stealing ambient mode otherwise exists to avoid. A deliberate single-object
         # download (add_to_download, or a manual navigation onto a tracked listing) still does.
@@ -569,16 +571,15 @@ class DownloadRunner(QObject):
                     self._pace()
 
     def _pace(self):
-        """Shared pacing primitive: ticks every BULK_DOWNLOAD_PACE_SECONDS, which also acts as
-        the queue-drain wait -- resolving before or after the first tick is fine, that's the
-        intended jitter, not a bug. Used both between bulk objects (run_paced_bulk_download) and,
-        registered as reddit_source's scroll_pacer, before every scroll within one object's
-        listing -- scrolling flat-out with no gap looks like a bot, and doing it faster than the
-        extraction/download pipeline can keep up with just builds an unbounded backlog.
-        self.continue_run is the same flag stop_download and handle_rate_limited already clear,
-        so a Stop click or a mid-run 429 ends the wait promptly, at the same 5s granularity."""
+        pace_ms = (
+            const.BULK_DOWNLOAD_PACE_MS_SLOW
+            if self.settings_manager.slow_mode
+            else const.BULK_DOWNLOAD_PACE_MS
+        )
+        assert self.extractor is not None
+        assert self.downloader is not None
         while self.continue_run:
-            time.sleep(const.BULK_DOWNLOAD_PACE_SECONDS)
+            time.sleep(pace_ms / 1000)
             if (
                 not self.extractor.futures
                 and not self.downloader.futures

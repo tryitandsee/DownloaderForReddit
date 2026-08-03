@@ -308,6 +308,13 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self._single_post_action = QAction("Download Posts...", self)
         self._single_post_action.triggered.connect(self.open_single_post_dialog)
         self.menuDownload.addAction(self._single_post_action)
+        # [mine] feat(gui): "Slow Mode" menu item
+        self.menuDownload.addSeparator()
+        self._slow_mode_action = QAction("Slow Mode", self)
+        self._slow_mode_action.setCheckable(True)
+        self._slow_mode_action.setChecked(self.settings_manager.slow_mode)
+        self._slow_mode_action.toggled.connect(self.toggle_slow_mode)
+        self.menuDownload.addAction(self._slow_mode_action)
         # endregion
 
         # region View Menu
@@ -1103,6 +1110,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     def toggle_relative_time_display(self, enabled):
         self.settings_manager.relative_time_display = enabled
+
+    def toggle_slow_mode(self, enabled):
+        self.settings_manager.slow_mode = enabled
         self.user_list_model.refresh()
         self.subreddit_list_model.refresh()
 

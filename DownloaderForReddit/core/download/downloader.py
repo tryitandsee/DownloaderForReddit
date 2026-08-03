@@ -2,10 +2,12 @@ import hashlib
 import html
 import logging
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 import requests
 
+from DownloaderForReddit.core import const
 from DownloaderForReddit.core.errors import Error
 from DownloaderForReddit.core.runner import Runner, verify_run
 from DownloaderForReddit.database import Content
@@ -72,6 +74,13 @@ class Downloader(Runner):
             )
             self.futures.append(future)
             future.add_done_callback(self.remove_future)
+            delay_ms = (
+                const.DOWNLOAD_DELAY_MS_SLOW
+                if self.settings_manager.slow_mode
+                else const.DOWNLOAD_DELAY_MS
+            )
+            if delay_ms:
+                time.sleep(delay_ms / 1000)
         self.executor.shutdown(wait=True)
         HEADERS.clear()
         self.logger.debug("Downloader exiting")

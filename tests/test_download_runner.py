@@ -11,9 +11,11 @@ def make_runner():
     """DownloadRunner.__init__ reaches into injector-backed singletons (DB, settings,
     reddit_source) that this test has no business touching -- run_paced_bulk_download and _pace
     only read the instance state set up below. stop_requested is wired up manually since the
-    continue_run property reads/writes it directly."""
+    continue_run property reads/writes it directly. settings_manager is stubbed since _pace reads
+    settings_manager.slow_mode to pick a pace interval."""
     runner = DownloadRunner.__new__(DownloadRunner)
     runner.stop_requested = Event()
+    runner.settings_manager = type("FakeSettingsManager", (), {"slow_mode": False})()
     return runner
 
 

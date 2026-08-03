@@ -38,12 +38,20 @@ SUPPORTED_SITES_FILE = os.path.join(RESOURCES, "supported_video_sites.txt")
 TIMEOUT_INCREMENT = 0.25
 RATE_LIMIT_DOC_URL = "https://github.com/MalloyDelacroix/DownloaderForReddit/wiki/The-Ongoing-Impact-of-Reddits-API-Rate-Limits"
 
-# [mine] feat(core): bulk "download N users/subreddits" pacing. TODO move to settings
 # objects actually downloaded per bulk run, excluding cooldown skips
 BULK_DOWNLOAD_LIMIT = 20
 # skip an object whose date_last_download_utc is within this window
 BULK_DOWNLOAD_COOLDOWN_HOURS = 10
-# poll tick between objects; also the queue-drain check interval
-BULK_DOWNLOAD_PACE_SECONDS = 10
-# Safety cap on scroll iterations per listing scan (see BrowserRedditSource._scroll_and_collect)
 MAX_SCROLL_ITERATIONS = 40
+
+# Pacing waits get a "_SLOW" counterpart used when settings_manager.slow_mode is on.
+PUMP_INTERVAL_MS = 500  # ambient pump loop for Playright responsiveness
+SCROLL_PAUSE_MS = 1500  # pause after each scroll for DOM to settle
+SCROLL_PAUSE_MS_SLOW = 5000
+BULK_DOWNLOAD_PACE_MS = 10_000  # break between objects/scrolls, also queue-drain poll
+BULK_DOWNLOAD_PACE_MS_SLOW = 30_000
+GOTO_LISTING_WAIT_MS = 2000  # page-settle, not pacing
+VALIDATE_WAIT_MS = 1500  # page-settle, not pacing
+SINGLE_POST_WAIT_MS = 2000  # page-settle, not pacing
+DOWNLOAD_DELAY_MS = 0  # between dispatching downloads to the pool
+DOWNLOAD_DELAY_MS_SLOW = 2000
