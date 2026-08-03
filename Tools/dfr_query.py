@@ -8,6 +8,7 @@ inspected, and local_logging.logger attaches handlers on import.
     python Tools/dfr_query.py objects --order-by expected
     python Tools/dfr_query.py downloads --error UNSUCCESSFUL_RESPONSE
     python Tools/dfr_query.py log --level ERROR --since 2h
+    python Tools/dfr_query.py post <reddit_id>
 """
 
 import argparse
@@ -427,6 +428,108 @@ def download_stats(
     }
 
 
+POST_SQL = """
+SELECT p.id, p.title, p.date_posted, p.domain, p.score, p.nsfw, p.url, p.is_self,
+       p.extracted, p.extraction_date, p.extraction_error, p.error_message,
+       p.retry_attempts, u.name AS author_name, s.name AS subreddit_name
+FROM post p
+LEFT JOIN reddit_object u ON u.id = p.author_id
+LEFT JOIN reddit_object s ON s.id = p.subreddit_id
+WHERE p.reddit_id = ? COLLATE NOCASE
+"""
+
+COMMENT_SQL = """
+SELECT c.id, c.body, c.score, c.date_posted, c.extracted, c.has_content,
+       c.extraction_date, c.extraction_error, c.error_message, c.retry_attempts,
+       u.name AS author_name, s.name AS subreddit_name, c.post_id
+FROM comment c
+LEFT JOIN reddit_object u ON u.id = c.author_id
+LEFT JOIN reddit_object s ON s.id = c.subreddit_id
+WHERE c.reddit_id = ? COLLATE NOCASE
+"""
+
+POST_CONTENT_SQL = """
+SELECT id, title, url, extension, downloaded, download_date, download_error,
+       error_message, retry_attempts, directory_path, md5_hash
+FROM content
+WHERE post_id = ?
+"""
+
+COMMENT_CONTENT_SQL = """
+SELECT id, title, url, extension, downloaded, download_date, download_error,
+       error_message, retry_attempts, directory_path, md5_hash
+FROM content
+WHERE comment_id = ?
+"""
+
+
+def describe_content_row(row: sqlite3.Row) -> dict:
+    return {
+        "id": row["id"],
+        "title": row["title"],
+        "url": row["url"],
+        "extension": row["extension"],
+        "downloaded": bool(row["downloaded"]),
+        "download_date": iso("download_date", row["download_date"]),
+        "download_error": row["download_error"],
+        "error_message": row["error_message"],
+        "retry_attempts": row["retry_attempts"],
+        "directory_path": row["directory_path"],
+        "md5_hash": row["md5_hash"],
+    }
+
+
+def describe_reddit_id(connection: sqlite3.Connection, reddit_id: str) -> dict:
+    """A reddit_id is unique per post and separately unique per comment, so both are checked."""
+    result: dict = {"reddit_id": reddit_id, "posts": [], "comments": []}
+
+    for row in connection.execute(POST_SQL, (reddit_id,)).fetchall():
+        content = connection.execute(POST_CONTENT_SQL, (row["id"],)).fetchall()
+        result["posts"].append(
+            {
+                "id": row["id"],
+                "title": row["title"],
+                "author": row["author_name"],
+                "subreddit": row["subreddit_name"],
+                "date_posted": iso("date_posted", row["date_posted"]),
+                "domain": row["domain"],
+                "score": row["score"],
+                "nsfw": bool(row["nsfw"]),
+                "url": row["url"],
+                "is_self": bool(row["is_self"]),
+                "extracted": bool(row["extracted"]),
+                "extraction_date": iso("extraction_date", row["extraction_date"]),
+                "extraction_error": row["extraction_error"],
+                "error_message": row["error_message"],
+                "retry_attempts": row["retry_attempts"],
+                "content": [describe_content_row(c) for c in content],
+            }
+        )
+
+    for row in connection.execute(COMMENT_SQL, (reddit_id,)).fetchall():
+        content = connection.execute(COMMENT_CONTENT_SQL, (row["id"],)).fetchall()
+        result["comments"].append(
+            {
+                "id": row["id"],
+                "body": row["body"],
+                "author": row["author_name"],
+                "subreddit": row["subreddit_name"],
+                "score": row["score"],
+                "date_posted": iso("date_posted", row["date_posted"]),
+                "extracted": bool(row["extracted"]),
+                "has_content": bool(row["has_content"]),
+                "extraction_date": iso("extraction_date", row["extraction_date"]),
+                "extraction_error": row["extraction_error"],
+                "error_message": row["error_message"],
+                "retry_attempts": row["retry_attempts"],
+                "content": [describe_content_row(c) for c in content],
+            }
+        )
+
+    result["matched"] = len(result["posts"]) + len(result["comments"])
+    return result
+
+
 def parse_since(value: str) -> datetime:
     units = {"m": "minutes", "h": "hours", "d": "days"}
     if value and value[-1] in units and value[:-1].replace(".", "", 1).isdigit():
@@ -523,6 +626,11 @@ def build_parser() -> argparse.ArgumentParser:
     downloads.add_argument("--host", default=None, help="filter to one url host")
     downloads.add_argument("--limit", type=int, default=DEFAULT_ROW_CAP)
 
+    post = subparsers.add_parser(
+        "post", help="post/comment and its content, by reddit_id"
+    )
+    post.add_argument("reddit_id")
+
     log = subparsers.add_parser("log", help="filtered log records")
     log.add_argument("--level", choices=sorted(LEVEL_ORDER), default=None)
     log.add_argument("--since", default=None, help="30m, 2h, 7d, or an ISO timestamp")
@@ -572,6 +680,8 @@ def main() -> int:
             )
         elif args.command == "downloads":
             emit(download_stats(connection, args.error, args.host, args.limit))
+        elif args.command == "post":
+            emit(describe_reddit_id(connection, args.reddit_id))
         else:
             emit(coverage_stats(connection, args.all))
     finally:

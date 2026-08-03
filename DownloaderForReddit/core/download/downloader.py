@@ -4,6 +4,7 @@ import logging
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from typing import cast
 
 import requests
 
@@ -107,7 +108,7 @@ class Downloader(Runner):
         thread = threading.current_thread().name
         try:
             with self.db.get_scoped_session() as session:
-                content = session.query(Content).get(content_id)
+                content = cast(Content, session.query(Content).get(content_id))
                 reddit_id = (
                     content.post.reddit_id
                     if content.post is not None
@@ -137,8 +138,12 @@ class Downloader(Runner):
                 if response.status_code == 200:
                     file_size = int(response.headers["Content-Length"])
                     if file_size <= system_util.KB:
-                        # If the file size is less than one KB, it is a strong indicator that the content has been
-                        # deleted and what we are about to download is only a placeholder image.  So we abort download
+                        # Under 1KB is almost always a deleted-content placeholder image.
+                        self.handle_deleted_content_error(content)
+                        return
+                    if self.is_content_type_mismatch(content, response):
+                        # Some hosts (e.g. imgur) 200 an HTML fallback page for a removed file,
+                        # well above the KB check above -- treat it the same as deleted content.
                         self.handle_deleted_content_error(content)
                         return
                     if self.should_use_multi_part(file_size):
@@ -181,6 +186,16 @@ class Downloader(Runner):
         )
         args["headers"].update(HEADERS.get(content.id) or {})
         return args
+
+    def is_content_type_mismatch(
+        self, content: Content, response: requests.Response
+    ) -> bool:
+        if content.extension in const.TEXT_EXT:
+            return False
+        content_type = (
+            response.headers.get("Content-Type", "").split(";")[0].strip().lower()
+        )
+        return content_type in ("text/html", "text/plain")
 
     def should_use_multi_part(self, file_size: int) -> bool:
         settings = self.settings_manager
@@ -350,14 +365,15 @@ class Downloader(Runner):
     def handle_download_stopped(self, content: Content) -> None:
         """
         Handles the scenario where a download has been stopped before it could be completed. This function notifies the
-        content object about the download interruption, and sends an appropriate error message indicating that the file
-        may be corrupted.
+        content object about the download interruption and deletes the partial file left by
+        open(file_path, "wb"), which truncates/creates the file before any bytes are confirmed
+        written -- otherwise the retry's naming-conflict check sees the leftover file and renames
+        around it instead of overwriting it.
         """
         message = "Download was stopped before finished"
+        system_util.delete_file(content.get_full_file_path())
         content.set_download_error(Error.DOWNLOAD_STOPPED, message)
-        Message.send_download_error(
-            f'{message}. File at path: "{content.get_full_file_path()}" may be corrupted'
-        )
+        Message.send_download_error(f'{message}: "{content.get_full_file_path()}"')
 
     def finish_multi_part_download(
         self,
