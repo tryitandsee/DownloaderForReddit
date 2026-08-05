@@ -756,6 +756,11 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             lambda: self.toggle_download_enabled(enable_download_ro_ids),
         )
 
+        menu.addAction(
+            "Force Last Checked",
+            lambda: self.force_mark_checked(enable_download_ro_ids),
+        )
+
         # [mine] feat(gui): "Mark as Followed"/"Mark as Unfollowed" toggle -- active tracks whether
         # the dedicated downloader account follows this user; meaningless for subreddits, which
         # are never followed.
@@ -797,6 +802,16 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                 if ro is None:
                     continue
                 ro.download_enabled = not ro.download_enabled
+            session.commit()
+        self.refresh_list_models()
+
+    def force_mark_checked(self, ro_ids):
+        with self.db_handler.get_scoped_session() as session:
+            for ro_id in ro_ids:
+                ro = session.query(RedditObject).get(ro_id)
+                if ro is None:
+                    continue
+                ro.set_date_last_download_utc(commit=False)
             session.commit()
         self.refresh_list_models()
 

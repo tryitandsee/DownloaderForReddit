@@ -848,28 +848,26 @@ class DownloadRunner(QObject):
         return None
 
     def get_validated_submissions(self, reddit_object, source_method):
-        """
-        Validates and fetches submissions for a single user/subreddit in one navigation -- the
-        submitted/new listing page shows the same 404/private/suspended copy as the plain profile
-        page, so there's no need for validate_user/validate_subreddit's separate profile-page visit
-        before this one.
-
-        on_batch is registered with reddit_source for the duration of this one call so each batch
-        of posts gets filtered and queued as the scroll finds them, rather than all at once after
-        the whole scroll finishes -- the same queue_submissions/_finalize_submission pipeline
-        ambient matches use, just invoked incrementally instead of once at the end. reddit_source
-        submits each individual scroll/read to its single-worker executor and paces between them
-        on this thread (see BrowserRedditSource._scroll_and_collect), so on_batch runs here too,
-        between those submissions -- not from inside a single call that holds that worker for the
-        whole scan, which would starve anything else needing it (e.g. an extractor fetching a
-        gallery's media_metadata) until the scan finished.
-        """
+        """Validates reddit_object and fetches its submissions via source_method."""
 
         def on_batch(raw_batch):
             submissions = self.filter_submissions(reddit_object, raw_batch)
             self.queue_submissions(reddit_object, submissions)
 
+        def all_already_known(batch):
+            """Use reddit_id only -- a url match is a crosspost and should not count."""
+            ids = [s.reddit_id for s in batch]
+            with self.db.get_scoped_session() as session:
+                known_ids = {
+                    reddit_id
+                    for (reddit_id,) in session.query(Post.reddit_id)
+                    .filter(Post.reddit_id.in_(ids))
+                    .all()
+                }
+            return all(s.reddit_id in known_ids for s in batch)
+
         self.reddit_source.set_on_posts_collected(on_batch)
+        self.reddit_source.set_all_known_checker(all_already_known)
         try:
             result, _ = source_method(reddit_object.name)
         except RateLimitedError:
@@ -892,6 +890,7 @@ class DownloadRunner(QObject):
             return
         finally:
             self.reddit_source.set_on_posts_collected(None)
+            self.reddit_source.set_all_known_checker(None)
         self.validate_object(result, reddit_object)
 
     def queue_submissions(self, reddit_object, submissions):

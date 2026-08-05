@@ -361,6 +361,7 @@ class BrowserRedditSource:
         ) = None
         self._scroll_pacer: Callable[[], None] | None = None
         self._on_posts_collected: Callable[[list[SubmissionData]], None] | None = None
+        self._all_already_known: Callable[[list[SubmissionData]], bool] | None = None
         # Guards every page.goto: a scan submits its scrolls one at a time, so another
         # navigation could otherwise goto the shared page out from under it. Acquired before
         # touching the executor, so a contended wait blocks the caller, not the worker.
@@ -416,6 +417,11 @@ class BrowserRedditSource:
         _scroll_and_collect calls it with each batch as the scroll progresses, so posts get
         queued immediately instead of after the whole scroll."""
         self._on_posts_collected = callback
+
+    def set_all_known_checker(
+        self, callback: Callable[[list[SubmissionData]], bool] | None
+    ):
+        self._all_already_known = callback
 
     def set_on_profile_exhausted(
         self, callback: Callable[[str, list[SubmissionData]], None]
@@ -858,6 +864,13 @@ class BrowserRedditSource:
         if reached_checkpoint(list(collected.values())):
             Message.send_scroll_status(f"{label}: already caught up, no scroll needed")
             return list(collected.values()), True
+        if (
+            collected
+            and self._all_already_known is not None
+            and self._all_already_known(list(collected.values()))
+        ):
+            Message.send_scroll_status(f"{label}: already caught up, no scroll needed")
+            return list(collected.values()), True
         empty_scrolls = 0
         for idx in range(const.MAX_SCROLL_ITERATIONS):
             try:
@@ -881,6 +894,15 @@ class BrowserRedditSource:
             if ended:
                 Message.send_scroll_status(
                     f"{label}: reached end-of-listing marker, stopping"
+                )
+                return list(collected.values()), True
+            if (
+                new_posts
+                and self._all_already_known is not None
+                and self._all_already_known(new_posts)
+            ):
+                Message.send_scroll_status(
+                    f"{label}: this batch is all already-downloaded posts, stopping"
                 )
                 return list(collected.values()), True
             if reached_checkpoint(new_posts):
