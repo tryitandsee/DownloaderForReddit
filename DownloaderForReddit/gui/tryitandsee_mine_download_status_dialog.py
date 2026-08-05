@@ -1,8 +1,9 @@
 # [mine] feat(gui): download status window showing active threads and queue depth
 import logging
 
-from PyQt5.QtCore import QTimer
-from PyQt5.QtWidgets import (
+from PyQt6.QtCore import QTimer
+from PyQt6.QtWidgets import (
+    QAbstractItemView,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -22,7 +23,7 @@ class DownloadStatusDialog(QWidget):
         self.logger = logging.getLogger(f"DownloaderForReddit.{__name__}")
         self.get_runner = get_runner
         self._build_ui()
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.refresh)
         self.timer.start(1000)
@@ -46,17 +47,21 @@ class DownloadStatusDialog(QWidget):
         self.extraction_table = QTableWidget(0, 3)
         self.extraction_table.setHorizontalHeaderLabels(["User", "ID", "Extracting"])
         self.extraction_table.horizontalHeader().setSectionResizeMode(
-            0, QHeaderView.ResizeToContents
+            0, QHeaderView.ResizeMode.ResizeToContents
         )
         self.extraction_table.horizontalHeader().setSectionResizeMode(
-            1, QHeaderView.ResizeToContents
+            1, QHeaderView.ResizeMode.ResizeToContents
         )
         self.extraction_table.horizontalHeader().setSectionResizeMode(
-            2, QHeaderView.Stretch
+            2, QHeaderView.ResizeMode.Stretch
         )
         self.extraction_table.verticalHeader().setVisible(False)
-        self.extraction_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.extraction_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
+        self.extraction_table.setEditTriggers(
+            QAbstractItemView.EditTrigger.NoEditTriggers
+        )
+        self.extraction_table.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum
+        )
         self.extraction_table.setMaximumHeight(150)
         extraction_column.addWidget(self.extraction_table)
         panel_row.addLayout(extraction_column)
@@ -64,17 +69,19 @@ class DownloadStatusDialog(QWidget):
         self.thread_table = QTableWidget(0, 3)
         self.thread_table.setHorizontalHeaderLabels(["User", "ID", "Downloading"])
         self.thread_table.horizontalHeader().setSectionResizeMode(
-            0, QHeaderView.ResizeToContents
+            0, QHeaderView.ResizeMode.ResizeToContents
         )
         self.thread_table.horizontalHeader().setSectionResizeMode(
-            1, QHeaderView.ResizeToContents
+            1, QHeaderView.ResizeMode.ResizeToContents
         )
         self.thread_table.horizontalHeader().setSectionResizeMode(
-            2, QHeaderView.Stretch
+            2, QHeaderView.ResizeMode.Stretch
         )
         self.thread_table.verticalHeader().setVisible(False)
-        self.thread_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.thread_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
+        self.thread_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.thread_table.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum
+        )
         self.thread_table.setMaximumHeight(150)
         download_column.addWidget(self.thread_table)
         panel_row.addLayout(download_column)

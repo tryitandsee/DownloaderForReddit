@@ -27,7 +27,7 @@ import logging
 import sys
 
 from playwright.sync_api import Error as PlaywrightError
-from PyQt5 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtWidgets
 
 from DownloaderForReddit.core.cli import CLI
 from DownloaderForReddit.core.download_runner import DownloadRunner
@@ -46,7 +46,7 @@ if sys.platform == "win32":
 
 
 def log_unhandled_exception(exc_type, value, traceback):
-    # No sys.exit() here -- this hook exists to keep PyQt5 from aborting the whole process (its
+    # No sys.exit() here -- this hook exists to keep PyQt6 from aborting the whole process (its
     # own default behavior for an exception escaping a slot) over a single bad GUI action. Calling
     # sys.exit() defeated that purpose by making every uncaught exception, anywhere, fatal --
     # including mid-download, with no relation to closing/exiting the app.
@@ -115,7 +115,7 @@ def main():
     message_thread.start()
 
     window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":

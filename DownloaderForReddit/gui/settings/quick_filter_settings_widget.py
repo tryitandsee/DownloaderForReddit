@@ -1,6 +1,6 @@
-from PyQt5.QtCore import QSize
-from PyQt5.QtGui import QColor
-from PyQt5.QtWidgets import (
+from PyQt6.QtCore import QSize
+from PyQt6.QtGui import QColor
+from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QInputDialog,
@@ -85,8 +85,8 @@ class QuickFilterSettingsWidget(AbstractSettingsWidget, Ui_QuickFilterSettingsWi
 
     def get_line(self):
         line = QFrame()
-        line.setFrameShape(QFrame.VLine)
-        line.setFrameShadow(QFrame.Sunken)
+        line.setFrameShape(QFrame.Shape.VLine)
+        line.setFrameShadow(QFrame.Shadow.Sunken)
         return line
 
     def remove_filter(self, widget, name):

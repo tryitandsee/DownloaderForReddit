@@ -96,7 +96,7 @@ Example:
 ```python
 import os
 import sys
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt6 import QtCore, QtWidgets, QtGui
 
 from Core import Injector
 from Extractors.BaseExtractor import BaseExtractor

@@ -23,7 +23,7 @@ added_files = [(dir_path + '/Resources/images/*', 'Resources/images'),
 
 a = Analysis([dir_path + '/main.py'],
 			 pathex=[venv_path + '/Scripts', 
-					 venv_path + '/Lib/site-packages/PyQt5/Qt/bin',
+					 venv_path + '/Lib/site-packages/PyQt6/Qt6/bin',
 					 venv_path + '/Lib/site-packages',
 					 dir_path],
 			 binaries=[],

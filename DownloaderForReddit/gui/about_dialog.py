@@ -22,7 +22,7 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from ..guiresources.about_dialog_auto import Ui_About
 from ..utils import injector
@@ -41,7 +41,9 @@ class AboutDialog(QtWidgets.QDialog, Ui_About):
         self.buttonBox.accepted.connect(self.accept)
 
         pixmap = QtGui.QPixmap("Resources/Images/RedditDownloaderIcon.png")
-        pixmap = pixmap.scaled(QtCore.QSize(183, 186), QtCore.Qt.KeepAspectRatio)
+        pixmap = pixmap.scaled(
+            QtCore.QSize(183, 186), QtCore.Qt.AspectRatioMode.KeepAspectRatio
+        )
         self.logo_label.setFixedWidth(80)
         self.logo_label.setFixedHeight(82)
         self.logo_label.setPixmap(pixmap)

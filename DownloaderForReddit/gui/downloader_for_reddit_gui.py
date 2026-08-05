@@ -28,11 +28,10 @@ import os
 import platform
 from datetime import datetime
 
-from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
-from PyQt5.QtGui import QCursor, QIcon, QPixmap
-from PyQt5.QtWidgets import (
+from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
+from PyQt6.QtGui import QAction, QCursor, QIcon, QPixmap
+from PyQt6.QtWidgets import (
     QAbstractItemView,
-    QAction,
     QHBoxLayout,
     QHeaderView,
     QInputDialog,
@@ -373,9 +372,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.user_list_view.setModel(self.user_list_model)
         self.user_list_view.sortByColumn(
             self.settings_manager.user_list_sort_column,
-            Qt.DescendingOrder
+            Qt.SortOrder.DescendingOrder
             if self.settings_manager.user_list_sort_desc
-            else Qt.AscendingOrder,
+            else Qt.SortOrder.AscendingOrder,
         )
         self.subreddit_list_model = RedditObjectListModel("SUBREDDIT")
         self.subreddit_list_model.reddit_object_added.connect(
@@ -395,9 +394,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.subreddit_list_view.setModel(self.subreddit_list_model)
         self.subreddit_list_view.sortByColumn(
             self.settings_manager.subreddit_list_sort_column,
-            Qt.DescendingOrder
+            Qt.SortOrder.DescendingOrder
             if self.settings_manager.subreddit_list_sort_desc
-            else Qt.AscendingOrder,
+            else Qt.SortOrder.AscendingOrder,
         )
 
         for view, model, column_order in (
@@ -413,9 +412,11 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             ),
         ):
             header = view.horizontalHeader()
-            header.setSectionResizeMode(0, QHeaderView.Stretch)
+            header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
             for column in range(1, model.columnCount()):
-                header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
+                header.setSectionResizeMode(
+                    column, QHeaderView.ResizeMode.ResizeToContents
+                )
             header.setSectionsMovable(True)
             if sorted(column_order) == list(range(model.columnCount())):
                 for visual_index, logical_index in enumerate(column_order):
@@ -462,7 +463,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.user_lists_combo.activated.connect(self.change_user_list)
         self.subreddit_list_combo.activated.connect(self.change_subreddit_list)
 
-        self.user_list_view.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.user_list_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.user_list_view.customContextMenuRequested.connect(
             lambda: self.reddit_object_list_context_menu("USER")
         )
@@ -470,14 +471,20 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.user_list_view.doubleClicked.connect(
             lambda: self.add_to_download(self.get_selected_users()[0].id)
         )
-        self.user_list_view.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.user_list_view.setEditTriggers(
+            QAbstractItemView.EditTrigger.NoEditTriggers
+        )
 
-        self.user_lists_combo.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.user_lists_combo.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu
+        )
         self.user_lists_combo.customContextMenuRequested.connect(
             self.user_list_combo_context_menu
         )
 
-        self.subreddit_list_view.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.subreddit_list_view.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu
+        )
         self.subreddit_list_view.customContextMenuRequested.connect(
             lambda: self.reddit_object_list_context_menu("SUBREDDIT")
         )
@@ -485,14 +492,20 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.subreddit_list_view.doubleClicked.connect(
             lambda: self.add_to_download(self.get_selected_subreddits()[0].id)
         )
-        self.subreddit_list_view.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.subreddit_list_view.setEditTriggers(
+            QAbstractItemView.EditTrigger.NoEditTriggers
+        )
 
-        self.subreddit_list_combo.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.subreddit_list_combo.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu
+        )
         self.subreddit_list_combo.customContextMenuRequested.connect(
             self.subreddit_list_combo_context_menu
         )
 
-        self.output_list_view.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.output_list_view.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu
+        )
         self.output_list_view.customContextMenuRequested.connect(
             self.output_context_menu
         )
@@ -569,9 +582,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             (self.horizontalLayout_5, self.subreddit_list_view),
         ):
             button = QToolButton()
-            button.setArrowType(Qt.DownArrow)
+            button.setArrowType(Qt.ArrowType.DownArrow)
             button.setToolTip("Choose columns")
-            button.setPopupMode(QToolButton.InstantPopup)
+            button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
             header = view.horizontalHeader()
             menu = QMenu(button)
             actions = {}
@@ -602,7 +615,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     def setup_column_context_menu(self):
         for view in (self.user_list_view, self.subreddit_list_view):
             header = view.horizontalHeader()
-            header.setContextMenuPolicy(Qt.CustomContextMenu)
+            header.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             header.customContextMenuRequested.connect(
                 lambda pos, header=header: self.show_column_context_menu(header, pos)
             )
@@ -615,7 +628,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         menu = QMenu(header)
         action = menu.addAction(f"Hide {title}")
         action.triggered.connect(lambda: header.setSectionHidden(column, True))
-        menu.exec_(header.mapToGlobal(pos))
+        menu.exec(header.mapToGlobal(pos))
 
     def scroll_output(self):
         """
@@ -641,11 +654,14 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         indices = self.user_list_view.selectionModel().selectedRows()
         if len(indices) <= 0:
             return None
-        return self.user_list_model.data(indices[0], Qt.UserRole)
+        return self.user_list_model.data(indices[0], Qt.ItemDataRole.UserRole)
 
     def get_selected_users(self):
         indices = self.user_list_view.selectionModel().selectedRows()
-        return [self.user_list_model.data(index, Qt.UserRole) for index in indices]
+        return [
+            self.user_list_model.data(index, Qt.ItemDataRole.UserRole)
+            for index in indices
+        ]
 
     def get_selected_user_ids(self):
         return [x.id for x in self.get_selected_users()]
@@ -655,11 +671,14 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         indices = self.subreddit_list_view.selectionModel().selectedRows()
         if len(indices) <= 0:
             return None
-        return self.subreddit_list_model.data(indices[0], Qt.UserRole)
+        return self.subreddit_list_model.data(indices[0], Qt.ItemDataRole.UserRole)
 
     def get_selected_subreddits(self):
         indices = self.subreddit_list_view.selectionModel().selectedRows()
-        return [self.subreddit_list_model.data(index, Qt.UserRole) for index in indices]
+        return [
+            self.subreddit_list_model.data(index, Qt.ItemDataRole.UserRole)
+            for index in indices
+        ]
 
     def get_selected_subreddit_ids(self):
         return [x.id for x in self.get_selected_subreddits()]
@@ -792,7 +811,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         if follow_toggle is not None:
             follow_toggle.setDisabled(disable_follow_toggle_option)
 
-        menu.exec_(QCursor.pos())
+        menu.exec(QCursor.pos())
 
     def toggle_download_enabled(self, ro_ids):
         # ro_ids, not RedditObject instances -- see toggle_followed for why.
@@ -913,7 +932,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         menu.addSeparator()
         settings = menu.addAction("List Settings", self.user_list_settings)
         settings.setDisabled(self.user_lists_combo.currentText() == "")
-        menu.exec_(QCursor.pos())
+        menu.exec(QCursor.pos())
 
     # [mine] feat(gui): mass follow-status bookkeeping for an entire user list -- same pure
     # bookkeeping as toggle_followed, just applied to every row in the current list instead of
@@ -963,7 +982,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         menu.addSeparator()
         settings = menu.addAction("List Settings", self.subreddit_list_settings)
         settings.setDisabled(self.subreddit_list_combo.currentText() == "")
-        menu.exec_(QCursor.pos())
+        menu.exec(QCursor.pos())
 
     def refresh_list_models(self):
         """
@@ -980,7 +999,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             "Output Settings", lambda: self.open_settings_dialog(open_display="Output")
         )
         menu.addAction("Open Log File", self.open_log_file)
-        menu.exec_(QCursor.pos())
+        menu.exec(QCursor.pos())
 
     # endregion
 
@@ -1231,7 +1250,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                 self.logger.warning(
                     "Unable to add user list", extra={"invalid_name": list_name}
                 )
-                message_dialogs.not_valid_name(self)
+                message_dialogs.not_valid_name(self, list_name)
 
     def get_list_name(self, object_type):
         """
@@ -1286,11 +1305,11 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             self.user_list_model.name,
             parent=self,
         )
-        wizard.exec_()
+        wizard.exec()
 
     def export_reddit_objects(self, ro_list):
         wizard = ExportWizard(ro_list, RedditObject, None, parent=self)
-        wizard.exec_()
+        wizard.exec()
 
     def add_subreddit_list(self, *, list_name=None):
         if list_name is None:
@@ -1312,7 +1331,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                 self.logger.warning(
                     "Unable to add subreddit list", extra={"invalid_name": list_name}
                 )
-                message_dialogs.not_valid_name(self)
+                message_dialogs.not_valid_name(self, list_name)
 
     def remove_subreddit_list(self):
         try:
@@ -1366,13 +1385,13 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             self.subreddit_list_model.name,
             parent=self,
         )
-        wizard.exec_()
+        wizard.exec()
 
     def add_user(self):
         if self.user_list_model.list is None:
             self.add_user_list(list_name="Default")
         dialog = AddRedditObjectDialog(self.user_list_model, self)
-        dialog.exec_()
+        dialog.exec()
 
     def remove_user(self):
         """
@@ -1502,7 +1521,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         if self.subreddit_list_model.list is None:
             self.add_subreddit_list(list_name="Default")
         add_sub_dialog = AddRedditObjectDialog(self.subreddit_list_model, self)
-        add_sub_dialog.exec_()
+        add_sub_dialog.exec()
 
     def remove_subreddit(self):
         """
@@ -1523,7 +1542,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         if self.settings_manager.download_on_add:
             ro_type, id_list, name_list = existing_tuple
             dialog = ExistingRedditObjectAddDialog(ro_type, *name_list)
-            rep = dialog.exec_()
+            rep = dialog.exec()
             if rep:
                 self.add_to_download(*id_list)
 
@@ -1913,7 +1932,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     def open_database_statistics_dialog(self):
         dialog = DatabaseStatisticsDialog()
-        dialog.exec_()
+        dialog.exec()
 
     def started_download_gui_shift(self):
         """Changes parts of the gui to display differently while there is a download session currently in progress."""
@@ -1955,7 +1974,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             return
         if len(self.invalid_list) > 0:
             dialog = InvalidRedditObjectDialog(self.invalid_list)
-            dialog.exec_()
+            dialog.exec()
             for ro in dialog.invalid_ros:
                 if ro.remove:
                     if ro.status == "deleted":
@@ -1991,7 +2010,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     def open_settings_dialog(self, **kwargs):
         """Displays the main settings dialog and calls methods that update each reddit object if needed."""
         settings = SettingsDialog(parent=self, **kwargs)
-        settings.exec_()
+        settings.exec()
 
     def update_output(self):
         self.output_view_model.update_output_level()
@@ -2006,11 +2025,13 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         )
         if injector.get_settings_manager().imgur_mashape_key:
             dialog_text += "\nFallback to the commercial API enabled!"
-        QMessageBox.information(self, "Imgur Credits", dialog_text, QMessageBox.Ok)
+        QMessageBox.information(
+            self, "Imgur Credits", dialog_text, QMessageBox.StandardButton.Ok
+        )
 
     def display_about_dialog(self):
         about_dialog = AboutDialog(self)
-        about_dialog.exec_()
+        about_dialog.exec()
 
     def open_user_manual(self):
         """Opens the user manual using the default PDF viewer"""
@@ -2068,7 +2089,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         user_header = self.user_list_view.horizontalHeader()
         self.settings_manager.user_list_sort_column = user_header.sortIndicatorSection()
         self.settings_manager.user_list_sort_desc = (
-            user_header.sortIndicatorOrder() == Qt.DescendingOrder
+            user_header.sortIndicatorOrder() == Qt.SortOrder.DescendingOrder
         )
         self.settings_manager.user_list_column_order = [
             user_header.logicalIndex(i) for i in range(user_header.count())
@@ -2078,7 +2099,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             subreddit_header.sortIndicatorSection()
         )
         self.settings_manager.subreddit_list_sort_desc = (
-            subreddit_header.sortIndicatorOrder() == Qt.DescendingOrder
+            subreddit_header.sortIndicatorOrder() == Qt.SortOrder.DescendingOrder
         )
         self.settings_manager.subreddit_list_column_order = [
             subreddit_header.logicalIndex(i) for i in range(subreddit_header.count())
@@ -2200,14 +2221,14 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         """Opens the update dialog"""
         update_checker = UpdateDialog(update_variables, self)
         update_checker.show()
-        update_checker.exec_()
+        update_checker.exec()
 
     def no_update_available_dialog(self):
         message_dialogs.up_to_date_message(self)
 
     def display_ffmpeg_info_dialog(self):
         dialog = FfmpegInfoDialog(self)
-        dialog.exec_()
+        dialog.exec()
 
     def check_ffmpeg(self):
         """
@@ -2254,12 +2275,15 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             self.system_tray_icon.show()
 
     def handle_tray_icon_click(self, click_type):
-        if click_type == QSystemTrayIcon.DoubleClick:
+        if click_type == QSystemTrayIcon.ActivationReason.DoubleClick:
             self.activate_window()
 
     def activate_window(self):
         self.show()
-        self.setWindowState(self.windowState() & ~Qt.WindowMinimized | Qt.WindowActive)
+        self.setWindowState(
+            self.windowState() & ~Qt.WindowState.WindowMinimized
+            | Qt.WindowState.WindowActive
+        )
         self.activateWindow()
 
     def minimize_to_tray(self):

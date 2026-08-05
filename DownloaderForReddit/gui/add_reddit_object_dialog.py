@@ -2,8 +2,8 @@ import logging
 import os
 from threading import Thread
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QApplication, QDialog, QFileDialog
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QApplication, QDialog, QFileDialog
 
 from ..database.models import ListAssociation, RedditObject
 from ..guiresources.add_reddit_object_dialog_auto import Ui_AddRedditObjectDialog
@@ -163,7 +163,7 @@ class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
                     existing_names[ro.name] = lists
             if len(existing_names) > 0:
                 dialog = ExistingNamesDialog(existing_names)
-                dialog.exec_()
+                dialog.exec()
                 for key, value in dialog.decisions.items():
                     if not value:
                         self.exclude.append(key)
@@ -183,9 +183,12 @@ class AddRedditObjectDialog(QDialog, Ui_AddRedditObjectDialog):
 
     def keyPressEvent(self, event):
         key = event.key()
-        if key in (Qt.Key_Enter, Qt.Key_Return):
+        if key in (Qt.Key.Key_Enter, Qt.Key.Key_Return):
             if self.tab_widget.currentIndex() == 0:
-                shift = QApplication.keyboardModifiers() == Qt.ShiftModifier
+                shift = (
+                    QApplication.keyboardModifiers()
+                    == Qt.KeyboardModifier.ShiftModifier
+                )
                 if shift:
                     name = self.single_object_line_edit.text().strip()
                     if name != "" and name not in self.added:

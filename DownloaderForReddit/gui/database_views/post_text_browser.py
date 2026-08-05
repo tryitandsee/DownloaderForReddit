@@ -1,6 +1,6 @@
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QCursor, QFont
-from PyQt5.QtWidgets import (
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QCursor, QFont
+from PyQt6.QtWidgets import (
     QComboBox,
     QFontComboBox,
     QHBoxLayout,
@@ -31,7 +31,7 @@ class PostTextBrowser(QTextBrowser):
         )
         self.setFont(self.post_text_font)
 
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.context_menu)
 
     def context_menu(self):
@@ -72,7 +72,7 @@ class PostTextBrowser(QTextBrowser):
         menu.addSeparator()
         if not self.stand_alone:
             menu.addAction("Detach Text Box", lambda: self.detach_signal.emit())
-        menu.exec_(QCursor.pos())
+        menu.exec(QCursor.pos())
 
     def set_post_text_font(self, font=None, size=None):
         """

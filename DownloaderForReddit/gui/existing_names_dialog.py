@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QCheckBox, QDialog, QTableWidgetItem
+from PyQt6.QtWidgets import QCheckBox, QDialog, QTableWidgetItem
 
 from ..guiresources.existing_names_dialog_auto import Ui_ExistingNameDialog
 

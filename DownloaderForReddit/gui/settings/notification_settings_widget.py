@@ -1,4 +1,4 @@
-from PyQt5.QtCore import Qt
+from PyQt6.QtCore import Qt
 
 from DownloaderForReddit.guiresources.settings.notification_settings_widget_auto import (
     Ui_NotificationSettingsWidget,
@@ -70,7 +70,7 @@ class NotificationSettingsWidget(AbstractSettingsWidget, Ui_NotificationSettings
 
     def apply_settings(self):
         self.settings.update_notification_level = self.update_level_combo.currentData(
-            Qt.UserRole
+            Qt.ItemDataRole.UserRole
         )
         self.settings.auto_display_failed_downloads = (
             self.auto_display_failed_downloads_checkbox.isChecked()

@@ -2,17 +2,16 @@ import os
 from collections.abc import Callable
 from typing import Any, ClassVar
 
-from PyQt5.QtCore import (
+from PyQt6.QtCore import (
     QAbstractItemModel,
     QAbstractListModel,
     QAbstractTableModel,
     QModelIndex,
     QSize,
     Qt,
-    QVariant,
     pyqtSignal,
 )
-from PyQt5.QtGui import QColor, QIcon, QPixmap
+from PyQt6.QtGui import QColor, QIcon, QPixmap
 
 from ..core import const
 from ..utils import injector
@@ -118,9 +117,9 @@ class DownloadSessionModel(QAbstractListModel, CustomItemModel):
         self.limit = self.settings_manager.download_session_query_limit
 
     def data(self, index, role=None):
-        if role == Qt.DisplayRole:
+        if role == Qt.ItemDataRole.DisplayRole:
             return self.items[index.row()].name
-        if role == Qt.ToolTipRole:
+        if role == Qt.ItemDataRole.ToolTipRole:
             session = self.items[index.row()]
             return (
                 f"Start time: {session.start_time_display}\n"
@@ -139,9 +138,9 @@ class RedditObjectModel(QAbstractListModel, CustomItemModel):
         self.limit = self.settings_manager.reddit_object_query_limit
 
     def data(self, index, role=None):
-        if role == Qt.DisplayRole or role == Qt.EditRole:
+        if role == Qt.ItemDataRole.DisplayRole or role == Qt.ItemDataRole.EditRole:
             return self.items[index.row()].name
-        if role == Qt.ForegroundRole:
+        if role == Qt.ItemDataRole.ForegroundRole:
             ro = self.items[index.row()]
             if (
                 not ro.download_enabled
@@ -196,18 +195,21 @@ class PostTableModel(QAbstractTableModel, CustomItemModel):
         ]
 
     def headerData(self, row, orientation, role=None):
-        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
+        if (
+            role == Qt.ItemDataRole.DisplayRole
+            and orientation == Qt.Orientation.Horizontal
+        ):
             return self.headers[row].replace("_", " ").title()
         return None
 
     def data(self, index, role=None):
         col = index.column()
-        if role == Qt.DisplayRole:
+        if role == Qt.ItemDataRole.DisplayRole:
             try:
                 return self.header_map[self.headers[col]](self.items[index.row()])
             except AttributeError:
                 pass
-        if role == Qt.ToolTipRole and col != self.headers.index("text"):
+        if role == Qt.ItemDataRole.ToolTipRole and col != self.headers.index("text"):
             try:
                 return self.header_map[self.headers[col]](self.items[index.row()])
             except AttributeError:
@@ -235,11 +237,11 @@ class ContentListModel(QAbstractListModel, CustomItemModel):
     def data(self, index, role=None):
         if index.isValid():
             content = self.items[index.row()]
-            if role == Qt.DisplayRole:
+            if role == Qt.ItemDataRole.DisplayRole:
                 return content.title
-            if role == Qt.DecorationRole:
+            if role == Qt.ItemDataRole.DecorationRole:
                 return self.get_icon(content)
-            if role == Qt.ToolTipRole:
+            if role == Qt.ItemDataRole.ToolTipRole:
                 tip = (
                     f"Title: {content.title}\n"
                     f"Extension: {content.extension}\n"
@@ -279,10 +281,12 @@ class ContentListModel(QAbstractListModel, CustomItemModel):
                 path = os.path.join(const.RESOURCES, "Images", "missing_file_icon.png")
             if not os.path.exists(path):
                 path = os.path.join(const.RESOURCES, "Images", "missing_file_icon.png")
-            pixmap = QPixmap(path).scaled(QSize(500, 500), Qt.KeepAspectRatio)
+            pixmap = QPixmap(path).scaled(
+                QSize(500, 500), Qt.AspectRatioMode.KeepAspectRatio
+            )
             icon = QIcon()
-            icon.addPixmap(pixmap, QIcon.Normal)
-            icon.addPixmap(pixmap, QIcon.Selected)
+            icon.addPixmap(pixmap, QIcon.Mode.Normal)
+            icon.addPixmap(pixmap, QIcon.Mode.Selected)
             self.icon_map[content.id] = icon
         return icon
 
@@ -323,14 +327,14 @@ class CommentTreeModel(QAbstractItemModel, CustomItemModel):
 
     def cascade_get_item_index(self, searchable, item):
         for x in searchable.children:
-            if x.data(0, Qt.UserRole) == item:
+            if x.data(0, Qt.ItemDataRole.UserRole) == item:
                 return self.createIndex(x.row(), 0, searchable)
             return self.cascade_get_item_index(x, item)
         return None
 
     def get_item(self, index):
         try:
-            return index.internalPointer().data(0, Qt.UserRole)
+            return index.internalPointer().data(0, Qt.ItemDataRole.UserRole)
         except AttributeError:
             return None
 
@@ -338,7 +342,7 @@ class CommentTreeModel(QAbstractItemModel, CustomItemModel):
         try:
             items = []
             for index in indices:
-                item = index.internalPointer().data(0, Qt.UserRole)
+                item = index.internalPointer().data(0, Qt.ItemDataRole.UserRole)
                 if item not in items:
                     items.append(item)
             return items
@@ -381,19 +385,26 @@ class CommentTreeModel(QAbstractItemModel, CustomItemModel):
 
     def data(self, index, role=None):
         if not index.isValid():
-            return QVariant()
+            return None
         item = index.internalPointer()
-        if role == Qt.DisplayRole or role == Qt.ToolTipRole or role == Qt.UserRole:
+        if (
+            role == Qt.ItemDataRole.DisplayRole
+            or role == Qt.ItemDataRole.ToolTipRole
+            or role == Qt.ItemDataRole.UserRole
+        ):
             return item.data(index.column(), role)
-        return QVariant()
+        return None
 
     def headerData(self, column, orientation, role):
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+        if (
+            orientation == Qt.Orientation.Horizontal
+            and role == Qt.ItemDataRole.DisplayRole
+        ):
             try:
                 return self.headers[column]
             except IndexError:
                 pass
-        return QVariant()
+        return None
 
     def index(self, row, column, parent):
         if not self.hasIndex(row, column, parent):
@@ -477,15 +488,15 @@ class TreeItem:
         return len(self.headers)
 
     def data(self, column, role):
-        if role == Qt.DisplayRole or role == Qt.ToolTipRole:
+        if role == Qt.ItemDataRole.DisplayRole or role == Qt.ItemDataRole.ToolTipRole:
             header = self.headers[column]
             try:
                 return self.header_map[header](self.comment)
             except AttributeError:
                 return None
-        elif role == Qt.UserRole:
+        elif role == Qt.ItemDataRole.UserRole:
             return self.comment
-        return QVariant(self.headers[column])
+        return self.headers[column]
 
     def row(self):
         if self.parent:

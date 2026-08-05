@@ -57,7 +57,7 @@ Key extractors: `RedditUploadsExtractor` (i.redd.it, galleries), `RedditVideoExt
 
 ### GUI
 
-Built with PyQt5. UI layouts are auto-generated Python in `guiresources/*_auto.py` — **do not hand-edit these**; they are compiled from `.ui` files. The main window class `DownloaderForRedditGUI` (`gui/downloader_for_reddit_gui.py`) mixes in the generated `Ui_MainWindow`.
+Built with PyQt6. UI layouts are auto-generated Python in `guiresources/*_auto.py` — **do not hand-edit these**; they are compiled from `.ui` files. The main window class `DownloaderForRedditGUI` (`gui/downloader_for_reddit_gui.py`) mixes in the generated `Ui_MainWindow`.
 
 New menu items should be added programmatically in the main GUI class rather than via the auto-generated file, e.g.:
 ```python

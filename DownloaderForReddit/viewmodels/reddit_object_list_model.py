@@ -1,7 +1,7 @@
 import logging
 from datetime import UTC, datetime, timedelta
 
-from PyQt5.QtCore import (
+from PyQt6.QtCore import (
     QAbstractTableModel,
     QModelIndex,
     QObject,
@@ -9,7 +9,7 @@ from PyQt5.QtCore import (
     QThread,
     pyqtSignal,
 )
-from PyQt5.QtGui import QColor
+from PyQt6.QtGui import QColor
 from sqlalchemy import case, func
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -165,7 +165,7 @@ class RedditObjectListModel(QAbstractTableModel):
         """
         RedditObject.last_download is a per-row correlated query -- calling it once per row
         during table paint/sort (rather than its original one-off tooltip usage) is an N+1 query
-        storm that also corrupts the shared session's transaction state under PyQt5's GUI event
+        storm that also corrupts the shared session's transaction state under PyQt6's GUI event
         loop. Fetch every row's last download date in a single grouped query instead.
         """
         self.last_download_cache = {}
@@ -276,9 +276,9 @@ class RedditObjectListModel(QAbstractTableModel):
             key = lambda ro: (getattr(ro, field) is not None, getattr(ro, field))
         self.reddit_objects.sort(key=key, reverse=self.sort_desc)
 
-    def sort(self, column, order=Qt.AscendingOrder):
+    def sort(self, column, order=Qt.SortOrder.AscendingOrder):
         self.sort_column = column
-        self.sort_desc = order == Qt.DescendingOrder
+        self.sort_desc = order == Qt.SortOrder.DescendingOrder
         self.apply_column_sort()
         self.refresh()
 
@@ -440,8 +440,11 @@ class RedditObjectListModel(QAbstractTableModel):
     def columnCount(self, parent=QModelIndex(), *args, **kwargs):
         return len(self.columns)
 
-    def headerData(self, section, orientation, role=Qt.DisplayRole):
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+    def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
+        if (
+            orientation == Qt.Orientation.Horizontal
+            and role == Qt.ItemDataRole.DisplayRole
+        ):
             return self.column_headers[section]
         return None
 
@@ -468,11 +471,14 @@ class RedditObjectListModel(QAbstractTableModel):
         now = datetime.now(UTC).replace(tzinfo=None) if utc else datetime.now()
         return general_utils.format_relative_datetime(date_time, now)
 
-    def data(self, index, role=Qt.DisplayRole):
+    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
         row = index.row()
         if index.isValid():
             try:
-                if role == Qt.DisplayRole or role == Qt.EditRole:
+                if (
+                    role == Qt.ItemDataRole.DisplayRole
+                    or role == Qt.ItemDataRole.EditRole
+                ):
                     field = self.columns[index.column()]
                     reddit_object = self.reddit_objects[row]
                     if field == "last_download":
@@ -496,7 +502,7 @@ class RedditObjectListModel(QAbstractTableModel):
                     if field == "name":
                         return get_anonymizer().name(reddit_object)
                     return getattr(reddit_object, field)
-                if role == Qt.ForegroundRole:
+                if role == Qt.ItemDataRole.ForegroundRole:
                     if (
                         not self.reddit_objects[row].download_enabled
                         and self.settings_manager.colorize_disabled_reddit_objects
@@ -520,7 +526,7 @@ class RedditObjectListModel(QAbstractTableModel):
                         r, g, b = self.settings_manager.new_reddit_object_display_color
                         return QColor(r, g, b, 255)
                     return None
-                if role == Qt.ToolTipRole:
+                if role == Qt.ItemDataRole.ToolTipRole:
                     field = self.columns[index.column()]
                     reddit_object = self.reddit_objects[row]
                     if (
@@ -529,7 +535,7 @@ class RedditObjectListModel(QAbstractTableModel):
                     ):
                         return self._last_download_tooltip(reddit_object)
                     return self.set_tooltips(reddit_object)
-                if role == Qt.UserRole:
+                if role == Qt.ItemDataRole.UserRole:
                     return self.reddit_objects[row]
                 return None
             except IndexError:
@@ -578,7 +584,7 @@ class RedditObjectListModel(QAbstractTableModel):
         return None
 
     def flags(self, QModelIndex):
-        return Qt.ItemIsSelectable | Qt.ItemIsEnabled
+        return Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled
 
     def refresh(self):
         """

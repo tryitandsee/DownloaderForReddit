@@ -5,9 +5,9 @@ from datetime import datetime
 from operator import attrgetter
 from time import time
 
-from PyQt5.QtCore import QSize, Qt
-from PyQt5.QtGui import QFont, QIcon, QPixmap
-from PyQt5.QtWidgets import (
+from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtGui import QFont, QIcon, QPixmap
+from PyQt6.QtWidgets import (
     QDialog,
     QFormLayout,
     QFrame,
@@ -44,7 +44,9 @@ class DatabaseStatisticsDialog(QDialog):
         self.setWindowTitle("Database Statistics")
         icon = QIcon()
         icon.addPixmap(
-            QPixmap("Resources/images/statistics_icon.png"), QIcon.Normal, QIcon.Off
+            QPixmap("Resources/images/statistics_icon.png"),
+            QIcon.Mode.Normal,
+            QIcon.State.Off,
         )
         self.setWindowIcon(icon)
 
@@ -58,8 +60,12 @@ class DatabaseStatisticsDialog(QDialog):
         self.stat_widget.setLayout(self.stat_layout)
 
         self.scroll_area = QScrollArea(self)
-        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.scroll_area.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+        self.scroll_area.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setWidget(self.stat_widget)
 
@@ -1428,11 +1434,11 @@ class DatabaseStatisticsDialog(QDialog):
 
     def make_horz_line(self, heavy=False):
         line = QFrame()
-        line.setFrameShape(QFrame.HLine)
+        line.setFrameShape(QFrame.Shape.HLine)
         if heavy:
             line.setLineWidth(3)
         else:
-            line.setFrameShadow(QFrame.Sunken)
+            line.setFrameShadow(QFrame.Shadow.Sunken)
         return line
 
     def add_layout_from_map(self, item_map):
@@ -1448,14 +1454,16 @@ class DatabaseStatisticsDialog(QDialog):
                 tooltip = None
 
             if key == "SEPARATOR":
-                layout.setWidget(row, QFormLayout.SpanningRole, self.make_horz_line())
+                layout.setWidget(
+                    row, QFormLayout.ItemRole.SpanningRole, self.make_horz_line()
+                )
             elif key == "SUB_HEADER":
                 label = QLabel(value)
                 font = QFont()
                 font.setBold(True)
                 font.setPointSize(9)
                 label.setFont(font)
-                layout.setWidget(row, QFormLayout.SpanningRole, label)
+                layout.setWidget(row, QFormLayout.ItemRole.SpanningRole, label)
             else:
                 value_type = type(value)
                 if value_type == int:

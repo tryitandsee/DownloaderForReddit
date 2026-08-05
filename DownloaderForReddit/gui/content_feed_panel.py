@@ -1,9 +1,9 @@
 # [mine] feat(gui): live feed of discovered content
 import html
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QCursor
-from PyQt5.QtWidgets import (
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QCursor
+from PyQt6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMenu,
@@ -17,10 +17,10 @@ from ..utils.anonymizer import get_anonymizer
 from ..viewmodels.hyperlink_delegate import HyperlinkDelegate
 
 MAX_ROWS = 200
-REDDIT_ID_ROLE = Qt.UserRole
+REDDIT_ID_ROLE = Qt.ItemDataRole.UserRole
 # Unredacted text each row's display text is derived from, so screenshot mode can be toggled
 # after the fact -- a QListWidgetItem holds only its final string, unlike a model's data().
-RAW_TEXT_ROLE = Qt.UserRole + 1
+RAW_TEXT_ROLE = Qt.ItemDataRole.UserRole + 1
 
 
 class ContentFeedPanel(QWidget):
@@ -41,8 +41,10 @@ class ContentFeedPanel(QWidget):
         # recompute on every insert, which gets expensive as this grows; a list item is just a
         # line of text, no per-column layout pass needed.
         self.list_widget = QListWidget()
-        self.list_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.list_widget.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
+        self.list_widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.list_widget.customContextMenuRequested.connect(self._context_menu)
         # Renders the item's text as HTML and opens <a href> clicks in the app's own Playwright
         # browser (see HyperlinkDelegate) -- same delegate output_list_view already uses.
@@ -52,7 +54,7 @@ class ContentFeedPanel(QWidget):
     def _context_menu(self):
         menu = QMenu()
         menu.addAction("Clear Content Feed", self.clear)
-        menu.exec_(QCursor.pos())
+        menu.exec(QCursor.pos())
 
     def add_entry(self, payload: ContentFoundPayload):
         # Equal width so bracketed status labels line up visually -- lost automatically when
@@ -66,7 +68,7 @@ class ContentFeedPanel(QWidget):
         item.setData(RAW_TEXT_ROLE, raw)
         item.setData(REDDIT_ID_ROLE, payload.reddit_id)
         if not payload.is_new:
-            item.setForeground(Qt.gray)
+            item.setForeground(Qt.GlobalColor.gray)
         self._append_item(item)
         self._items_by_reddit_id[payload.reddit_id] = item
 
@@ -77,7 +79,7 @@ class ContentFeedPanel(QWidget):
         raw = html.escape(text)
         item = QListWidgetItem(get_anonymizer().redact(raw))
         item.setData(RAW_TEXT_ROLE, raw)
-        item.setForeground(Qt.darkGray)
+        item.setForeground(Qt.GlobalColor.darkGray)
         self._append_item(item)
 
     def _append_item(self, item: QListWidgetItem):

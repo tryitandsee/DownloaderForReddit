@@ -62,10 +62,20 @@ def get_reddit_source():
     """
     global reddit_source
     if reddit_source is None:
-        from ..core.reddit_source import BrowserRedditSource
+        from ..core import const
 
-        reddit_source = BrowserRedditSource()
-        reddit_source.start()
+        if const.DISABLE_BROWSER_LAUNCH:
+
+            class _NullRedditSource:
+                def __getattr__(self, name):
+                    return lambda *args, **kwargs: None
+
+            reddit_source = _NullRedditSource()
+        else:
+            from ..core.reddit_source import BrowserRedditSource
+
+            reddit_source = BrowserRedditSource()
+            reddit_source.start()
     return reddit_source
 
 

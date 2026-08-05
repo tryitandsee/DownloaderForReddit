@@ -1,8 +1,8 @@
 from datetime import date, datetime
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QColor, QCursor
-from PyQt5.QtWidgets import QCheckBox, QColorDialog, QMenu
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QColor, QCursor
+from PyQt6.QtWidgets import QCheckBox, QColorDialog, QMenu
 
 from DownloaderForReddit.core import const
 from DownloaderForReddit.guiresources.settings.display_settings_widget_auto import (
@@ -91,7 +91,9 @@ class DisplaySettingsWidget(AbstractSettingsWidget, Ui_DispalySettingsWidget):
         self.datetime_token_button.clicked.connect(self.datetime_token_context_menu)
         self.date_token_button.clicked.connect(self.date_token_context_menu)
 
-        self.datetime_format_line_edit.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.datetime_format_line_edit.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu
+        )
         self.datetime_format_line_edit.customContextMenuRequested.connect(
             self.datetime_token_context_menu
         )
@@ -101,7 +103,9 @@ class DisplaySettingsWidget(AbstractSettingsWidget, Ui_DispalySettingsWidget):
             )
         )
 
-        self.date_format_line_edit.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.date_format_line_edit.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu
+        )
         self.date_format_line_edit.customContextMenuRequested.connect(
             self.date_token_context_menu
         )
@@ -202,7 +206,7 @@ class DisplaySettingsWidget(AbstractSettingsWidget, Ui_DispalySettingsWidget):
                     self.datetime_format_line_edit, token
                 ),
             )
-        menu.exec_(QCursor.pos())
+        menu.exec(QCursor.pos())
 
     def date_token_context_menu(self):
         menu = QMenu()
@@ -213,7 +217,7 @@ class DisplaySettingsWidget(AbstractSettingsWidget, Ui_DispalySettingsWidget):
                     self.date_format_line_edit, token
                 ),
             )
-        menu.exec_(QCursor.pos())
+        menu.exec(QCursor.pos())
 
     def insert_token(self, line_edit, token):
         if line_edit.hasSelectedText():

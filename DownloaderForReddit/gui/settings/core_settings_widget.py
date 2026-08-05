@@ -1,8 +1,8 @@
 import os
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QValidator
-from PyQt5.QtWidgets import QCheckBox, QFileDialog, QListWidgetItem
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QValidator
+from PyQt6.QtWidgets import QCheckBox, QFileDialog, QListWidgetItem
 
 from DownloaderForReddit.guiresources.settings.core_settings_widget_auto import (
     Ui_CoreSettingsWidget,
@@ -136,7 +136,7 @@ class CoreSettingsWidget(AbstractSettingsWidget, Ui_CoreSettingsWidget):
         )
         threshold_size = int(
             self.multipart_threshold_spinbox.value()
-            * self.threshold_size_combo.currentData(Qt.UserRole)
+            * self.threshold_size_combo.currentData(Qt.ItemDataRole.UserRole)
         )
         self.settings.multi_part_threshold = threshold_size
         self.settings.multi_part_thread_count = (
@@ -178,5 +178,5 @@ class FormatValidator(QValidator):
 
     def validate(self, text, pos):
         if "%[dir_name]" in text:
-            return QValidator.Acceptable, text, pos
-        return QValidator.Invalid, text, pos
+            return QValidator.State.Acceptable, text, pos
+        return QValidator.State.Invalid, text, pos

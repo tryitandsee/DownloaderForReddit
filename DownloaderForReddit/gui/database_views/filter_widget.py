@@ -1,6 +1,6 @@
-from PyQt5.QtCore import pyqtSignal
-from PyQt5.QtGui import QColor
-from PyQt5.QtWidgets import (
+from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtGui import QColor
+from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -33,7 +33,7 @@ class FilterWidget(QWidget, Ui_FilterWidget):
         self.filter_input_widget.export_filter.connect(self.add_filters)
 
         self.filter_box_list_widget.setSpacing(12)
-        self.filter_box_list_widget.setResizeMode(QListView.Adjust)
+        self.filter_box_list_widget.setResizeMode(QListView.ResizeMode.Adjust)
 
     def set_default_filters(self, *filters):
         self.add_filters([FilterItem(**filter_dict) for filter_dict in filters])
@@ -104,8 +104,8 @@ class FilterWidget(QWidget, Ui_FilterWidget):
 
     def get_line(self):
         line = QFrame()
-        line.setFrameShape(QFrame.VLine)
-        line.setFrameShadow(QFrame.Sunken)
+        line.setFrameShape(QFrame.Shape.VLine)
+        line.setFrameShadow(QFrame.Shadow.Sunken)
         return line
 
     def remove_filter(self, widget):
