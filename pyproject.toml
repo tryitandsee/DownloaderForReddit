@@ -7,8 +7,7 @@ license = "GPL-3.0-only"
 requires-python = ">=3.14"
 dependencies = [
     "beautifulsoup4",
-    "pyqt5==5.15.*",
-    "pyqt5-qt5<5.15.11", # pyqt5-qt5 has no Windows wheel past 5.15.2; PyQt6/PySide6 migration needed to upgrade Qt
+    "pyqt6",
     "python-json-logger",
     "requests",
     "SQLAlchemy==1.3.*",
@@ -31,8 +30,7 @@ dev = [
     "ruff",
     "mypy",
     "pytest",
-    "ty>=0.0.65",
-    "pyqt5-stubs>=5.15.6.0",
+    "ty",
 ]
 
 [tool.ruff.lint]
@@ -58,22 +56,22 @@ extend-select = [
 
 [tool.ruff.lint.per-file-ignores]
 "DownloaderForReddit/guiresources/**" = [
-    "N801", # auto-generated from .ui files by pyuic5
-    "N802", # auto-generated from .ui files by pyuic5
-    "N803", # auto-generated from .ui files by pyuic5
-    "N806", # auto-generated from .ui files by pyuic5
-    "RUF001", # auto-generated from .ui files by pyuic5
+    "N801", # auto-generated from .ui files by pyuic6
+    "N802", # auto-generated from .ui files by pyuic6
+    "N803", # auto-generated from .ui files by pyuic6
+    "N806", # auto-generated from .ui files by pyuic6
+    "RUF001", # auto-generated from .ui files by pyuic6
 ]
 "DownloaderForReddit/customwidgets/**" = [
-    "N802", # PyQt5 API overrides must match Qt's camelCase names
+    "N802", # PyQt6 API overrides must match Qt's camelCase names
 ]
 "DownloaderForReddit/gui/**" = [
-    "N802", # PyQt5 API overrides must match Qt's camelCase names
-    "N803", # PyQt5 API overrides must match Qt's camelCase names
+    "N802", # PyQt6 API overrides must match Qt's camelCase names
+    "N803", # PyQt6 API overrides must match Qt's camelCase names
 ]
 "DownloaderForReddit/viewmodels/**" = [
-    "N802", # PyQt5 API overrides must match Qt's camelCase names
-    "N803", # PyQt5 API overrides must match Qt's camelCase names
+    "N802", # PyQt6 API overrides must match Qt's camelCase names
+    "N803", # PyQt6 API overrides must match Qt's camelCase names
     "B008", # QModelIndex() default is an immutable Qt value object, not a mutable-default bug
 ]
 "DownloaderForReddit/utils/injector.py" = [

@@ -1,6 +1,6 @@
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QCursor
-from PyQt5.QtWidgets import QMenu, QWidget
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QCursor
+from PyQt6.QtWidgets import QMenu, QWidget
 
 from ...database.model_enums import *
 from ...guiresources.widgets.object_settings_widget_auto import Ui_ObjectSettingsWidget
@@ -67,7 +67,7 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
             self.duplicate_naming_line_edit,
             self.duplicate_save_structure_line_edit,
         ):
-            line_edit.setContextMenuPolicy(Qt.CustomContextMenu)
+            line_edit.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             line_edit.customContextMenuRequested.connect(
                 lambda _checked=False, le=line_edit: self.path_token_context_menu(le)
             )
@@ -108,7 +108,7 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
                 key.replace("_", " ").title(),
                 lambda token=key: self.insert_token(line_edit, token),
             )
-        menu.exec_(QCursor.pos())
+        menu.exec(QCursor.pos())
 
     def insert_token(self, line_edit, token):
         if line_edit.hasSelectedText():
@@ -140,7 +140,7 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
         self.self_post_file_format_combo.currentIndexChanged.connect(
             lambda: self.set_object_value(
                 "self_post_file_format",
-                self.self_post_file_format_combo.currentData(Qt.UserRole),
+                self.self_post_file_format_combo.currentData(Qt.ItemDataRole.UserRole),
             )
         )
         self.setup_checkbox(self.download_videos_checkbox, "download_videos")
@@ -185,7 +185,7 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
         self.comment_file_format_combo.currentIndexChanged.connect(
             lambda: self.set_object_value(
                 "comment_file_format",
-                self.comment_file_format_combo.currentData(Qt.UserRole),
+                self.comment_file_format_combo.currentData(Qt.ItemDataRole.UserRole),
             )
         )
         self.comment_download_naming_line_edit.textChanged.connect(
@@ -258,11 +258,11 @@ class ObjectSettingsWidget(QWidget, Ui_ObjectSettingsWidget):
         value = self.get_value(attr)
         if value is not None:
             if value:
-                checkbox.setCheckState(2)
+                checkbox.setCheckState(Qt.CheckState.Checked)
             else:
-                checkbox.setCheckState(0)
+                checkbox.setCheckState(Qt.CheckState.Unchecked)
         else:
-            checkbox.setCheckState(1)
+            checkbox.setCheckState(Qt.CheckState.PartiallyChecked)
 
     def sync_combo(self, combo, attr):
         value = self.get_value(attr)

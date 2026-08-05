@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QCheckBox
+from PyQt6.QtWidgets import QCheckBox
 
 from DownloaderForReddit.guiresources.settings.database_settings_widget_auto import (
     Ui_DatabaseSettingsWidget,

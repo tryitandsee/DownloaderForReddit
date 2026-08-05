@@ -83,6 +83,22 @@ class ModelManger:
         session.commit()
 
     @classmethod
+    @check_session
+    def delete_comment(
+        cls, comment, session=None, delete_post=False, delete_files=False
+    ):
+        content = session.query(Content).filter(Content.comment_id == comment.id)
+        files = [c.get_full_file_path() for c in content] if delete_files else []
+        content_ids = session.query(Content.id).filter(Content.comment_id == comment.id)
+        cls.bulk_delete(Content, session, content_ids)
+        if delete_post and comment.post is not None:
+            session.delete(comment.post)
+        session.delete(comment)
+        for file in files:
+            system_util.delete_file(file)
+        session.commit()
+
+    @classmethod
     def bulk_delete(cls, model, session, query):
         """
         This method is more convoluted than should be necessary, but sqlalchemy does not have adequate batch operation

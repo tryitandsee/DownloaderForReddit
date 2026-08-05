@@ -1,5 +1,6 @@
-from PyQt5.QtCore import QEvent, QObject, Qt
-from PyQt5.QtGui import QTextDocument
+from PyQt6.QtCore import QEvent, QObject, QPointF, Qt
+from PyQt6.QtGui import QTextDocument
+from PyQt6.QtWidgets import QStyleOptionViewItem
 
 
 class LinkCursorHandler(QObject):
@@ -25,27 +26,28 @@ class LinkCursorHandler(QObject):
         self.view.viewport().installEventFilter(self)
 
     def eventFilter(self, obj, event):
-        if event.type() == QEvent.MouseMove:
+        if event.type() == QEvent.Type.MouseMove:
             index = self.view.indexAt(event.pos())
             if not index.isValid():
-                self.view.setCursor(Qt.ArrowCursor)
+                self.view.setCursor(Qt.CursorShape.ArrowCursor)
                 return False
 
-            option = self.view.viewOptions()
+            option = QStyleOptionViewItem()
+            self.view.initViewItemOption(option)
             option.rect = self.view.visualRect(index)
 
-            html = index.data(Qt.DisplayRole)
+            html = index.data(Qt.ItemDataRole.DisplayRole)
             doc = QTextDocument()
             doc.setHtml(html)
             pos_in_item = event.pos() - option.rect.topLeft()
 
-            anchor = doc.documentLayout().anchorAt(pos_in_item)
+            anchor = doc.documentLayout().anchorAt(QPointF(pos_in_item))
             if anchor:
-                self.view.setCursor(Qt.PointingHandCursor)
+                self.view.setCursor(Qt.CursorShape.PointingHandCursor)
             else:
-                self.view.setCursor(Qt.ArrowCursor)
+                self.view.setCursor(Qt.CursorShape.ArrowCursor)
 
-        elif event.type() == QEvent.Leave:
-            self.view.setCursor(Qt.ArrowCursor)
+        elif event.type() == QEvent.Type.Leave:
+            self.view.setCursor(Qt.CursorShape.ArrowCursor)
 
         return False

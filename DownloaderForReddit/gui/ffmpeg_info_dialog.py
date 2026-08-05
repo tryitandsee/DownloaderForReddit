@@ -22,7 +22,7 @@ You should have received a copy of the GNU General Public License
 along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 
 class FfmpegInfoDialog(QtWidgets.QDialog):
@@ -52,7 +52,7 @@ class FfmpegInfoDialog(QtWidgets.QDialog):
         )
 
         self.label.setOpenExternalLinks(True)
-        self.label.setTextFormat(QtCore.Qt.RichText)
+        self.label.setTextFormat(QtCore.Qt.TextFormat.RichText)
         self.label.setWordWrap(True)
         self.layout.addWidget(self.label)
         self.setLayout(self.layout)

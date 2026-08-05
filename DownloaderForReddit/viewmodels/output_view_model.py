@@ -1,5 +1,5 @@
-from PyQt5.QtCore import QAbstractListModel, QModelIndex, Qt, QVariant, pyqtSignal
-from PyQt5.QtGui import QColor
+from PyQt6.QtCore import QAbstractListModel, QModelIndex, Qt, pyqtSignal
+from PyQt6.QtGui import QColor
 
 from ..utils import html_formatting, injector
 from ..utils.anonymizer import get_anonymizer
@@ -59,18 +59,21 @@ class OutputViewModel(QAbstractListModel):
         self.display_messages.clear()
         self.endRemoveRows()
 
-    def data(self, index, role=Qt.DisplayRole):
+    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
         row = index.row()
-        if role == Qt.DisplayRole:
+        if role == Qt.ItemDataRole.DisplayRole:
             if self.settings_manager.show_priority_level:
                 text = self.display_messages[row].output
             else:
                 text = self.display_messages[row].message
             return html_formatting.format_html(get_anonymizer().redact(text))
-        if role == Qt.ForegroundRole and self.settings_manager.use_color_output:
+        if (
+            role == Qt.ItemDataRole.ForegroundRole
+            and self.settings_manager.use_color_output
+        ):
             r, g, b = getattr(
                 self.settings_manager,
                 f"{self.display_messages[row].priority.name.lower()}_color",
             )
             return QColor(r, g, b)
-        return QVariant()
+        return None

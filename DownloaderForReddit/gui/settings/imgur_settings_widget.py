@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QFormLayout, QLabel, QLineEdit
+from PyQt6.QtWidgets import QFormLayout, QLabel, QLineEdit
 
 from .abstract_settings_widget import AbstractSettingsWidget
 

@@ -20,7 +20,7 @@ root = os.path.abspath(os.path.join(praw_path, os.pardir))
 print(root)
 python_folder = os.path.dirname(sys.executable)
 print(python_folder)
-import PyQt5
+import PyQt6
 
 
 added_files = [(dir_path + '/Resources/images/*', 'Resources/images'),
@@ -35,7 +35,7 @@ print(added_files)
 a = Analysis([dir_path + '/main.py'],
 			 pathex=[python_folder, 
 			 		root,
-					root + '/PyQt5/Qt/bin',
+					root + '/PyQt6/Qt6/bin',
 					dir_path],
 			 binaries=[],
 			 datas=added_files,

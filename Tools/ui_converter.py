@@ -65,7 +65,7 @@ class Converter:
         )  # change directories so that all file paths in created file are correct
         in_path = self.get_in_path(name, *sub_paths)
         out_path = self.get_out_path(name, *sub_paths)
-        command = f"pyuic5 {in_path} -o {out_path}"
+        command = f"pyuic6 {in_path} -o {out_path}"
         # print(command)
         subprocess.run(command, check=True)
         os.chdir(original)

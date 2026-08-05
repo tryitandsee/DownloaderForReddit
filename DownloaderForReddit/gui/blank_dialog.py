@@ -1,5 +1,5 @@
-from PyQt5.QtCore import pyqtSignal
-from PyQt5.QtWidgets import QDialog, QVBoxLayout
+from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QDialog, QVBoxLayout
 
 
 class BlankDialog(QDialog):

@@ -1,8 +1,8 @@
 import os
 from time import time
 
-from PyQt5.QtGui import QColor
-from PyQt5.QtWidgets import (
+from PyQt6.QtGui import QColor
+from PyQt6.QtWidgets import (
     QCheckBox,
     QHBoxLayout,
     QLabel,
@@ -60,7 +60,9 @@ class SupportedVideoSettingsWidget(AbstractSettingsWidget):
         layout.addLayout(search_layout)
 
         self.list_widget = QListWidget()
-        self.list_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.list_widget.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
         layout.addWidget(self.list_widget)
 
         button_box = QHBoxLayout()

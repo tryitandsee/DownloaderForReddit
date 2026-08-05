@@ -9,7 +9,7 @@ from threading import Event, Thread
 from typing import cast
 
 from playwright.sync_api import Error as PlaywrightError
-from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
+from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 

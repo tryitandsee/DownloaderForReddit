@@ -1,10 +1,9 @@
 import logging
 
-from PyQt5.QtCore import QSize, Qt, pyqtSignal
-from PyQt5.QtGui import QCursor
-from PyQt5.QtWidgets import (
+from PyQt6.QtCore import QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QActionGroup, QCursor
+from PyQt6.QtWidgets import (
     QAbstractItemView,
-    QActionGroup,
     QApplication,
     QCheckBox,
     QInputDialog,
@@ -273,13 +272,15 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
         self.post_text_browser.detach_signal.connect(self.detach_post_text_browser)
         post_headers = self.post_table_view.horizontalHeader()
         post_headers.setStretchLastSection(True)
-        post_headers.setContextMenuPolicy(Qt.CustomContextMenu)
+        post_headers.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         post_headers.customContextMenuRequested.connect(self.post_headers_context_menu)
         post_headers.setSectionsMovable(True)
         for (
             key,
             value,
         ) in self.settings_manager.database_view_post_table_headers.items():
+            if key not in self.post_model.headers:
+                continue
             index = self.post_model.headers.index(key)
             post_headers.setSectionHidden(index, not value)
 
@@ -290,7 +291,9 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
             lambda x: self.update_count_label(x, "CONTENT")
         )
         self.content_list_view.setBatchSize(1)
-        self.content_list_view.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+        self.content_list_view.setVerticalScrollMode(
+            QAbstractItemView.ScrollMode.ScrollPerPixel
+        )
         self.content_list_view.verticalScrollBar().setSingleStep(20)
 
         self.comment_tree_model = CommentTreeModel()
@@ -298,7 +301,9 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
         self.comment_tree_model.update_count.connect(
             lambda x: self.update_count_label(x, "COMMENT")
         )
-        self.comment_tree_view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.comment_tree_view.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOn
+        )
 
         self.download_session_widget.setVisible(self.show_download_sessions)
         self.reddit_object_widget.setVisible(self.show_reddit_objects)
@@ -341,14 +346,20 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
         }
 
         self.download_session_list_view.setSelectionMode(
-            QAbstractItemView.ExtendedSelection
+            QAbstractItemView.SelectionMode.ExtendedSelection
         )
         self.reddit_object_list_view.setSelectionMode(
-            QAbstractItemView.ExtendedSelection
+            QAbstractItemView.SelectionMode.ExtendedSelection
         )
-        self.post_table_view.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.content_list_view.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.comment_tree_view.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.post_table_view.setSelectionMode(
+            QAbstractItemView.SelectionMode.ExtendedSelection
+        )
+        self.content_list_view.setSelectionMode(
+            QAbstractItemView.SelectionMode.ExtendedSelection
+        )
+        self.comment_tree_view.setSelectionMode(
+            QAbstractItemView.SelectionMode.ExtendedSelection
+        )
 
         self.download_session_list_view.selectionModel().selectionChanged.connect(
             self.set_current_download_session
@@ -368,34 +379,44 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
 
         self.content_list_view.doubleClicked.connect(self.open_selected_content)
 
-        self.download_session_list_view.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.download_session_list_view.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu
+        )
         self.download_session_list_view.customContextMenuRequested.connect(
             self.download_session_view_context_menu
         )
 
-        self.reddit_object_list_view.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.reddit_object_list_view.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu
+        )
         self.reddit_object_list_view.customContextMenuRequested.connect(
             self.reddit_object_context_menu
         )
 
-        self.post_table_view.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.post_table_view.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu
+        )
         self.post_table_view.customContextMenuRequested.connect(
             self.post_view_context_menu
         )
 
-        self.content_list_view.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.content_list_view.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu
+        )
         self.content_list_view.customContextMenuRequested.connect(
             self.content_view_context_menu
         )
 
-        self.comment_tree_view.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.comment_tree_view.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu
+        )
         self.comment_tree_view.customContextMenuRequested.connect(
             self.comment_view_context_menu
         )
 
         comment_headers = self.comment_tree_view.header()
         comment_headers.setSectionsMovable(True)
-        comment_headers.setContextMenuPolicy(Qt.CustomContextMenu)
+        comment_headers.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         comment_headers.customContextMenuRequested.connect(
             self.comment_header_context_menu
         )
@@ -403,6 +424,8 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
             key,
             value,
         ) in self.settings_manager.database_view_comment_tree_headers.items():
+            if key not in self.comment_tree_model.headers:
+                continue
             index = self.comment_tree_model.headers.index(key)
             comment_headers.setSectionHidden(index, not value)
 
@@ -594,7 +617,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
 
     @property
     def download_session_order(self):
-        return self.download_session_sort_combo.currentData(Qt.UserRole)
+        return self.download_session_sort_combo.currentData(Qt.ItemDataRole.UserRole)
 
     @property
     def download_session_desc(self):
@@ -602,7 +625,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
 
     @property
     def reddit_object_order(self):
-        return self.reddit_object_sort_combo.currentData(Qt.UserRole)
+        return self.reddit_object_sort_combo.currentData(Qt.ItemDataRole.UserRole)
 
     @property
     def reddit_object_desc(self):
@@ -610,7 +633,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
 
     @property
     def post_order(self):
-        return self.post_sort_combo.currentData(Qt.UserRole)
+        return self.post_sort_combo.currentData(Qt.ItemDataRole.UserRole)
 
     @property
     def post_desc(self):
@@ -618,7 +641,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
 
     @property
     def comment_order(self):
-        return self.comment_sort_combo.currentData(Qt.UserRole)
+        return self.comment_sort_combo.currentData(Qt.ItemDataRole.UserRole)
 
     @property
     def comment_desc(self):
@@ -626,7 +649,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
 
     @property
     def content_order(self):
-        return self.content_sort_combo.currentData(Qt.UserRole)
+        return self.content_sort_combo.currentData(Qt.ItemDataRole.UserRole)
 
     @property
     def content_desc(self):
@@ -723,7 +746,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
         menu.addAction(
             "Select All", lambda: self.download_session_list_view.selectAll()
         )
-        menu.exec_(QCursor.pos())
+        menu.exec(QCursor.pos())
 
     def reddit_object_context_menu(self):
         menu = QMenu()
@@ -759,7 +782,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
         if ro is None:
             oepn_dl_folder.setDisabled(True)
             download.setDisabled(True)
-        menu.exec_(QCursor.pos())
+        menu.exec(QCursor.pos())
 
     def open_download_folder(self):
         reddit_object = self.reddit_object_model.get_item(
@@ -776,7 +799,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
 
     def export_reddit_objects(self, ro_list):
         wizard = ExportWizard(ro_list, RedditObject)
-        wizard.exec_()
+        wizard.exec()
 
     def download_reddit_object(self):
         reddit_objects = self.reddit_object_model.get_item(
@@ -786,7 +809,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
 
     def export_reddit_object(self):
         wizard = ExportWizard(self.current_reddit_object, RedditObject)
-        wizard.exec_()
+        wizard.exec()
 
     def delete_selected_reddit_objects(self, delete_files=False):
         reddit_objects = self.reddit_object_model.get_items(
@@ -835,7 +858,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
         menu.addAction("Select All", lambda: self.post_table_view.selectAll())
 
         open_post.setDisabled(post is None)
-        menu.exec_(QCursor.pos())
+        menu.exec(QCursor.pos())
 
     def copy_to_clipboard(self, text):
         cb = QApplication.clipboard()
@@ -862,7 +885,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
 
     def export_posts(self, post_list):
         wizard = ExportWizard(post_list, Post)
-        wizard.exec_()
+        wizard.exec()
 
     def post_headers_context_menu(self):
         """
@@ -882,7 +905,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
             action = QWidgetAction(menu)
             action.setDefaultWidget(checkbox)
             menu.addAction(action)
-        menu.exec_(QCursor.pos())
+        menu.exec(QCursor.pos())
 
     def attach_post_text_browser(self):
         """Closes the post text browser dialog and adds it back to the main dialog window."""
@@ -979,7 +1002,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
             custom_item.setText(custom_item.text() + f" ({self.icon_size})")
         menu.addMenu(icon_menu)
 
-        menu.exec_(QCursor.pos())
+        menu.exec(QCursor.pos())
 
     def add_icon_menu_item(
         self, icon_menu, action_group, text, icon_size, connect=True
@@ -1004,7 +1027,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
 
     def export_content(self, content_list):
         wizard = ExportWizard(content_list, Content)
-        wizard.exec_()
+        wizard.exec()
 
     def delete_selected_content(self, delete_post, delete_file):
         content_list = self.content_model.get_items(
@@ -1049,7 +1072,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
         menu.addAction("Select All", lambda: self.comment_tree_view.selectAll())
         menu.addSeparator()
 
-        menu.exec_(QCursor.pos())
+        menu.exec(QCursor.pos())
 
     def export_all_comments(self):
         self.export_comments(self.get_comment_data())
@@ -1060,7 +1083,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
 
     def export_comments(self, comment_list):
         wizard = ExportWizard(comment_list, Comment)
-        wizard.exec_()
+        wizard.exec()
 
     def delete_selected_comments(self, delete_posts, delete_files):
         comments = self.comment_tree_model.get_items(
@@ -1091,7 +1114,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
             item.setChecked(
                 self.settings_manager.database_view_comment_tree_headers[value]
             )
-        menu.exec_(QCursor.pos())
+        menu.exec(QCursor.pos())
 
     def toggle_comment_tree_headers(self, header):
         """Toggles the visibility of the supplied comment table header."""
@@ -1198,7 +1221,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
         except TypeError:
             pass
         self.settings_manager.database_view_download_session_order = (
-            self.download_session_sort_combo.currentData(Qt.UserRole)
+            self.download_session_sort_combo.currentData(Qt.ItemDataRole.UserRole)
         )
 
     @hold_setup
@@ -1211,7 +1234,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
         except TypeError:
             pass
         self.settings_manager.database_view_reddit_object_order = (
-            self.reddit_object_sort_combo.currentData(Qt.UserRole)
+            self.reddit_object_sort_combo.currentData(Qt.ItemDataRole.UserRole)
         )
 
     @hold_setup
@@ -1224,7 +1247,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
         except TypeError:
             pass
         self.settings_manager.database_view_post_order = (
-            self.post_sort_combo.currentData(Qt.UserRole)
+            self.post_sort_combo.currentData(Qt.ItemDataRole.UserRole)
         )
 
     @hold_setup
@@ -1237,7 +1260,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
         except TypeError:
             pass
         self.settings_manager.database_view_content_order = (
-            self.content_sort_combo.currentData(Qt.UserRole)
+            self.content_sort_combo.currentData(Qt.ItemDataRole.UserRole)
         )
 
     @hold_setup
@@ -1250,7 +1273,7 @@ class DatabaseDialog(QWidget, Ui_DatabaseDialog):
         except TypeError:
             pass
         self.settings_manager.database_view_comment_order = (
-            self.comment_sort_combo.currentData(Qt.UserRole)
+            self.comment_sort_combo.currentData(Qt.ItemDataRole.UserRole)
         )
 
     def set_content_icon_size(self, size=None):

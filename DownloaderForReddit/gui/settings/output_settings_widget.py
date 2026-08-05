@@ -1,5 +1,5 @@
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QColorDialog
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QColorDialog
 
 from DownloaderForReddit.guiresources.settings.output_settings_widget_auto import (
     Ui_OutputSettingsWidget,
@@ -61,10 +61,10 @@ class OutputSettingsWidget(AbstractSettingsWidget, Ui_OutputSettingsWidget):
         self.set_label_stylesheet(priority)
 
     def apply_settings(self):
-        priority = self.priority_level_combo.currentData(Qt.UserRole)
+        priority = self.priority_level_combo.currentData(Qt.ItemDataRole.UserRole)
         if priority != self.settings.output_priority_level:
             self.settings.output_priority_level = self.priority_level_combo.currentData(
-                Qt.UserRole
+                Qt.ItemDataRole.UserRole
             )
             self.main_window.update_output()
         self.settings.show_priority_level = (

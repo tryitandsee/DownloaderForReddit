@@ -1,9 +1,9 @@
 import html
 import threading
 
-from PyQt5.QtCore import QEvent, QModelIndex, Qt
-from PyQt5.QtGui import QTextCharFormat, QTextCursor, QTextDocument
-from PyQt5.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem
+from PyQt6.QtCore import QEvent, QModelIndex, QPointF, Qt
+from PyQt6.QtGui import QTextCharFormat, QTextCursor, QTextDocument
+from PyQt6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem
 
 from ..utils import injector, system_util
 
@@ -63,13 +63,13 @@ class HyperlinkDelegate(QStyledItemDelegate):
                  foreground color (if applicable).
         """
         doc = QTextDocument()
-        html_content = index.data(Qt.DisplayRole)
+        html_content = index.data(Qt.ItemDataRole.DisplayRole)
         doc.setHtml(html_content)
-        color = index.data(Qt.ForegroundRole)
+        color = index.data(Qt.ItemDataRole.ForegroundRole)
 
         if color:
             cursor = QTextCursor(doc)
-            cursor.select(QTextCursor.Document)
+            cursor.select(QTextCursor.SelectionType.Document)
             fmt = QTextCharFormat()
             fmt.setForeground(color)
             cursor.mergeCharFormat(fmt)
@@ -82,14 +82,14 @@ class HyperlinkDelegate(QStyledItemDelegate):
         Overrides the editorEvent method to handle mouse events for hyperlink navigation.
         """
         if (
-            event.type() == QEvent.MouseButtonRelease
-            and event.button() == Qt.LeftButton
+            event.type() == QEvent.Type.MouseButtonRelease
+            and event.button() == Qt.MouseButton.LeftButton
         ):
             doc = QTextDocument()
-            html_content = index.data(Qt.DisplayRole)
+            html_content = index.data(Qt.ItemDataRole.DisplayRole)
             doc.setHtml(html_content)
             pos = event.pos() - option.rect.topLeft()
-            anchor = doc.documentLayout().anchorAt(pos)
+            anchor = doc.documentLayout().anchorAt(QPointF(pos))
             if anchor:
                 if anchor.startswith(FILE_ANCHOR_PREFIX):
                     path = html.unescape(anchor[len(FILE_ANCHOR_PREFIX) :])

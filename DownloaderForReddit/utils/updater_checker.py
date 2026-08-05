@@ -26,7 +26,7 @@ import logging
 import sys
 
 import requests
-from PyQt5.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal
 
 from .. import version
 from . import injector
