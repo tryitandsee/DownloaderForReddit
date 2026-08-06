@@ -19,7 +19,7 @@ from sqlalchemy.orm.session import Session
 from sqlalchemy.sql import func
 
 from ..core import const
-from ..core.errors import Error
+from ..core.errors import DISPOSITION, Disposition, Error
 from ..utils import general_utils, injector, system_util
 from .database_handler import Base
 from .model_enums import (
@@ -754,7 +754,8 @@ class Post(BaseModel):
         self.extraction_date = datetime.now()
         self.extraction_error = error
         self.error_message = message
-        self.retry_attempts += 1
+        if DISPOSITION.get(error) is not Disposition.INTERRUPTED:
+            self.retry_attempts += 1
         self.get_session().commit()
 
 
@@ -928,5 +929,6 @@ class Content(BaseModel):
         self.downloaded = False
         self.download_error = error
         self.error_message = message
-        self.retry_attempts = self.retry_attempts + 1
+        if DISPOSITION.get(error) is not Disposition.INTERRUPTED:
+            self.retry_attempts = self.retry_attempts + 1
         self.get_session().commit()

@@ -43,9 +43,9 @@ Three independent layers, none with any backoff:
 
 1. **Transport** — none. Every call is a bare `requests.get`, so `HTTPAdapter(max_retries=0)`. No `Retry` is mounted anywhere; a status code would never trigger one regardless.
 2. **Within-call** — multipart only. `MultipartDownloader.download_part` retries a chunk up to 3 times on any non-206, 404 included. The single-file path has no loop.
-3. **Across sessions** — `Content.retry_attempts`, incremented by `set_download_error`. `DownloadRunner.run_undownloaded_content` requeues undownloaded content whose error isn't in `errors.NON_DOWNLOADABLE` and whose `retry_attempts <= 3`.
+3. **Across sessions** — `Content.retry_attempts`, incremented by `set_download_error` (skipped for `INTERRUPTED` disposition, so a user-stopped download doesn't consume a retry). `DownloadRunner.run_undownloaded_content` requeues undownloaded content whose error has a non-`PERMANENT` disposition and whose `retry_attempts <= 3`.
 
-`Downloader.handle_unsuccessful_response` maps 404/410 to `DOES_NOT_EXIST` and 403 to `FORBIDDEN`, both `NON_DOWNLOADABLE`, so those get one attempt. Everything else stays `UNSUCCESSFUL_RESPONSE` and is retried — including 429, which burns all 4 attempts against a rate limit. Rows predating that mapping still carry `UNSUCCESSFUL_RESPONSE` with a 404 message.
+`Downloader.handle_unsuccessful_response` classifies HTTP status codes: 404/410 → `DOES_NOT_EXIST`, 403 → `FORBIDDEN`, 429 → `RATE_LIMIT_ERROR`, everything else → `UNSUCCESSFUL_RESPONSE`. `errors.DISPOSITION` maps each `Error` to one of `PERMANENT`, `TRANSIENT`, `DEFERRED`, or `INTERRUPTED`; `PERMANENT_ERRORS` (computed from that table) is what the requeue filter excludes. Rows predating the 404 mapping still carry `UNSUCCESSFUL_RESPONSE` with a 404 message and are excluded only by the `retry_attempts` cap, not by disposition.
 
 ### Extractor system
 

@@ -28,7 +28,7 @@ from ..utils import injector, video_merger
 from ..version import __version__
 from . import const
 from .content_runner import ContentRunner
-from .errors import NON_DOWNLOADABLE
+from .errors import PERMANENT_ERRORS
 from .reddit_source import RateLimitedError, StopRequestedError, ValidationError
 from .runner import verify_run
 from .submission_filter import SubmissionFilter
@@ -347,7 +347,7 @@ class DownloadRunner(QObject):
                     .filter(
                         or_(
                             Post.extraction_error == None,
-                            Post.extraction_error.notin_(NON_DOWNLOADABLE),
+                            Post.extraction_error.notin_(PERMANENT_ERRORS),
                         )
                     )
                 )
@@ -374,7 +374,7 @@ class DownloadRunner(QObject):
                     .filter(
                         or_(
                             Content.download_error == None,
-                            Content.download_error.notin_(NON_DOWNLOADABLE),
+                            Content.download_error.notin_(PERMANENT_ERRORS),
                         )
                     )
                 )

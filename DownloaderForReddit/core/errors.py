@@ -22,11 +22,44 @@ class Error(Enum):
     CREDIT_ERROR = 18
 
 
-# list of errors that should not be retried
-NON_DOWNLOADABLE = [
-    Error.UNSUPPORTED_DOMAIN,
-    Error.DOES_NOT_EXIST,
-    Error.FAILED_TO_LOCATE,
-    Error.FORBIDDEN,
-    Error.DUPLICATE_CONTENT,
-]
+class Disposition(Enum):
+    PERMANENT = "permanent"  # never retry; policy failure, not a transient condition
+    TRANSIENT = "transient"  # retry with backoff
+    DEFERRED = "deferred"  # retry after a cooldown (rate-limited)
+    INTERRUPTED = (
+        "interrupted"  # retry immediately; does not count against the retry budget
+    )
+
+
+# Maps every Error to a retry disposition.
+DISPOSITION: dict[Error, Disposition] = {
+    # --- permanent: never retry ---
+    Error.UNSUPPORTED_DOMAIN: Disposition.PERMANENT,
+    Error.DOES_NOT_EXIST: Disposition.PERMANENT,
+    Error.FAILED_TO_LOCATE: Disposition.PERMANENT,
+    Error.FORBIDDEN: Disposition.PERMANENT,
+    Error.FAILED_SELF_POST: Disposition.PERMANENT,
+    Error.DUPLICATE_CONTENT: Disposition.PERMANENT,
+    Error.FAILED_FILTER: Disposition.PERMANENT,
+    Error.UNRECOGNIZED_EXTENSION: Disposition.PERMANENT,
+    # --- transient: retry with backoff ---
+    Error.UNSUCCESSFUL_RESPONSE: Disposition.TRANSIENT,
+    Error.TEXT_LINK_FAILURE: Disposition.TRANSIENT,
+    Error.FAILED_TO_EXTRACT: Disposition.TRANSIENT,
+    Error.MULTIPART_FAILURE: Disposition.TRANSIENT,
+    Error.UNKNOWN_ERROR: Disposition.TRANSIENT,
+    Error.CONNECTION_ERROR: Disposition.TRANSIENT,
+    Error.TEXT_FAILURE: Disposition.TRANSIENT,
+    Error.CREDIT_ERROR: Disposition.TRANSIENT,
+    # --- deferred: retry after cooldown ---
+    Error.RATE_LIMIT_ERROR: Disposition.DEFERRED,
+    # --- interrupted: retry immediately, doesn't count against budget ---
+    Error.DOWNLOAD_STOPPED: Disposition.INTERRUPTED,
+}
+
+# Errors whose failures should never be retried.
+PERMANENT_ERRORS = frozenset(
+    error
+    for error, disposition in DISPOSITION.items()
+    if disposition == Disposition.PERMANENT
+)

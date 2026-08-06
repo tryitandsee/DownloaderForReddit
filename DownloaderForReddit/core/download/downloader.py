@@ -408,7 +408,7 @@ class Downloader(Runner):
         content.md5_hash = md5.hexdigest()
 
     def handle_unsuccessful_response(self, content: Content, status_code):
-        # [mine] fix(downloader): map permanent HTTP errors to NON_DOWNLOADABLE codes so they aren't retried
+        # [mine] fix(downloader): classify HTTP status codes to their correct Error before recording
         message = "Failed Download: Unsuccessful response from server"
         self.log_errors(content, message, status_code=status_code)
         self.output_error(content, message)
@@ -416,6 +416,8 @@ class Downloader(Runner):
             error = Error.DOES_NOT_EXIST
         elif status_code == 403:
             error = Error.FORBIDDEN
+        elif status_code == 429:
+            error = Error.RATE_LIMIT_ERROR
         else:
             error = Error.UNSUCCESSFUL_RESPONSE
         content.set_download_error(error, f"{message}: status_code: {status_code}")

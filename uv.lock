@@ -258,7 +258,7 @@ requires-dist = [
     { name = "alembic", specifier = "==1.4.*" },
     { name = "beautifulsoup4" },
     { name = "playwright" },
-    { name = "pyqt6", specifier = "==6.*" },
+    { name = "pyqt6" },
     { name = "python-json-logger" },
     { name = "redgifs" },
     { name = "requests" },
@@ -272,7 +272,7 @@ dev = [
     { name = "mypy" },
     { name = "pytest" },
     { name = "ruff" },
-    { name = "ty", specifier = ">=0.0.65" },
+    { name = "ty" },
 ]
 
 [[package]]
