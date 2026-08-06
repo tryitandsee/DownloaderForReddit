@@ -993,8 +993,7 @@ class BrowserRedditSource:
 
     @staticmethod
     def _check_validity(page: Page) -> ValidationResult:
-        """Matches reddit's page copy. NOT_FOUND is confirmed against a real nonexistent user;
-        FORBIDDEN is unverified -- no real example inspected yet."""
+        """Matches reddit's page copy, confirmed against real examples of each case."""
         body_text = page.locator("body").inner_text().lower()
         if (
             "nobody on reddit goes by that name" in body_text
@@ -1003,7 +1002,11 @@ class BrowserRedditSource:
             return ValidationResult(valid=False, error=ValidationError.NOT_FOUND)
         if "community doesn’t exist" in body_text or "page not found" in body_text:  # noqa: RUF001 -- matches reddit's actual page copy, which uses a curly apostrophe
             return ValidationResult(valid=False, error=ValidationError.NOT_FOUND)
-        if "this community is private" in body_text or "suspended" in body_text:
+        if (
+            "this community is private" in body_text
+            or "suspended" in body_text
+            or "has been banned" in body_text
+        ):
             return ValidationResult(valid=False, error=ValidationError.FORBIDDEN)
         return ValidationResult(valid=True)
 

@@ -10,6 +10,8 @@ from DownloaderForReddit.core.reddit_source import (
     _INJECTED_SCRIPT,
     BrowserRedditSource,
     StopRequestedError,
+    ValidationError,
+    ValidationResult,
 )
 
 # Captured from the real rendered DOM of three profile submitted-listings (usernames anonymized,
@@ -334,6 +336,51 @@ def test_scroll_and_collect_raises_immediately_when_stop_is_requested():
         source._scroll_and_collect(page, since=None)
 
     assert page.scrolls == 0
+
+
+class FakeLocator:
+    def __init__(self, text):
+        self.text = text
+
+    def inner_text(self):
+        return self.text
+
+
+class FakeValidationPage:
+    """Stands in for a Playwright page over the one locator _check_validity reads."""
+
+    def __init__(self, body_text):
+        self.body_text = body_text
+
+    def locator(self, selector):
+        assert selector == "body"
+        return FakeLocator(self.body_text)
+
+
+@pytest.mark.parametrize(
+    ("body_text", "expected_error"),
+    [
+        ("Sorry, nobody on Reddit goes by that name.", ValidationError.NOT_FOUND),
+        ("This user has deleted their account.", ValidationError.NOT_FOUND),
+        ("Sorry, this community doesn’t exist", ValidationError.NOT_FOUND),  # noqa: RUF001
+        ("Page not found", ValidationError.NOT_FOUND),
+        ("This community is private", ValidationError.FORBIDDEN),
+        ("Account suspended", ValidationError.FORBIDDEN),
+        ("This account has been banned", ValidationError.FORBIDDEN),
+    ],
+)
+def test_check_validity_matches_reddits_invalid_page_copy(body_text, expected_error):
+    result = BrowserRedditSource._check_validity(FakeValidationPage(body_text))
+
+    assert result == ValidationResult(valid=False, error=expected_error)
+
+
+def test_check_validity_treats_a_normal_listing_page_as_valid():
+    result = BrowserRedditSource._check_validity(
+        FakeValidationPage("example_user's posts")
+    )
+
+    assert result == ValidationResult(valid=True)
 
 
 def test_check_should_continue_is_a_no_op_when_no_stop_event_is_registered():
