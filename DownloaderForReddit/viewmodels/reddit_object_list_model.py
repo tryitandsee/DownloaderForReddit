@@ -21,6 +21,8 @@ from ..database.models import (
     Post,
     RedditObject,
     RedditObjectList,
+    Subreddit,
+    User,
 )
 from ..messaging.message import Message
 from ..utils import general_utils, injector
@@ -297,6 +299,9 @@ class RedditObjectListModel(QAbstractTableModel):
         self.search_term = term or ""
         self.sort_list()
 
+    def _model_for_list(self):
+        return User if self.list_type == "USER" else Subreddit
+
     def check_name(self, name):
         """
         Checks the reddit object list to see if an object with the supplied name exists in the list.
@@ -305,9 +310,10 @@ class RedditObjectListModel(QAbstractTableModel):
         :type name: str
         :rtype: bool
         """
+        model = self._model_for_list()
         ro = (
-            self.session.query(RedditObject)
-            .filter(func.lower(RedditObject.name) == func.lower(name))
+            self.session.query(model)
+            .filter(func.lower(model.name) == func.lower(name))
             .scalar()
         )
         return ro in self.reddit_objects
@@ -356,9 +362,10 @@ class RedditObjectListModel(QAbstractTableModel):
         existing_ids = []
         existing_names = []
         for name in name_list:
+            model = self._model_for_list()
             ro = (
-                self.session.query(RedditObject)
-                .filter(func.lower(RedditObject.name) == name.lower())
+                self.session.query(model)
+                .filter(func.lower(model.name) == name.lower())
                 .first()
             )
             if ro is not None:

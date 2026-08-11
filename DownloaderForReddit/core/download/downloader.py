@@ -4,7 +4,9 @@ import logging
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta
 from typing import cast
+from urllib.parse import urlparse
 
 import requests
 
@@ -50,10 +52,27 @@ class Downloader(Runner):
         self.download_count = 0
         self.duplicate_count = 0
         self._active_downloads = {}  # [mine] feat(gui): download status window
+        # Per-host rate-limit cooldown: host → expiry. Threads share this under _host_cooldown_lock.
+        self._host_cooldowns = {}
+        self._host_cooldown_lock = threading.Lock()
 
     @property
     def running(self):
         return len(self.futures) > 0
+
+    _RATE_LIMIT_COOLDOWN = timedelta(minutes=10)
+
+    def _is_host_cooling_down(self, url: str) -> bool:
+        host = urlparse(url).hostname or ""
+        with self._host_cooldown_lock:
+            expiry = self._host_cooldowns.get(host)
+        return expiry is not None and datetime.now() < expiry
+
+    def _set_host_cooldown(self, url: str) -> None:
+        host = urlparse(url).hostname or ""
+        if host:
+            with self._host_cooldown_lock:
+                self._host_cooldowns[host] = datetime.now() + self._RATE_LIMIT_COOLDOWN
 
     def run(self):
         """
@@ -129,6 +148,8 @@ class Downloader(Runner):
                     content
                 )
                 request_args = self.request_args(content)
+                if self._is_host_cooling_down(content.url):
+                    return
                 response = requests.get(
                     content.url,
                     stream=True,
@@ -418,6 +439,7 @@ class Downloader(Runner):
             error = Error.FORBIDDEN
         elif status_code == 429:
             error = Error.RATE_LIMIT_ERROR
+            self._set_host_cooldown(content.url)
         else:
             error = Error.UNSUCCESSFUL_RESPONSE
         content.set_download_error(error, f"{message}: status_code: {status_code}")
