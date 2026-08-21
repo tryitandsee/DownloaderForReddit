@@ -301,6 +301,57 @@ def _parse_post(raw: dict) -> SubmissionData | None:
         return None
 
 
+def _parse_post_json(data: dict) -> SubmissionData | None:
+    reddit_id = data.get("id")
+    if not reddit_id:
+        return None
+    try:
+        is_gallery = bool(data.get("is_gallery"))
+        crosspost = bool(data.get("crosspost_parent_list"))
+        is_video = bool(data.get("is_video"))
+        is_self = bool(data.get("is_self"))
+        post_hint = data.get("post_hint") or ""
+
+        if is_self:
+            post_type = "text"
+        elif is_gallery:
+            post_type = "gallery"
+        elif crosspost:
+            post_type = "crosspost"
+        elif is_video:
+            post_type = "video"
+        elif post_hint == "image":
+            post_type = "image"
+        else:
+            post_type = "link"
+
+        if post_type == "gallery":
+            url = f"{REDDIT_BASE_URL}/gallery/{reddit_id}"
+        else:
+            url = data.get("url") or ""
+
+        permalink = urljoin(REDDIT_BASE_URL, data.get("permalink") or "")
+        created_utc = data.get("created_utc")
+        if created_utc is None:
+            raise ValueError("missing created_utc")
+        return SubmissionData(
+            reddit_id=reddit_id,
+            title=data.get("title") or "",
+            url=url,
+            domain=data.get("domain") or "",
+            author=data.get("author") or "",
+            subreddit=data.get("subreddit") or "",
+            created=datetime.fromtimestamp(created_utc, tz=UTC),
+            nsfw=bool(data.get("over_18", False)),
+            is_self=is_self,
+            permalink=permalink,
+            post_type=post_type,
+        )
+    except (TypeError, ValueError, KeyError):
+        logger.warning("Failed to parse post json", extra={"reddit_id": reddit_id})
+        return None
+
+
 def parse_posts_payload(raw_posts: list[dict]) -> list[SubmissionData]:
     posts = []
     for raw in raw_posts:
@@ -1056,31 +1107,15 @@ class BrowserRedditSource:
             return validation, posts, coverage_confirmed
 
     def get_post(self, url: str) -> SubmissionData | None:
-        with self._locked_page("get_post", url):
-            return self._executor.submit(self._get_post_impl, url).result()
+        return self._executor.submit(self._get_post_impl, url).result()
 
     def _get_post_impl(self, url: str) -> SubmissionData | None:
-        # Only www.reddit.com renders <shreddit-post>; an old.reddit.com url reaching here finds
-        # nothing (confirmed).
-        url = _normalize_reddit_url(url)
-        self._check_should_continue()
-        page = self._get_page()
-        with self._suppressed_ambient():
-            try:
-                page.goto(url)
-            except PlaywrightError:
-                logger.warning(
-                    "Navigation failed fetching single post",
-                    extra={"url": url},
-                    exc_info=True,
-                )
-                return None
-            page.wait_for_timeout(const.SINGLE_POST_WAIT_MS)
-            posts = _read_posts(page)
-            if not posts:
-                logger.warning("No shreddit-post found at url", extra={"url": url})
-                return None
-            return posts[0]
+        # _fetch_post_json accepts absolute URLs (urljoin passes them through unchanged).
+        # Called directly — already running in the executor thread; re-submitting would deadlock.
+        data = self._fetch_post_json(url)
+        if data is None:
+            return None
+        return _parse_post_json(data)
 
     def get_gallery_media_metadata(self, permalink: str) -> dict:
         """
@@ -1137,6 +1172,7 @@ class BrowserRedditSource:
                 exc_info=True,
             )
             return None
+        page.wait_for_timeout(const.SINGLE_POST_WAIT_MS)
         if not data:
             return None
         try:
