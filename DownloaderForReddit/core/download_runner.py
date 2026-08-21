@@ -619,13 +619,6 @@ class DownloadRunner(QObject):
         except StopRequestedError:
             # stop_download already messaged the user; nothing further to report.
             return None
-        except PlaywrightError:
-            self.logger.exception(
-                "Browser navigation failed while fetching single post",
-                extra={"url": url},
-            )
-            Message.send_error(f"Failed to fetch post: {url}")
-            return None
         if submission is None:
             Message.send_error(f"Failed to fetch post: {url}")
             return None
