@@ -347,7 +347,7 @@ def _parse_post_json(data: dict) -> SubmissionData | None:
             permalink=permalink,
             post_type=post_type,
         )
-    except (TypeError, ValueError, KeyError):
+    except TypeError, ValueError, KeyError:
         logger.warning("Failed to parse post json", extra={"reddit_id": reddit_id})
         return None
 
@@ -1110,8 +1110,6 @@ class BrowserRedditSource:
         return self._executor.submit(self._get_post_impl, url).result()
 
     def _get_post_impl(self, url: str) -> SubmissionData | None:
-        # _fetch_post_json accepts absolute URLs (urljoin passes them through unchanged).
-        # Called directly — already running in the executor thread; re-submitting would deadlock.
         data = self._fetch_post_json(url)
         if data is None:
             return None
