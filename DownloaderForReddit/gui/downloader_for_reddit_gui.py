@@ -32,6 +32,7 @@ from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtGui import QAction, QCursor, QIcon, QPixmap
 from PyQt6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QHBoxLayout,
     QHeaderView,
     QInputDialog,
@@ -1026,8 +1027,10 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
     def open_single_post_dialog(self):
         # [mine] feat(gui): prompt for post URLs (one per line) and start a download
+        clipboard_text = QApplication.clipboard().text()
+        prefill = clipboard_text if "reddit.com" in clipboard_text else ""
         text, ok = QInputDialog.getMultiLineText(
-            self, "Download Posts", "Post URLs (one per line):"
+            self, "Download Posts", "Post URLs (one per line):", prefill
         )
         if ok:
             urls = [line.strip() for line in text.splitlines() if line.strip()]
