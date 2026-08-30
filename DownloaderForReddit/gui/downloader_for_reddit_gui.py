@@ -400,16 +400,18 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             else Qt.SortOrder.AscendingOrder,
         )
 
-        for view, model, column_order in (
+        for view, model, column_order, hidden_columns in (
             (
                 self.user_list_view,
                 self.user_list_model,
                 self.settings_manager.user_list_column_order,
+                self.settings_manager.user_list_hidden_columns,
             ),
             (
                 self.subreddit_list_view,
                 self.subreddit_list_model,
                 self.settings_manager.subreddit_list_column_order,
+                self.settings_manager.subreddit_list_hidden_columns,
             ),
         ):
             header = view.horizontalHeader()
@@ -422,6 +424,10 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             if sorted(column_order) == list(range(model.columnCount())):
                 for visual_index, logical_index in enumerate(column_order):
                     header.moveSection(header.visualIndex(logical_index), visual_index)
+            columns = list(RedditObjectListModel.columns)
+            for name in hidden_columns:
+                if name in columns:
+                    header.setSectionHidden(columns.index(name), True)
 
         self.setup_expected_new_refresh_button()
         self.setup_column_toggle_button()
@@ -2097,6 +2103,11 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.settings_manager.user_list_column_order = [
             user_header.logicalIndex(i) for i in range(user_header.count())
         ]
+        self.settings_manager.user_list_hidden_columns = [
+            RedditObjectListModel.columns[i]
+            for i in range(user_header.count())
+            if user_header.isSectionHidden(i)
+        ]
         subreddit_header = self.subreddit_list_view.horizontalHeader()
         self.settings_manager.subreddit_list_sort_column = (
             subreddit_header.sortIndicatorSection()
@@ -2106,6 +2117,11 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         )
         self.settings_manager.subreddit_list_column_order = [
             subreddit_header.logicalIndex(i) for i in range(subreddit_header.count())
+        ]
+        self.settings_manager.subreddit_list_hidden_columns = [
+            RedditObjectListModel.columns[i]
+            for i in range(subreddit_header.count())
+            if subreddit_header.isSectionHidden(i)
         ]
 
         self.settings_manager.download_radio_state = (

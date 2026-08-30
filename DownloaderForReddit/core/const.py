@@ -41,9 +41,9 @@ TIMEOUT_INCREMENT = 0.25
 RATE_LIMIT_DOC_URL = "https://github.com/MalloyDelacroix/DownloaderForReddit/wiki/The-Ongoing-Impact-of-Reddits-API-Rate-Limits"
 
 # objects actually downloaded per bulk run, excluding cooldown skips
-BULK_DOWNLOAD_LIMIT = 20
+BULK_DOWNLOAD_LIMIT = 30
 # skip an object whose date_last_download_utc is within this window
-BULK_DOWNLOAD_COOLDOWN_HOURS = 10
+BULK_DOWNLOAD_COOLDOWN_HOURS = 6
 MAX_SCROLL_ITERATIONS = 40
 
 # Pacing waits get a "_SLOW" counterpart used when settings_manager.slow_mode is on.
