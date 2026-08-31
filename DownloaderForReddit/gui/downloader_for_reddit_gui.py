@@ -1441,6 +1441,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         """
         with self.db_handler.get_scoped_update_session() as session:
             reddit_object = session.query(RedditObject).get(reddit_object_id)
+            if reddit_object is None:
+                return
             self.invalid_list.append(
                 InvalidObject(reddit_object.name, reddit_object.id, "deleted")
             )
@@ -1454,6 +1456,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         """
         with self.db_handler.get_scoped_update_session() as session:
             reddit_object = session.query(RedditObject).get(reddit_object_id)
+            if reddit_object is None:
+                return
             self.invalid_list.append(
                 InvalidObject(reddit_object.name, reddit_object.id, "suspended/banned")
             )
@@ -1470,6 +1474,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         """
         with self.db_handler.get_scoped_update_session() as session:
             reddit_object = session.query(RedditObject).get(reddit_object_id)
+            if reddit_object is None:
+                return
             session.query(ListAssociation).filter(
                 ListAssociation.reddit_object_id == reddit_object_id
             ).delete()
