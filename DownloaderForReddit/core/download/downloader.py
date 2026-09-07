@@ -49,6 +49,8 @@ class Downloader(Runner):
         self.thread_count = self.settings_manager.download_thread_count
         self.executor = None
         self.futures = []
+        self.download_count = 0
+        self.duplicate_count = 0
         self._active_downloads = {}  # [mine] feat(gui): download status window
         # Per-host rate-limit cooldown: host → expiry. Threads share this under _host_cooldown_lock.
         self._host_cooldowns = {}
@@ -288,6 +290,7 @@ class Downloader(Runner):
                 return
             self.handle_date_modified(content)
             content.set_downloaded(download_session_id)
+            self.download_count += 1
             self.output_downloaded_message(content)
         else:
             self.handle_download_stopped(content)
@@ -339,6 +342,7 @@ class Downloader(Runner):
         """
         duplicate_handler = DuplicateHandler(content)
         duplicate_handler.handle_duplicate()
+        self.duplicate_count += 1
         Message.send_duplicate()
 
     def handle_date_modified(self, content: Content) -> None:
