@@ -1,5 +1,5 @@
-import html
 import threading
+from urllib.parse import unquote
 
 from PyQt6.QtCore import QEvent, QModelIndex, QPointF, Qt
 from PyQt6.QtGui import QTextCharFormat, QTextCursor, QTextDocument
@@ -92,7 +92,7 @@ class HyperlinkDelegate(QStyledItemDelegate):
             anchor = doc.documentLayout().anchorAt(QPointF(pos))
             if anchor:
                 if anchor.startswith(FILE_ANCHOR_PREFIX):
-                    path = html.unescape(anchor[len(FILE_ANCHOR_PREFIX) :])
+                    path = unquote(anchor[len(FILE_ANCHOR_PREFIX) :])
                     threading.Thread(
                         target=system_util.reveal_in_file_manager,
                         args=(path,),

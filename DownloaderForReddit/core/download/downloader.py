@@ -6,7 +6,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from typing import cast
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import requests
 
@@ -380,7 +380,7 @@ class Downloader(Runner):
         """
         if self.settings_manager.output_saved_content_full_path:
             path = content.get_full_file_path()
-            return f'<a href="dfr-file:///{html.escape(path, quote=True)}">{path}</a>'
+            return f'<a href="dfr-file:///{quote(path, safe=":/\\")}">{html.escape(path)}</a>'
         return f"{content.user.name}: {content.title}"
 
     def handle_download_stopped(self, content: Content) -> None:

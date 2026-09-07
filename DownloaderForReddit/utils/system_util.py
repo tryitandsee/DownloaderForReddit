@@ -100,14 +100,13 @@ def clean(part, directory=False):
     # characters.  I'm not sure why this is, as the file name limit should be around 240. But either way, this
     # method has been adapted to work with the results that I am consistently getting.
     # Replace forbidden characters
-    clean_part = "".join([x if x not in FORBIDDEN_CHARS else "#" for x in part])
+    clean_part = "".join([x if x not in FORBIDDEN_CHARS else "" for x in part])
 
     # Replace control characters (0x00-0x1F) which can cause OSError on Windows
-    clean_part = "".join([x if ord(x) >= 32 else "#" for x in clean_part])
+    clean_part = "".join([x if ord(x) >= 32 else "" for x in clean_part])
 
-    # Remove trailing periods, spaces, and safety chars (invalid on Windows or look bad)
-    # [mine] fix: strip leading/trailing '#' used as safety replacement character
-    clean_part = clean_part.strip("#").rstrip(". ")
+    # Remove trailing periods and spaces (invalid on Windows or look bad)
+    clean_part = clean_part.rstrip(". ")
 
     # Handle reserved Windows names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
     reserved_names = {
