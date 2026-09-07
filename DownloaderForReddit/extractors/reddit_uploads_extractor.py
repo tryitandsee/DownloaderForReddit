@@ -28,6 +28,7 @@ from urllib.parse import parse_qs, urlparse
 
 from ..core import const
 from ..core.errors import Error
+from ..messaging.message import Message
 from ..utils import injector
 from .base_extractor import BaseExtractor
 
@@ -99,12 +100,7 @@ class RedditUploadsExtractor(BaseExtractor):
             self.submission.permalink
         )
         if not media_metadata:
-            message = "Reddit gallery has no downloadable images (deleted, private, or the page layout changed)"
-            self.handle_failed_extract(
-                error=Error.FAILED_TO_LOCATE,
-                message=message,
-                extractor_error_message=message,
-            )
+            Message.send_info(f"Gallery {self.url} has no downloadable images")
             return
         self.extract_album_from_media_metadata(media_metadata)
 
