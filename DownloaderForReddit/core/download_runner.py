@@ -551,7 +551,7 @@ class DownloadRunner(QObject):
         # download (add_to_download, or a manual navigation onto a tracked listing) still does.
         with self.reddit_source.suppress_bring_to_front():
             for obj_id, obj in objs:
-                if not self.continue_run or downloaded >= const.BULK_DOWNLOAD_LIMIT:
+                if not self.continue_run or downloaded >= total:
                     break
                 if obj is None:
                     continue
@@ -560,7 +560,7 @@ class DownloadRunner(QObject):
                     remaining = cooldown - (now - last)
                     hours, remainder = divmod(int(remaining.total_seconds()), 3600)
                     minutes = remainder // 60
-                    Message.send_warning(
+                    Message.send_info(
                         f"{obj.name} was downloaded too recently. Try again in "
                         f"{hours}h {minutes}m or download manually."
                     )
