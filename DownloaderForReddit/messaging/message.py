@@ -16,6 +16,7 @@ class MessageType(Enum):
     FOLLOW_STATE_CHANGED = 7
     CONTENT_SKIPPED = 8
     SCROLL_STATUS = 9
+    DUPLICATE_COUNT = 10
 
 
 @dataclass
@@ -138,6 +139,10 @@ class Message:
     @classmethod
     def send_scroll_status(cls, text: str) -> None:
         cls.send(MessageType.SCROLL_STATUS, payload=ScrollStatusPayload(text))
+
+    @classmethod
+    def send_duplicate(cls) -> None:
+        cls.send(MessageType.DUPLICATE_COUNT)
 
     @classmethod
     def send_extraction_error(cls, message: str):

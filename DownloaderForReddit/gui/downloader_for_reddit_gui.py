@@ -152,6 +152,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.last_downloaded_objects = {}
         self.potential_downloads = 0
         self.downloaded = 0
+        self.duplicate_count = 0
+        self.skip_count = 0
         self.progress_limit = 0
         self.progress = 0
         self.running = False
@@ -528,16 +530,15 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         layout.addWidget(self.timer_label)
 
         self.statusbar.addPermanentWidget(self.timer_widget)
+        self.stats_label = QLabel()
+        self.statusbar.addPermanentWidget(self.stats_label)
+
         self.run_timer = QTimer(self)
         self.run_timer.timeout.connect(self.update_run_time)
 
         self.progress_bar = QProgressBar()
         self.statusbar.addPermanentWidget(self.progress_bar)
         self.progress_bar.setVisible(False)
-        self.progress_label = QLabel()
-        self.statusbar.addPermanentWidget(self.progress_label)
-        self.progress_label.setText("Extraction Complete")
-        self.progress_label.setVisible(False)
 
         self.setup_system_tray_icon()
 
@@ -1165,6 +1166,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
     def handle_content_found(self, message):
         if message.message_type == MessageType.CONTENT_SKIPPED:
             self.content_feed_panel.mark_skipped(message.payload)
+            self.skip_count += 1
+            self.update_status_bar()
         elif message.message_type == MessageType.SCROLL_STATUS:
             self.content_feed_panel.add_status(message.payload.text)
         elif self.content_feed_store.add(message.payload):
@@ -1200,17 +1203,15 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         elif message.message_type == MessageType.ACTUAL_PROGRESS:
             self.update_progress()
         elif message.message_type == MessageType.POTENTIAL_COUNT:
-            if message.priority != MessagePriority.ERROR:
-                self.extend_progress()
-                self.potential_downloads += 1
-                self.update_status_bar()
-            else:
-                self.extend_progress(forward=False)
-                self.potential_downloads -= 1
-                self.update_status_bar()
+            self.extend_progress()
+            self.potential_downloads += 1
+            self.update_status_bar()
         elif message.message_type == MessageType.ACTUAL_COUNT:
             self.update_progress()
             self.downloaded += 1
+            self.update_status_bar()
+        elif message.message_type == MessageType.DUPLICATE_COUNT:
+            self.duplicate_count += 1
             self.update_status_bar()
         else:
             self.logger.warning(
@@ -1219,8 +1220,9 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             )
 
     def update_status_bar(self):
-        self.statusbar.showMessage(
-            f"Downloaded: {self.downloaded} of {self.potential_downloads}", -1
+        new = self.downloaded - self.duplicate_count
+        self.stats_label.setText(
+            f"Found: {self.potential_downloads}  ·  New: {new}  ·  Dup: {self.duplicate_count}  ·  Skip: {self.skip_count}"
         )
 
     def init_progress_bar(self):
@@ -1955,10 +1957,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         if self.settings_manager.clear_messages_on_run:
             self.output_view_model.clear()
         self.init_progress_bar()
-        self.downloaded = 0
-        self.potential_downloads = 0
         self.statusbar.clearMessage()
-        self.progress_label.setVisible(False)
         self.progress_bar.setVisible(True)
         self.shift_download_buttons()
         self.setup_run_timer()
@@ -1968,7 +1967,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         """Resets the GUI shift that happens when a download session is started."""
         self.running = False
         self.progress_bar.setVisible(False)
-        self.potential_downloads = 0
         self.shift_download_buttons()
         self.timer_widget.setVisible(False)
         self.run_time = 0
@@ -1999,17 +1997,6 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
                     else:
                         rename = False
                     self.remove_problem_reddit_object(ro.id, rename, ro.status)
-
-    def finish_progress_bar(self):
-        """
-        Changes the progress bar text to show that it is complete and also moves the progress bar value to the maximum
-        if for whatever reason it was not already there
-        """
-        self.progress_label.setText(
-            f"Download complete - Downloaded: {self.potential_downloads}"
-        )
-        if self.progress_bar.value() < self.progress_bar.maximum():
-            self.progress_bar.setValue(self.progress_bar.maximum())
 
     def setup_run_timer(self):
         """
