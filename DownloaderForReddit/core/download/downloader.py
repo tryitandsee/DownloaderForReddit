@@ -140,6 +140,7 @@ class Downloader(Runner):
                 )
                 if self.is_url_duplicate(content, session=session):
                     content.set_downloaded(download_session_id)
+                    Message.send_duplicate()
                     Message.send_info(
                         f"Duplicate URL skipped: {content.user.name}: {content.title} {content.url}"
                     )
@@ -341,9 +342,8 @@ class Downloader(Runner):
         """
         duplicate_handler = DuplicateHandler(content)
         duplicate_handler.handle_duplicate()
-        if not duplicate_handler.duplicate_deleted:
-            self.download_count += 1
         self.duplicate_count += 1
+        Message.send_duplicate()
 
     def handle_date_modified(self, content: Content) -> None:
         """
