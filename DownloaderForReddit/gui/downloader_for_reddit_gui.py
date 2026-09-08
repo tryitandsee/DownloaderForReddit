@@ -50,10 +50,12 @@ from sqlalchemy import func, or_
 
 from ..core import const
 from ..core.cli import CLI
+from ..core.errors import PERMANENT_ERRORS
 from ..core.reddit_source import classify_listing_url, to_naive_utc
 from ..customwidgets.link_cursor_handler import LinkCursorHandler
 from ..database.model_manager import ModelManger
 from ..database.models import (
+    Content,
     ListAssociation,
     Post,
     RedditObject,
@@ -306,6 +308,7 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             self.run_undownloaded_only
         )
         self.run_all_unfiinished_menu_item.triggered.connect(self.run_all_unfinished)
+        self.menuDownload.aboutToShow.connect(self._update_unfinished_menu_counts)
         # [mine] feat(gui): "Download Posts..." menu item
         self._single_post_action = QAction("Download Posts...", self)
         self._single_post_action.triggered.connect(self.open_single_post_dialog)
@@ -1099,6 +1102,45 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
             run_undownloaded=True,
             undownloaded_id_list=id_list,
         )
+
+    def _update_unfinished_menu_counts(self):
+        try:
+            with injector.get_database_handler().get_scoped_session() as session:
+                unextracted = (
+                    session.query(func.count(Post.id))
+                    .filter(Post.extracted == False)
+                    .filter(Post.retry_attempts <= 3)
+                    .filter(
+                        or_(
+                            Post.extraction_error == None,
+                            Post.extraction_error.notin_(PERMANENT_ERRORS),
+                        )
+                    )
+                    .scalar()
+                )
+                undownloaded = (
+                    session.query(func.count(Content.id))
+                    .filter(Content.downloaded == False)
+                    .filter(Content.retry_attempts <= 3)
+                    .filter(
+                        or_(
+                            Content.download_error == None,
+                            Content.download_error.notin_(PERMANENT_ERRORS),
+                        )
+                    )
+                    .scalar()
+                )
+            self.run_unfinished_extractions_menu_item.setText(
+                f"Run Unfinished Extractions ({unextracted:,})"
+            )
+            self.run_unfinished_downloads_menu_item.setText(
+                f"Run Unfinished Downloads ({undownloaded:,})"
+            )
+            self.run_all_unfiinished_menu_item.setText(
+                f"Run All Unfinished ({unextracted + undownloaded:,})"
+            )
+        except Exception:
+            self.logger.debug("Failed to update unfinished menu counts", exc_info=True)
 
     def run(self, user_id_list, sub_id_list, reddit_object_id_list=None, **kwargs):
         if not self.running:
