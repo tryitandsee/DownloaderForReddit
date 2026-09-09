@@ -403,15 +403,14 @@ class BrowserRedditSource:
         self._playwright = None
         self._context = None
         self._page = None
-        self._on_posts_found: (
-            Callable[[list[SubmissionData], str | None, str], None] | None
-        ) = None
-        self._on_rate_limited: Callable[[], None] | None = None
+        self._on_rate_limited: Callable[[str], None] | None = None
         self._on_profile_exhausted: (
             Callable[[str, list[SubmissionData]], None] | None
         ) = None
         self._scroll_pacer: Callable[[], None] | None = None
-        self._on_posts_collected: Callable[[list[SubmissionData]], None] | None = None
+        self._on_posts_found: (
+            Callable[[list[SubmissionData], str | None, str], None] | None
+        ) = None
         self._all_already_known: Callable[[list[SubmissionData]], bool] | None = None
         # Guards every page.goto: a scan submits its scrolls one at a time, so another
         # navigation could otherwise goto the shared page out from under it. Acquired before
@@ -443,7 +442,7 @@ class BrowserRedditSource:
         for posts, page_owner, url in pending:
             callback(posts, page_owner, url)
 
-    def set_on_rate_limited(self, callback: Callable[[], None]):
+    def set_on_rate_limited(self, callback: Callable[[str], None]):
         """Registered by DownloadRunner to cancel the active session the moment reddit returns
         a 429, rather than continuing to hammer a rate-limited endpoint. See _handle_response."""
         self._on_rate_limited = callback
@@ -513,7 +512,7 @@ class BrowserRedditSource:
                 extra={"url": response.url},
             )
             if self._on_rate_limited is not None:
-                self._on_rate_limited()
+                self._on_rate_limited(response.url)
 
     def _handle_posts_found(self, source: dict, raw_posts: list[dict]) -> None:
         """Invoked via the __dfrPostsFound binding. expose_binding, not expose_function, for the

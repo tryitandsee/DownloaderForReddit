@@ -23,7 +23,7 @@ from .runner import Runner, verify_run
 # media URL -- the original submission is extracted as its own Post row with the real url, so this is
 # not a real failure, just an unresolved duplicate reference.
 REDDIT_LINK_RE = re.compile(
-    r"^https?://(\w+\.)?reddit\.com/r/[^/?#]+(/comments/[^/?#]+(/[^/?#]*)?)?/?(?:[?#].*)?$",
+    r"^https?://(\w+\.)?reddit\.com/(r|user)/[^/?#]+(/comments/[^/?#]+(/[^/?#]*)?)?/?(?:[?#].*)?$",
     re.IGNORECASE,
 )
 

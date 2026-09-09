@@ -71,7 +71,7 @@ class DownloadRunner(QObject):
     # Emitted from BrowserRedditSource's response listener, which runs on Playwright's own
     # thread -- emit() is the thread-safe hand-off onto this runner's own thread, same pattern as
     # request_download.
-    rate_limited = pyqtSignal()
+    rate_limited = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -303,16 +303,16 @@ class DownloadRunner(QObject):
             )
             self.failed_connection_attempts += 1
 
-    def handle_rate_limited(self):
-        """Connected to rate_limited, emitted the moment reddit returns an HTTP 429 anywhere
-        (bulk downloads, ambient-triggered extraction, gallery metadata fetches). Cancels the open
-        session immediately rather than letting queued work keep hitting a rate-limited endpoint.
-        There's no auto-resume/cooldown -- clear_rate_limit() runs at the top of the next
-        user-initiated start_batch, so starting another download is the resume signal."""
-        self.logger.error("Reddit rate limit (429) reached, pausing downloads")
+    def handle_rate_limited(self, url: str):
+        """Connected to rate_limited. Fires on the first 429 from any source (gallery fetches,
+        ambient extraction, bulk scans). No auto-resume -- clear_rate_limit() runs at the top of
+        start_batch, so the next user-initiated download is the resume signal."""
+        self.logger.error(
+            "Reddit rate limit (429) reached, pausing downloads", extra={"url": url}
+        )
         Message.send_critical(
-            "Reddit rate limit reached (HTTP 429). Downloading has been paused.\n"
-            "Please wait a few minutes before starting another download."
+            f"Reddit rate limit reached (HTTP 429): {url}\n"
+            "Downloading has been paused. Please wait a few minutes before starting another download."
         )
         self.stop_download(hard_stop=True)
 

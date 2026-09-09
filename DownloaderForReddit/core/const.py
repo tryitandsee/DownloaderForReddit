@@ -54,6 +54,6 @@ BULK_DOWNLOAD_PACE_MS = 10_000  # break between objects/scrolls, also queue-drai
 BULK_DOWNLOAD_PACE_MS_SLOW = 30_000
 GOTO_LISTING_WAIT_MS = 2000  # page-settle, not pacing
 VALIDATE_WAIT_MS = 1500  # page-settle, not pacing
-SINGLE_POST_WAIT_MS = 2000  # page-settle, not pacing
+SINGLE_POST_WAIT_MS = 4000  # page-settle / rate-limit pacing for .json fetches
 DOWNLOAD_DELAY_MS = 0  # between dispatching downloads to the pool
 DOWNLOAD_DELAY_MS_SLOW = 2000
