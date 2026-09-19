@@ -98,10 +98,8 @@ def test_run_paced_bulk_download_skips_object_within_cooldown_without_counting_t
 ):
     monkeypatch.setattr(download_runner_module, "datetime", _FixedDatetime)
     monkeypatch.setattr(download_runner_module.const, "BULK_DOWNLOAD_LIMIT", 1)
-    warnings = []
-    monkeypatch.setattr(
-        Message, "send_warning", lambda message: warnings.append(message)
-    )
+    infos = []
+    monkeypatch.setattr(Message, "send_info", lambda message: infos.append(message))
 
     runner = make_bulk_download_runner()
     recently_downloaded = FakeObject(
@@ -116,9 +114,9 @@ def test_run_paced_bulk_download_skips_object_within_cooldown_without_counting_t
     )
 
     assert calls == [(2, (1, 1))]
-    assert len(warnings) == 1
-    assert "alice" in warnings[0]
-    assert "too recently" in warnings[0]
+    assert len(infos) == 1
+    assert "alice" in infos[0]
+    assert "too recently" in infos[0]
 
 
 def test_run_paced_bulk_download_stops_once_cap_reached(monkeypatch):

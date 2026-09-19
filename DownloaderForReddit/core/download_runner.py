@@ -244,6 +244,8 @@ class DownloadRunner(QObject):
                 f"{reddit_object.name} exists and is reachable on Reddit"
             )
             return True
+        if result.error in (ValidationError.NOT_FOUND, ValidationError.FORBIDDEN):
+            reddit_object.set_date_last_download_utc()
         if result.error == ValidationError.NOT_FOUND:
             self.handle_invalid_reddit_object(reddit_object)
         elif result.error == ValidationError.FORBIDDEN:

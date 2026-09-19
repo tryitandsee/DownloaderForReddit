@@ -412,6 +412,9 @@ class BrowserRedditSource:
             Callable[[list[SubmissionData], str | None, str], None] | None
         ) = None
         self._all_already_known: Callable[[list[SubmissionData]], bool] | None = None
+        self._on_posts_collected: (
+            Callable[[list[SubmissionData]], None] | None
+        ) = None
         # Guards every page.goto: a scan submits its scrolls one at a time, so another
         # navigation could otherwise goto the shared page out from under it. Acquired before
         # touching the executor, so a contended wait blocks the caller, not the worker.
