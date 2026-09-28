@@ -24,6 +24,7 @@ along with Downloader for Reddit.  If not, see <http://www.gnu.org/licenses/>.
 
 import ctypes
 import logging
+import os
 import sys
 
 from playwright.sync_api import Error as PlaywrightError
@@ -35,7 +36,7 @@ from DownloaderForReddit.database.migration import Migrator
 from DownloaderForReddit.gui.downloader_for_reddit_gui import DownloaderForRedditGUI
 from DownloaderForReddit.local_logging import logger
 from DownloaderForReddit.messaging.message_receiver import MessageReceiver
-from DownloaderForReddit.utils import injector
+from DownloaderForReddit.utils import injector, system_util
 from DownloaderForReddit.version import __version__
 
 if sys.platform == "win32":
@@ -59,6 +60,28 @@ def check_migration():
     migrator.check_migration()
 
 
+def acquire_instance_lock() -> QtCore.QLockFile:
+    """Held for the process lifetime. Taken before logging and migration, so a second instance
+    never touches the shared log, dfr.db, or config.toml."""
+    lock_path = os.path.join(
+        system_util.get_data_directory(), "DownloaderForReddit.lock"
+    )
+    instance_lock = QtCore.QLockFile(lock_path)
+    # 0 turns off age-based staleness; a lock left by a dead process is still reclaimed.
+    instance_lock.setStaleLockTime(0)
+    if not instance_lock.tryLock(0):
+        if instance_lock.error() == QtCore.QLockFile.LockError.LockFailedError:
+            text = (
+                "Only one instance of Downloader for Reddit is allowed at a time.\n\n"
+                "Please close the other instance and try again."
+            )
+        else:
+            text = f"Could not create the lock file {lock_path}: {instance_lock.error().name}"
+        QtWidgets.QMessageBox.critical(None, "Downloader for Reddit", text)
+        sys.exit(1)
+    return instance_lock
+
+
 def check_args(args):
     cli = CLI()
     cli.parse_args(args)
@@ -67,12 +90,14 @@ def check_args(args):
 def main():
     check_args(sys.argv[1:])
 
+    # Created first: acquire_instance_lock's dialog needs it.
+    app = QtWidgets.QApplication(sys.argv)
+    instance_lock = acquire_instance_lock()  # noqa: F841 -- must stay referenced until exit
+
     logger.make_logger()
     sys.excepthook = log_unhandled_exception
 
     check_migration()
-
-    app = QtWidgets.QApplication(sys.argv)
 
     try:
         injector.get_reddit_source()
