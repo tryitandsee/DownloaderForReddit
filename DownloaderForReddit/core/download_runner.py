@@ -247,9 +247,9 @@ class DownloadRunner(QObject):
         if result.error in (ValidationError.NOT_FOUND, ValidationError.FORBIDDEN):
             reddit_object.set_date_last_download_utc()
         if result.error == ValidationError.NOT_FOUND:
-            self.handle_invalid_reddit_object(reddit_object)
+            self.handle_invalid_reddit_object(reddit_object, result.reason)
         elif result.error == ValidationError.FORBIDDEN:
-            self.handle_forbidden_reddit_object(reddit_object)
+            self.handle_forbidden_reddit_object(reddit_object, result.reason)
         elif result.error == ValidationError.RATE_LIMITED:
             self.handle_too_many_requests_error(reddit_object)
         elif result.error == ValidationError.CONNECTION_ERROR:
@@ -258,30 +258,34 @@ class DownloadRunner(QObject):
             self.handle_unknown_error(reddit_object)
         return False
 
-    def handle_invalid_reddit_object(self, reddit_object):
+    def handle_invalid_reddit_object(self, reddit_object, reason=None):
         self.logger.warning(
             "Invalid reddit object detected",
             extra={
                 "object_type": reddit_object.object_type,
                 "reddit_object": reddit_object.name,
+                "reason": reason,
             },
         )
-        Message.send_warning(
-            f"Invalid {reddit_object.object_type.lower()}: {reddit_object.name}"
-        )
+        message = f"Invalid {reddit_object.object_type.lower()}: {reddit_object.name}"
+        if reason:
+            message += f" — {reason}"
+        Message.send_warning(message)
         self.remove_invalid_object.emit(reddit_object.id)
 
-    def handle_forbidden_reddit_object(self, reddit_object):
+    def handle_forbidden_reddit_object(self, reddit_object, reason=None):
         self.logger.warning(
             "Forbidden reddit object detected",
             extra={
                 "object_type": reddit_object.object_type,
                 "reddit_object": reddit_object.name,
+                "reason": reason,
             },
         )
-        Message.send_warning(
-            f"Forbidden {reddit_object.object_type.lower()}: {reddit_object.name}"
-        )
+        message = f"Forbidden {reddit_object.object_type.lower()}: {reddit_object.name}"
+        if reason:
+            message += f" — {reason}"
+        Message.send_warning(message)
         self.remove_forbidden_object.emit(reddit_object.id)
 
     def handle_failed_connection(self):

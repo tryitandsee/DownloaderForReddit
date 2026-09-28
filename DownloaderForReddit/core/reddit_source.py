@@ -163,6 +163,7 @@ class ValidationError(Enum):
 class ValidationResult:
     valid: bool
     error: ValidationError | None = None
+    reason: str | None = None
 
 
 @dataclass
@@ -412,9 +413,7 @@ class BrowserRedditSource:
             Callable[[list[SubmissionData], str | None, str], None] | None
         ) = None
         self._all_already_known: Callable[[list[SubmissionData]], bool] | None = None
-        self._on_posts_collected: (
-            Callable[[list[SubmissionData]], None] | None
-        ) = None
+        self._on_posts_collected: Callable[[list[SubmissionData]], None] | None = None
         # Guards every page.goto: a scan submits its scrolls one at a time, so another
         # navigation could otherwise goto the shared page out from under it. Acquired before
         # touching the executor, so a contended wait blocks the caller, not the worker.
@@ -1046,21 +1045,29 @@ class BrowserRedditSource:
 
     @staticmethod
     def _check_validity(page: Page) -> ValidationResult:
-        """Matches reddit's page copy, confirmed against real examples of each case."""
-        body_text = page.locator("body").inner_text().lower()
-        if (
-            "nobody on reddit goes by that name" in body_text
-            or "this user has deleted their account" in body_text
+        """Matches reddit's page copy, confirmed against real examples of each case. The
+        matching line of page text is forwarded as the reason."""
+        lines = [
+            line.strip() for line in page.locator("body").inner_text().splitlines()
+        ]
+        for error, phrases in (
+            (
+                ValidationError.NOT_FOUND,
+                (
+                    "nobody on reddit goes by that name",
+                    "this user has deleted their account",
+                    "community doesn’t exist",  # noqa: RUF001 -- matches reddit's actual page copy, which uses a curly apostrophe
+                    "page not found",
+                ),
+            ),
+            (
+                ValidationError.FORBIDDEN,
+                ("this community is private", "suspended", "has been banned"),
+            ),
         ):
-            return ValidationResult(valid=False, error=ValidationError.NOT_FOUND)
-        if "community doesn’t exist" in body_text or "page not found" in body_text:  # noqa: RUF001 -- matches reddit's actual page copy, which uses a curly apostrophe
-            return ValidationResult(valid=False, error=ValidationError.NOT_FOUND)
-        if (
-            "this community is private" in body_text
-            or "suspended" in body_text
-            or "has been banned" in body_text
-        ):
-            return ValidationResult(valid=False, error=ValidationError.FORBIDDEN)
+            for line in lines:
+                if any(phrase in line.lower() for phrase in phrases):
+                    return ValidationResult(valid=False, error=error, reason=line)
         return ValidationResult(valid=True)
 
     def validate_and_iter_user_submissions(

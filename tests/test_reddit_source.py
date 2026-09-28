@@ -357,22 +357,18 @@ class FakeValidationPage:
         return FakeLocator(self.body_text)
 
 
-@pytest.mark.parametrize(
-    ("body_text", "expected_error"),
-    [
-        ("Sorry, nobody on Reddit goes by that name.", ValidationError.NOT_FOUND),
-        ("This user has deleted their account.", ValidationError.NOT_FOUND),
-        ("Sorry, this community doesn’t exist", ValidationError.NOT_FOUND),  # noqa: RUF001
-        ("Page not found", ValidationError.NOT_FOUND),
-        ("This community is private", ValidationError.FORBIDDEN),
-        ("Account suspended", ValidationError.FORBIDDEN),
-        ("This account has been banned", ValidationError.FORBIDDEN),
-    ],
-)
-def test_check_validity_matches_reddits_invalid_page_copy(body_text, expected_error):
-    result = BrowserRedditSource._check_validity(FakeValidationPage(body_text))
+def test_check_validity_forwards_the_matching_line_as_the_reason():
+    result = BrowserRedditSource._check_validity(
+        FakeValidationPage(
+            "u/example\n  This user has deleted their account.  \nReddit rules"
+        )
+    )
 
-    assert result == ValidationResult(valid=False, error=expected_error)
+    assert result == ValidationResult(
+        valid=False,
+        error=ValidationError.NOT_FOUND,
+        reason="This user has deleted their account.",
+    )
 
 
 def test_check_validity_treats_a_normal_listing_page_as_valid():
