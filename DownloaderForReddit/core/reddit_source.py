@@ -9,7 +9,7 @@ import re
 import threading
 import time
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -757,17 +757,33 @@ class BrowserRedditSource:
             )
 
     def start(self):
-        self._executor.submit(self._start_impl).result()
+        """Returns at once. The worker runs one task at a time, so every later _run() waits
+        behind _start_impl."""
+        self._executor.submit(self._start_impl).add_done_callback(
+            self._report_start_result
+        )
         self._pump_thread = threading.Thread(target=self._pump_loop, daemon=True)
         self._pump_thread.start()
 
+    def _report_start_result(self, future: Future) -> None:
+        error = future.exception()
+        if error is not None:
+            self._report_launch_failure(error)
+
+    def _report_launch_failure(self, error: BaseException) -> None:
+        logger.error("Browser launch failed", exc_info=error)
+        Message.send_error(f"Browser failed to start: {error}")
+
     def _start_impl(self):
-        self._playwright = sync_playwright().start()
         self._launch_context()
         with self._suppressed_ambient():
             self._page.goto(REDDIT_BASE_URL)
 
     def _launch_context(self):
+        # Here rather than in _start_impl, so _get_page()'s relaunch also recovers from a
+        # failed start.
+        if self._playwright is None:
+            self._playwright = sync_playwright().start()
         self._context = self._playwright.chromium.launch_persistent_context(
             user_data_dir=str(PROFILE_DIR),
             headless=False,

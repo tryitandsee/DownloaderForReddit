@@ -58,7 +58,8 @@ def get_message_queue():
 def get_reddit_source():
     """
     Returns the single, app-lifetime BrowserRedditSource. Discovery must go through one long-lived
-    browser window reused across every download session -- never launch-per-run.
+    browser window reused across every download session -- never launch-per-run. Construction
+    only: main() calls start() after the main window shows.
     """
     global reddit_source
     if reddit_source is None:
@@ -75,7 +76,6 @@ def get_reddit_source():
             from ..core.reddit_source import BrowserRedditSource
 
             reddit_source = BrowserRedditSource()
-            reddit_source.start()
     return reddit_source
 
 

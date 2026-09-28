@@ -27,7 +27,6 @@ import logging
 import os
 import sys
 
-from playwright.sync_api import Error as PlaywrightError
 from PyQt6 import QtCore, QtWidgets
 
 from DownloaderForReddit.core.cli import CLI
@@ -99,19 +98,6 @@ def main():
 
     check_migration()
 
-    try:
-        injector.get_reddit_source()
-    except PlaywrightError as e:
-        if "Opening in existing browser session" in str(e):
-            QtWidgets.QMessageBox.critical(
-                None,
-                "Downloader for Reddit",
-                "Only one instance of Downloader for Reddit is allowed at a time.\n\n"
-                "Please close the other instance (or its browser window) and try again.",
-            )
-            sys.exit(1)
-        raise
-
     queue = injector.get_message_queue()
     message_thread = QtCore.QThread()
     receiver = MessageReceiver(queue)
@@ -140,6 +126,8 @@ def main():
     message_thread.start()
 
     window.show()
+    # After show(), so the main window appears before Chromium launches.
+    injector.get_reddit_source().start()
     sys.exit(app.exec())
 
 
