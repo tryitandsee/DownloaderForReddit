@@ -551,11 +551,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
 
         # Ambient extraction: the browser pushes newly-seen posts to the app directly via a
         # Playwright binding (see reddit_source.py's injected script + pump loop) instead of
-        # being polled -- register this window as the consumer of that push. Must be the last
-        # thing __init__ does: BrowserRedditSource may flush a buffered batch synchronously the
-        # moment this registers (posts that arrived before any consumer existed), which in turn
-        # can synchronously trigger start_ambient_download -> started_download_gui_shift and
-        # touch widgets (e.g. self.progress_bar) that must already exist by then.
+        # being polled -- register this window as the consumer of that push. main() starts the
+        # browser only after the window exists, so no batch arrives before this registers.
         injector.get_reddit_source().set_on_posts_found(self.handle_ambient_posts)
         injector.get_reddit_source().set_on_profile_exhausted(
             self.handle_profile_exhausted

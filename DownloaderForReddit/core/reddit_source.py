@@ -420,10 +420,6 @@ class BrowserRedditSource:
         self._page_lock = threading.Lock()
         self._rate_limited = threading.Event()
         self._stop_requested: threading.Event | None = None
-        # start() fires the injected script's primer scan before the GUI exists to register a
-        # consumer, so that first batch is buffered instead of dropped on every app launch.
-        self._pending_posts_lock = threading.Lock()
-        self._pending_posts: list[tuple[list[SubmissionData], str | None, str]] = []
         self._suppress_ambient = threading.Event()
         # A bulk run paced minutes apart shouldn't keep stealing the tab into the foreground; a
         # single deliberate click should.
@@ -435,14 +431,9 @@ class BrowserRedditSource:
     def set_on_posts_found(
         self, callback: Callable[[list[SubmissionData], str | None, str], None]
     ):
-        """Registered by the GUI once it's ready to receive ambient matches -- set after
-        construction, since BrowserRedditSource is created before the GUI exists."""
-        with self._pending_posts_lock:
-            self._on_posts_found = callback
-            pending = self._pending_posts
-            self._pending_posts = []
-        for posts, page_owner, url in pending:
-            callback(posts, page_owner, url)
+        """Registered by the GUI at the end of its __init__. main() calls start() only after
+        that, so no ambient batch can arrive before a consumer exists."""
+        self._on_posts_found = callback
 
     def set_on_rate_limited(self, callback: Callable[[str], None]):
         """Registered by DownloadRunner to cancel the active session the moment reddit returns
@@ -544,12 +535,9 @@ class BrowserRedditSource:
                     "last_more_cursor": (raw_posts or [{}])[-1].get("moreCursor"),
                 },
             )
-        with self._pending_posts_lock:
-            if self._on_posts_found is None:
-                self._pending_posts.append((posts, page_owner, url))
-                return
-            callback = self._on_posts_found
-        callback(posts, page_owner, url)
+        callback = self._on_posts_found
+        if callback is not None:
+            callback(posts, page_owner, url)
 
     def _handle_feed_exhausted(
         self, source: dict, marker_id: str, raw_posts: list[dict]
