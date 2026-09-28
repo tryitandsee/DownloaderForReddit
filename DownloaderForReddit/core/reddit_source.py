@@ -9,7 +9,7 @@ import re
 import threading
 import time
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -163,6 +163,7 @@ class ValidationError(Enum):
 class ValidationResult:
     valid: bool
     error: ValidationError | None = None
+    reason: str | None = None
 
 
 @dataclass
@@ -412,19 +413,13 @@ class BrowserRedditSource:
             Callable[[list[SubmissionData], str | None, str], None] | None
         ) = None
         self._all_already_known: Callable[[list[SubmissionData]], bool] | None = None
-        self._on_posts_collected: (
-            Callable[[list[SubmissionData]], None] | None
-        ) = None
+        self._on_posts_collected: Callable[[list[SubmissionData]], None] | None = None
         # Guards every page.goto: a scan submits its scrolls one at a time, so another
         # navigation could otherwise goto the shared page out from under it. Acquired before
         # touching the executor, so a contended wait blocks the caller, not the worker.
         self._page_lock = threading.Lock()
         self._rate_limited = threading.Event()
         self._stop_requested: threading.Event | None = None
-        # start() fires the injected script's primer scan before the GUI exists to register a
-        # consumer, so that first batch is buffered instead of dropped on every app launch.
-        self._pending_posts_lock = threading.Lock()
-        self._pending_posts: list[tuple[list[SubmissionData], str | None, str]] = []
         self._suppress_ambient = threading.Event()
         # A bulk run paced minutes apart shouldn't keep stealing the tab into the foreground; a
         # single deliberate click should.
@@ -436,14 +431,9 @@ class BrowserRedditSource:
     def set_on_posts_found(
         self, callback: Callable[[list[SubmissionData], str | None, str], None]
     ):
-        """Registered by the GUI once it's ready to receive ambient matches -- set after
-        construction, since BrowserRedditSource is created before the GUI exists."""
-        with self._pending_posts_lock:
-            self._on_posts_found = callback
-            pending = self._pending_posts
-            self._pending_posts = []
-        for posts, page_owner, url in pending:
-            callback(posts, page_owner, url)
+        """Registered by the GUI at the end of its __init__. main() calls start() only after
+        that, so no ambient batch can arrive before a consumer exists."""
+        self._on_posts_found = callback
 
     def set_on_rate_limited(self, callback: Callable[[str], None]):
         """Registered by DownloadRunner to cancel the active session the moment reddit returns
@@ -545,12 +535,9 @@ class BrowserRedditSource:
                     "last_more_cursor": (raw_posts or [{}])[-1].get("moreCursor"),
                 },
             )
-        with self._pending_posts_lock:
-            if self._on_posts_found is None:
-                self._pending_posts.append((posts, page_owner, url))
-                return
-            callback = self._on_posts_found
-        callback(posts, page_owner, url)
+        callback = self._on_posts_found
+        if callback is not None:
+            callback(posts, page_owner, url)
 
     def _handle_feed_exhausted(
         self, source: dict, marker_id: str, raw_posts: list[dict]
@@ -758,17 +745,33 @@ class BrowserRedditSource:
             )
 
     def start(self):
-        self._executor.submit(self._start_impl).result()
+        """Returns at once. The worker runs one task at a time, so every later _run() waits
+        behind _start_impl."""
+        self._executor.submit(self._start_impl).add_done_callback(
+            self._report_start_result
+        )
         self._pump_thread = threading.Thread(target=self._pump_loop, daemon=True)
         self._pump_thread.start()
 
+    def _report_start_result(self, future: Future) -> None:
+        error = future.exception()
+        if error is not None:
+            self._report_launch_failure(error)
+
+    def _report_launch_failure(self, error: BaseException) -> None:
+        logger.error("Browser launch failed", exc_info=error)
+        Message.send_error(f"Browser failed to start: {error}")
+
     def _start_impl(self):
-        self._playwright = sync_playwright().start()
         self._launch_context()
         with self._suppressed_ambient():
             self._page.goto(REDDIT_BASE_URL)
 
     def _launch_context(self):
+        # Here rather than in _start_impl, so _get_page()'s relaunch also recovers from a
+        # failed start.
+        if self._playwright is None:
+            self._playwright = sync_playwright().start()
         self._context = self._playwright.chromium.launch_persistent_context(
             user_data_dir=str(PROFILE_DIR),
             headless=False,
@@ -800,9 +803,9 @@ class BrowserRedditSource:
 
     def get_request_context(self) -> tuple[str | None, list[dict]]:
         """Lent to out-of-browser downloads (core/download/request_context.py). Deliberately
-        avoids _get_page(): a download must never pop a Chromium window open to read cookies."""
-        if self._context is None:
-            return self._user_agent, []
+        avoids _get_page(): a download must never pop a Chromium window open to read cookies.
+        Always goes through the worker, so a call made while start() is still launching waits
+        for the browser instead of returning (and getting cached as) an empty identity."""
         return self._run(self._get_request_context_impl)
 
     def _get_request_context_impl(self) -> tuple[str | None, list[dict]]:
@@ -1046,21 +1049,29 @@ class BrowserRedditSource:
 
     @staticmethod
     def _check_validity(page: Page) -> ValidationResult:
-        """Matches reddit's page copy, confirmed against real examples of each case."""
-        body_text = page.locator("body").inner_text().lower()
-        if (
-            "nobody on reddit goes by that name" in body_text
-            or "this user has deleted their account" in body_text
+        """Matches reddit's page copy, confirmed against real examples of each case. The
+        matching line of page text is forwarded as the reason."""
+        lines = [
+            line.strip() for line in page.locator("body").inner_text().splitlines()
+        ]
+        for error, phrases in (
+            (
+                ValidationError.NOT_FOUND,
+                (
+                    "nobody on reddit goes by that name",
+                    "this user has deleted their account",
+                    "community doesn’t exist",  # noqa: RUF001 -- matches reddit's actual page copy, which uses a curly apostrophe
+                    "page not found",
+                ),
+            ),
+            (
+                ValidationError.FORBIDDEN,
+                ("this community is private", "suspended", "has been banned"),
+            ),
         ):
-            return ValidationResult(valid=False, error=ValidationError.NOT_FOUND)
-        if "community doesn’t exist" in body_text or "page not found" in body_text:  # noqa: RUF001 -- matches reddit's actual page copy, which uses a curly apostrophe
-            return ValidationResult(valid=False, error=ValidationError.NOT_FOUND)
-        if (
-            "this community is private" in body_text
-            or "suspended" in body_text
-            or "has been banned" in body_text
-        ):
-            return ValidationResult(valid=False, error=ValidationError.FORBIDDEN)
+            for line in lines:
+                if any(phrase in line.lower() for phrase in phrases):
+                    return ValidationResult(valid=False, error=error, reason=line)
         return ValidationResult(valid=True)
 
     def validate_and_iter_user_submissions(

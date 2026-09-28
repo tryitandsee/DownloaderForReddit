@@ -33,6 +33,10 @@ dev = [
     "ty",
 ]
 
+[tool.pytest.ini_options]
+# tests/ imports from its sibling modules as `tests.<module>`.
+pythonpath = ["."]
+
 [tool.ruff.lint]
 ignore = [
     "E722", # deliberate catch-and-continue at worker-thread/GUI boundaries; TODO narrow case by case

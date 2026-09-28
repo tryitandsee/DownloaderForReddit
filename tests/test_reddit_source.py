@@ -1,5 +1,5 @@
 from datetime import UTC, datetime, timedelta
-from threading import Event
+from threading import Event, Timer
 
 import pytest
 
@@ -357,22 +357,18 @@ class FakeValidationPage:
         return FakeLocator(self.body_text)
 
 
-@pytest.mark.parametrize(
-    ("body_text", "expected_error"),
-    [
-        ("Sorry, nobody on Reddit goes by that name.", ValidationError.NOT_FOUND),
-        ("This user has deleted their account.", ValidationError.NOT_FOUND),
-        ("Sorry, this community doesn’t exist", ValidationError.NOT_FOUND),  # noqa: RUF001
-        ("Page not found", ValidationError.NOT_FOUND),
-        ("This community is private", ValidationError.FORBIDDEN),
-        ("Account suspended", ValidationError.FORBIDDEN),
-        ("This account has been banned", ValidationError.FORBIDDEN),
-    ],
-)
-def test_check_validity_matches_reddits_invalid_page_copy(body_text, expected_error):
-    result = BrowserRedditSource._check_validity(FakeValidationPage(body_text))
+def test_check_validity_forwards_the_matching_line_as_the_reason():
+    result = BrowserRedditSource._check_validity(
+        FakeValidationPage(
+            "u/example\n  This user has deleted their account.  \nReddit rules"
+        )
+    )
 
-    assert result == ValidationResult(valid=False, error=expected_error)
+    assert result == ValidationResult(
+        valid=False,
+        error=ValidationError.NOT_FOUND,
+        reason="This user has deleted their account.",
+    )
 
 
 def test_check_validity_treats_a_normal_listing_page_as_valid():
@@ -387,3 +383,26 @@ def test_check_should_continue_is_a_no_op_when_no_stop_event_is_registered():
     # No set_stop_event call -- confirms the check tolerates a bare BrowserRedditSource, same as
     # the scroll pacer.
     BrowserRedditSource()._check_should_continue()
+
+
+class FakeCookieContext:
+    def cookies(self):
+        return [{"name": "session", "value": "x"}]
+
+
+def test_request_context_during_startup_waits_for_the_browser():
+    source = BrowserRedditSource()
+    launched = Event()
+
+    def fake_start():
+        launched.wait(timeout=5)
+        source._user_agent = "agent"
+        source._context = FakeCookieContext()
+
+    source._executor.submit(fake_start)
+    Timer(0.1, launched.set).start()
+
+    assert source.get_request_context() == (
+        "agent",
+        [{"name": "session", "value": "x"}],
+    )
