@@ -1,5 +1,5 @@
 from datetime import UTC, datetime, timedelta
-from threading import Event
+from threading import Event, Timer
 
 import pytest
 
@@ -383,3 +383,26 @@ def test_check_should_continue_is_a_no_op_when_no_stop_event_is_registered():
     # No set_stop_event call -- confirms the check tolerates a bare BrowserRedditSource, same as
     # the scroll pacer.
     BrowserRedditSource()._check_should_continue()
+
+
+class FakeCookieContext:
+    def cookies(self):
+        return [{"name": "session", "value": "x"}]
+
+
+def test_request_context_during_startup_waits_for_the_browser():
+    source = BrowserRedditSource()
+    launched = Event()
+
+    def fake_start():
+        launched.wait(timeout=5)
+        source._user_agent = "agent"
+        source._context = FakeCookieContext()
+
+    source._executor.submit(fake_start)
+    Timer(0.1, launched.set).start()
+
+    assert source.get_request_context() == (
+        "agent",
+        [{"name": "session", "value": "x"}],
+    )

@@ -6,7 +6,7 @@ lint:
 	uv run mypy .
 
 test:
-	python -m unittest
+	uv run pytest
 
 install: ## Install requirements
 	uv sync --upgrade --all-groups

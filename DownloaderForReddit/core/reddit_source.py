@@ -815,9 +815,9 @@ class BrowserRedditSource:
 
     def get_request_context(self) -> tuple[str | None, list[dict]]:
         """Lent to out-of-browser downloads (core/download/request_context.py). Deliberately
-        avoids _get_page(): a download must never pop a Chromium window open to read cookies."""
-        if self._context is None:
-            return self._user_agent, []
+        avoids _get_page(): a download must never pop a Chromium window open to read cookies.
+        Always goes through the worker, so a call made while start() is still launching waits
+        for the browser instead of returning (and getting cached as) an empty identity."""
         return self._run(self._get_request_context_impl)
 
     def _get_request_context_impl(self) -> tuple[str | None, list[dict]]:
