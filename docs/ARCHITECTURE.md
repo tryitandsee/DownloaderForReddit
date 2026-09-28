@@ -1,8 +1,12 @@
 ### Entry point & wiring (`main.py`)
 
+`main()` takes a `QLockFile` in the data directory before logging and migration. A second instance exits there.
+
 Bootstraps two things before showing the window:
 - **MessageReceiver** — runs in its own `QThread`, drains a global `Queue` and emits `text_output` / `non_text_output` signals consumed by the main window
 - **DownloaderForRedditGUI** — the main `QMainWindow`
+
+The browser starts after `window.show()`. `injector.get_reddit_source()` only constructs the source; `start()` returns at once and later `_run()` calls wait behind `_start_impl`. A failed start is reported in the output pane; the app stays open.
 
 Global singletons (settings, database, message queue) are lazily initialised via `DownloaderForReddit/utils/injector.py` and accessed from anywhere with `injector.get_*()`.
 
