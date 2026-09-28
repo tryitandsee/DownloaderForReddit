@@ -72,7 +72,10 @@ def data_directory() -> str:
         return os.path.join(
             os.path.expanduser("~"), "Library", "Application Support", subpath
         )
-    return os.path.join(os.path.expanduser("~"), f".{subpath}")
+    config_home = os.environ.get("XDG_CONFIG_HOME") or os.path.join(
+        os.path.expanduser("~"), ".config"
+    )
+    return os.path.join(config_home, subpath)
 
 
 def database_path() -> str:

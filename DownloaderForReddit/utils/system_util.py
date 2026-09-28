@@ -216,7 +216,7 @@ def get_platform_str():
 def get_data_directory():
     """
     Builds and returns a path the DownloaderForReddit data files location based on the users OS.  This will either be
-    in the AppData directory if using Windows, a hidden sub-directory in the home directory if using Linux, or in the
+    in the AppData directory if using Windows, under XDG_CONFIG_HOME (or ~/.config) if using Linux, or in the
     Applications directory on MacOS.
     :return: The path to the DownloaderForReddit data directory for the users system.
     :rtype: str
@@ -226,7 +226,10 @@ def get_data_directory():
         if sys.platform == "win32":
             path = os.path.join(os.getenv("APPDATA"), data_dir)
         elif sys.platform.startswith("linux"):
-            path = os.path.join(os.path.expanduser("~"), f".{data_dir}")
+            config_home = os.getenv("XDG_CONFIG_HOME") or os.path.join(
+                os.path.expanduser("~"), ".config"
+            )
+            path = os.path.join(config_home, data_dir)
         elif sys.platform == "darwin":
             path = os.path.join(
                 os.path.expanduser("~"), "Library", "Application Support", data_dir
