@@ -76,6 +76,9 @@ _INJECTED_SCRIPT = """
             author: el.getAttribute('author'),
             subredditPrefixedName: el.getAttribute('subreddit-prefixed-name'),
             createdTimestamp: el.getAttribute('created-timestamp'),
+            // Reddit renders a notice inside the post instead of its media. Skipping here avoids
+            // a .json fetch per post, which counts toward the rate limit.
+            removedByFilter: /removed by reddit['’]s filters/i.test(el.textContent || ''),
             nsfw: el.getAttribute('nsfw'),
             // Diagnostic only -- see _dispatch_posts_found.
             moreCursor: el.getAttribute('more-posts-cursor'),
@@ -132,7 +135,7 @@ _INJECTED_SCRIPT = """
         start();
     }
 })();
-""".replace("__END_OF_LISTING_SELECTOR__", _END_OF_LISTING_SELECTOR)
+""".replace("__END_OF_LISTING_SELECTOR__", _END_OF_LISTING_SELECTOR)  # noqa: RUF001
 
 # Falls back to [] if evaluated before the init script installs __dfrExtractPosts -- a fresh
 # page() call can race it.
@@ -262,6 +265,8 @@ def _normalize_reddit_url(url: str) -> str:
 
 def _parse_post(raw: dict) -> SubmissionData | None:
     raw_id = raw.get("id")
+    if raw.get("removedByFilter"):
+        return None
     if not raw_id:
         return None
     try:
