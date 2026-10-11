@@ -128,72 +128,76 @@ class Downloader(Runner):
         try:
             with self.db.get_scoped_session() as session:
                 content = cast(Content, session.query(Content).get(content_id))
-                reddit_id = (
-                    content.post.reddit_id
-                    if content.post is not None
-                    else content.comment.reddit_id
-                )
-                self._active_downloads[thread] = (
-                    content.user.name,
-                    reddit_id,
-                    content.title,
-                )
-                if self.is_url_duplicate(content, session=session):
-                    content.set_downloaded(download_session_id)
-                    Message.send_duplicate()
-                    Message.send_info(
-                        f"Duplicate URL skipped: {content.user.name}: {content.title} {content.url}"
-                    )
-                    return
-                content.download_title = general_utils.ensure_content_download_path(
-                    content
-                )
-                request_args = self.request_args(content)
-                if self._is_host_cooling_down(content.url):
-                    return
-                response = requests.get(
-                    content.url,
-                    stream=True,
-                    timeout=10,
-                    **request_args,
-                )
-                if response.status_code == 200:
-                    file_size = int(response.headers["Content-Length"])
-                    if file_size <= system_util.KB:
-                        # Under 1KB is almost always a deleted-content placeholder image.
-                        self.handle_deleted_content_error(content)
-                        return
-                    if self.is_content_type_mismatch(content, response):
-                        # Some hosts (e.g. imgur) 200 an HTML fallback page for a removed file,
-                        # well above the KB check above -- treat it the same as deleted content.
-                        self.handle_deleted_content_error(content)
-                        return
-                    if self.should_use_multi_part(file_size):
-                        self.download_with_multipart(
-                            content,
-                            content.get_full_file_path(),
-                            file_size,
-                            download_session_id,
-                            request_args,
-                        )
-                    else:
-                        if self.should_use_hash(content):
-                            self.download_with_hash(
-                                content, response, download_session_id
-                            )
-                        else:
-                            self.download_without_hash(
-                                content, response, download_session_id
-                            )
-                        self.finish_download(content, download_session_id)
-                else:
-                    self.handle_unsuccessful_response(content, response.status_code)
-        except ConnectionError:
-            self.handle_connection_error(content)
-        except:
-            self.handle_unknown_error(content)
+                # Handled while the session is open: a failure recorded on a detached Content
+                # raises again, nothing is saved, and the row stays unfinished forever.
+                try:
+                    self.download_content(content, session, thread, download_session_id)
+                except ConnectionError:
+                    session.rollback()
+                    self.handle_connection_error(content)
+                except Exception:
+                    session.rollback()
+                    self.handle_unknown_error(content)
         finally:
             self._active_downloads.pop(thread, None)
+
+    def download_content(
+        self, content: Content, session, thread: str, download_session_id: int
+    ) -> None:
+        reddit_id = (
+            content.post.reddit_id
+            if content.post is not None
+            else content.comment.reddit_id
+        )
+        self._active_downloads[thread] = (
+            content.user_name,
+            reddit_id,
+            content.title,
+        )
+        if self.is_url_duplicate(content, session=session):
+            content.set_downloaded(download_session_id)
+            Message.send_duplicate()
+            Message.send_info(
+                f"Duplicate URL skipped: {content.user_name}: {content.title} {content.url}"
+            )
+            return
+        content.download_title = general_utils.ensure_content_download_path(content)
+        request_args = self.request_args(content)
+        if self._is_host_cooling_down(content.url):
+            return
+        response = requests.get(
+            content.url,
+            stream=True,
+            timeout=10,
+            **request_args,
+        )
+        if response.status_code == 200:
+            if self.is_content_type_mismatch(content, response):
+                # Some hosts (e.g. imgur) 200 an HTML fallback page for a removed file.
+                self.handle_deleted_content_error(content)
+                return
+            content_length = response.headers.get("Content-Length")
+            file_size = int(content_length) if content_length is not None else None
+            if file_size is not None and file_size <= system_util.KB:
+                # Under 1KB is almost always a deleted-content placeholder image.
+                self.handle_deleted_content_error(content)
+                return
+            if file_size is not None and self.should_use_multi_part(file_size):
+                self.download_with_multipart(
+                    content,
+                    content.get_full_file_path(),
+                    file_size,
+                    download_session_id,
+                    request_args,
+                )
+            else:
+                if self.should_use_hash(content):
+                    self.download_with_hash(content, response, download_session_id)
+                else:
+                    self.download_without_hash(content, response, download_session_id)
+                self.finish_download(content, download_session_id)
+        else:
+            self.handle_unsuccessful_response(content, response.status_code)
 
     def request_args(self, content):
         """
@@ -243,8 +247,9 @@ class Downloader(Runner):
         )
 
     def should_use_hash(self, content: Content) -> bool:
+        # A post loses its significant object when that user or subreddit is deleted.
         sig_ro = content.post.significant_reddit_object
-        return sig_ro.hash_duplicates
+        return sig_ro is not None and sig_ro.hash_duplicates
 
     def download_with_hash(
         self, content: Content, response: requests.Response, download_session_id: int
@@ -381,7 +386,7 @@ class Downloader(Runner):
         if self.settings_manager.output_saved_content_full_path:
             path = content.get_full_file_path()
             return f'<a href="dfr-file:///{quote(path, safe=":/\\")}">{html.escape(path)}</a>'
-        return f"{content.user.name}: {content.title}"
+        return f"{content.user_name}: {content.title}"
 
     def handle_download_stopped(self, content: Content) -> None:
         """
@@ -466,7 +471,7 @@ class Downloader(Runner):
         extra = {
             "url": content.url,
             "title": content.title,
-            "submission_id": content.post.reddit_id,
+            "submission_id": content.post.reddit_id if content.post else None,
             "user": content.user,
             "subreddit": content.subreddit,
             "save_path": content.get_full_file_path(),
@@ -476,7 +481,7 @@ class Downloader(Runner):
 
     def output_error(self, content, message):
         output_append = (
-            f"\nPost: {content.post.title}\nUrl: {content.url}\nUser: {content.user}\n"
+            f"\nPost: {content.post.title if content.post else None}\nUrl: {content.url}\nUser: {content.user}\n"
             f"Subreddit: {content.subreddit}\n"
         )
         Message.send_download_error(message + output_append)

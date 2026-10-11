@@ -245,7 +245,7 @@ class ContentListModel(QAbstractListModel, CustomItemModel):
                 tip = (
                     f"Title: {content.title}\n"
                     f"Extension: {content.extension}\n"
-                    f"Author: {content.user.name}\n"
+                    f"Author: {content.user_name}\n"
                     f"Subreddit: {content.subreddit.name}"
                 )
                 if content.error_message is not None:

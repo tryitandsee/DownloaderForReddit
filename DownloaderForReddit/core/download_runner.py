@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from DownloaderForReddit.core.download.downloader import Downloader
 
+from ..database.model_manager import ModelManger
 from ..database.models import (
     Content,
     DownloadSession,
@@ -467,6 +468,18 @@ class DownloadRunner(QObject):
             self.submission_queue.put(extraction_set)
 
     def run_normal(self):
+        deleted_posts = ModelManger.delete_ownerless_posts()
+        if deleted_posts:
+            self.logger.info(
+                "Deleted %s posts with no author and no significant object",
+                deleted_posts,
+            )
+        deleted = ModelManger.delete_orphaned_undownloaded_content()
+        if deleted:
+            self.logger.info(
+                "Deleted %s undownloaded content rows whose post, comment or user is gone",
+                deleted,
+            )
         self.create_download_session()
         if self.run_unextracted:
             self.run_unextracted_posts()

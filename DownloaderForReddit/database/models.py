@@ -876,6 +876,11 @@ class Content(BaseModel):
         return f"Content: {self.title}"
 
     @property
+    def user_name(self) -> str:
+        # Content of a post without a known author has no user.
+        return self.user.name if self.user is not None else "[unknown]"
+
+    @property
     def short_title(self):
         length = injector.get_settings_manager().short_title_char_length
         if length > 0:
