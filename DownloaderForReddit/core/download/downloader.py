@@ -21,6 +21,18 @@ from ..duplicate_handler import DuplicateHandler
 from . import HEADERS, request_context
 from .multipart_downloader import MultipartDownloader
 
+# Hosts whose 403 says more about the request than the file: redgifs refuses some Referer
+# values with 403 and serves the same file to a corrected request.
+RETRYABLE_FORBIDDEN_HOSTS = ("redgifs.com",)
+
+
+def is_forbidden_retryable(url: str) -> bool:
+    host = (urlparse(url).hostname or "").lower()
+    return any(
+        host == retry_host or host.endswith(f".{retry_host}")
+        for retry_host in RETRYABLE_FORBIDDEN_HOSTS
+    )
+
 
 class Downloader(Runner):
     """
@@ -135,7 +147,8 @@ class Downloader(Runner):
                 except ConnectionError:
                     session.rollback()
                     self.handle_connection_error(content)
-                except Exception:
+                # BaseException: some libraries (e.g. redgifs) derive their errors from it.
+                except BaseException:
                     session.rollback()
                     self.handle_unknown_error(content)
         finally:
@@ -440,7 +453,7 @@ class Downloader(Runner):
         self.output_error(content, message)
         if status_code in (404, 410):
             error = Error.DOES_NOT_EXIST
-        elif status_code == 403:
+        elif status_code == 403 and not is_forbidden_retryable(content.url):
             error = Error.FORBIDDEN
         elif status_code == 429:
             error = Error.RATE_LIMIT_ERROR

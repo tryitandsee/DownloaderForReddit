@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 
 REDDIT_REFERER = "https://www.reddit.com/"
 EROME_REFERER = "https://www.erome.com/"
+# media.redgifs.com refuses (403) a Referer from i.redgifs.com or reddit.com.
+REDGIFS_REFERER = "https://www.redgifs.com/"
 SNAPSHOT_TTL_SECONDS = 300
 
 
@@ -81,6 +83,8 @@ def content_referer(content) -> str | None:
         return REDDIT_REFERER
     if "erome." in host:
         return EROME_REFERER
+    if host.endswith("redgifs.com"):
+        return REDGIFS_REFERER
     post = getattr(content, "post", None)
     if post is not None and post.url:
         return post.url

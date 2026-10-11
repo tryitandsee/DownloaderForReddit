@@ -1,5 +1,6 @@
 from sqlalchemy import and_, exists, or_
 
+from ..core.errors import Error
 from ..utils import injector, system_util
 from .models import Comment, Content, ListAssociation, Post, User
 
@@ -128,6 +129,29 @@ class ModelManger:
                 ),
             )
             .delete(synchronize_session=False)
+        )
+        session.commit()
+        return count
+
+    @classmethod
+    @check_session
+    def requeue_forbidden_content(cls, hosts, session=None) -> int:
+        """
+        Moves undownloaded content from hosts whose 403 is temporary from the permanent FORBIDDEN
+        error to the retryable UNSUCCESSFUL_RESPONSE, keeping its retry count.
+        :return: The number of requeued content rows.
+        """
+        count = (
+            session.query(Content)
+            .filter(
+                Content.downloaded == False,
+                Content.download_error == Error.FORBIDDEN,
+                or_(*(Content.url.like(f"%{host}/%") for host in hosts)),
+            )
+            .update(
+                {Content.download_error: Error.UNSUCCESSFUL_RESPONSE},
+                synchronize_session=False,
+            )
         )
         session.commit()
         return count

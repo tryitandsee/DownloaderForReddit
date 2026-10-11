@@ -4,7 +4,9 @@ from concurrent.futures import ThreadPoolExecutor
 from queue import Empty
 
 from ..database.models import Post, RedditObject
+from ..messaging.message import Message
 from ..utils import injector
+from .errors import Error
 from .runner import Runner, verify_run
 from .submission_handler import SubmissionHandler
 from .submittable_creator import SubmittableCreator
@@ -116,9 +118,12 @@ class ContentRunner(Runner):
                         self.download_queue,
                         self.stop_run,
                     )
-                    submission_handler.extract_submission()
-                    if post.significant_reddit_object.run_comment_operations:
-                        submission_handler.extract_comments()
+                    try:
+                        submission_handler.extract_submission()
+                        if post.significant_reddit_object.run_comment_operations:
+                            submission_handler.extract_comments()
+                    except BaseException:
+                        self.handle_unhandled_error(session, post)
         finally:
             self._active_extractions.pop(thread, None)
 
@@ -130,14 +135,35 @@ class ContentRunner(Runner):
         try:
             with self.db.get_scoped_session() as session:
                 post = session.query(Post).get(post_id)
-                self._active_extractions[thread] = (
-                    post.significant_reddit_object.name,
-                    post.reddit_id,
-                    post.url,
-                )
-                self.handle_post(post, download_session_id)
+                if post is None:
+                    return
+                try:
+                    self._active_extractions[thread] = (
+                        post.significant_reddit_object.name,
+                        post.reddit_id,
+                        post.url,
+                    )
+                    self.handle_post(post, download_session_id)
+                except BaseException:
+                    self.handle_unhandled_error(session, post)
         finally:
             self._active_extractions.pop(thread, None)
+
+    def handle_unhandled_error(self, session, post):
+        """
+        Records a failure for an exception that escaped extraction. The executor's future swallows
+        it otherwise, which leaves the post unextracted with no error and retried forever.
+        BaseException because some libraries (e.g. redgifs) derive their errors from it.
+        """
+        session.rollback()
+        self.logger.exception(
+            "Unhandled extraction error", extra={"post_id": post.id, "url": post.url}
+        )
+        message = "Unknown error occurred"
+        post.set_extraction_failed(Error.UNKNOWN_ERROR, message)
+        Message.send_extraction_error(
+            f"Failed to extract due to: {message}\nTitle: {post.title}\nUrl: {post.url}"
+        )
 
     @verify_run
     def handle_post(self, post, download_session_id):

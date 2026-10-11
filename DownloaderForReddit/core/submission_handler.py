@@ -68,17 +68,16 @@ class SubmissionHandler(Runner):
                     self.post, download_session_id=self.download_session_id
                 )
                 self.finish_extractor(extractor)
+            link_count = 0
             if significant_ro.extract_self_post_links:
-                self.extract_text_links(self.post.text_html)
-            if (
-                not significant_ro.download_self_post_text
-                and not significant_ro.extract_self_post_links
-            ):
+                link_count = self.extract_text_links(self.post.text_html)
+            # A post with nothing to extract must still be marked, or it is retried forever.
+            if not significant_ro.download_self_post_text and link_count == 0:
                 self.post.set_extracted()
                 Message.send_content_skipped(
                     ContentSkippedPayload(
                         reddit_id=self.post.reddit_id,
-                        reason="Text post; text download and link extraction both disabled",
+                        reason="Text post; no text download and no links to extract",
                     )
                 )
         except Exception as e:
@@ -107,17 +106,21 @@ class SubmissionHandler(Runner):
 
     @verify_run
     def extract_text_links(self, html_text, **kwargs):
+        """:return: The number of links extracted."""
         # [mine] fix(submission_handler): selftext_html is None when a self post has no body text
         if not html_text:
-            return
+            return 0
         links = self.parse_html_links(html_text)
         track_count = len(links) > 1
+        link_count = 0
         for link in links:
             if link.has_attr("href"):
                 url = link["href"]
                 if track_count:
                     kwargs["count"] = links.index(link) + 1
                 self.extract_link(url, **kwargs, text_link_extraction=True)
+                link_count += 1
+        return link_count
 
     def parse_html_links(self, html):
         return BeautifulSoup(html, parse_only=SoupStrainer("a"), features="html.parser")

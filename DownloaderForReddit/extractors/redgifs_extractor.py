@@ -1,11 +1,18 @@
+import re
 import threading
 from typing import ClassVar
+from urllib.parse import urlsplit
 
 import redgifs
+from redgifs.errors import HTTPException, RedGifsError
 
 from ..core.download import HEADERS
 from ..core.errors import Error
 from .base_extractor import BaseExtractor
+
+# Post urls carry query strings, trailing junk and image extensions (i.redgifs.com/i/<id>.jpg);
+# the api only accepts the bare lowercase id.
+GIF_ID_RE = re.compile(r"redgifs\.com/(?:watch|ifr|i)/([a-z0-9]+)", re.IGNORECASE)
 
 
 class RedgifsExtractor(BaseExtractor):
@@ -34,31 +41,48 @@ class RedgifsExtractor(BaseExtractor):
             return cls._api
 
     def extract_content(self):
-        gif_id = self.get_gif_id()
+        gif_id = self.get_gif_id(self.url)
+        if gif_id is None:
+            self.handle_failed_extract(
+                error=Error.FAILED_TO_LOCATE, message="No redgifs id in url"
+            )
+            return
         try:
             api = self._get_api()
             try:
                 response = api.get_gif(gif_id)
-            except Exception:
-                # Shared token may have expired or been invalidated by redgifs -- re-login once
-                # and retry before giving up.
+            except HTTPException as exc:
+                if exc.status != 401:
+                    raise
+                # Shared token expired or was invalidated by redgifs -- re-login once and retry.
                 api = self._get_api(force_relogin=True)
                 response = api.get_gif(gif_id)
             url = self.get_download_url(response)
-            content = self.make_content(url, "mp4")
+            extension = urlsplit(url).path.rsplit(".", 1)[-1]
+            content = self.make_content(url, extension)
             if content is not None:
                 HEADERS[content.id] = api.http.headers
-        except Exception as exc:
-            message = "Failed to extract content from redgifs"
+        # redgifs errors derive from BaseException, so `except Exception` alone misses them.
+        except (Exception, RedGifsError) as exc:
+            error = Error.FAILED_TO_LOCATE
+            if isinstance(exc, HTTPException) and exc.status in (404, 410):
+                error = Error.DOES_NOT_EXIST
+            elif isinstance(exc, HTTPException) and exc.status == 429:
+                error = Error.RATE_LIMIT_ERROR
+            elif isinstance(exc, HTTPException) and exc.status == 403:
+                # Temporary on redgifs; see RETRYABLE_FORBIDDEN_HOSTS in core/download/downloader.py.
+                error = Error.UNSUCCESSFUL_RESPONSE
             self.handle_failed_extract(
-                error=Error.FAILED_TO_LOCATE,
-                message=message,
+                error=error,
+                message="Failed to extract content from redgifs",
                 extractor_error_message=str(exc),
                 gif_id=gif_id,
             )
 
-    def get_gif_id(self):
-        return self.url.rsplit("/", 1)[-1]
+    @staticmethod
+    def get_gif_id(url):
+        match = GIF_ID_RE.search(url)
+        return match.group(1).lower() if match else None
 
     @staticmethod
     def get_download_url(data):

@@ -13,7 +13,10 @@ from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from DownloaderForReddit.core.download.downloader import Downloader
+from DownloaderForReddit.core.download.downloader import (
+    RETRYABLE_FORBIDDEN_HOSTS,
+    Downloader,
+)
 
 from ..database.model_manager import ModelManger
 from ..database.models import (
@@ -479,6 +482,11 @@ class DownloadRunner(QObject):
             self.logger.info(
                 "Deleted %s undownloaded content rows whose post, comment or user is gone",
                 deleted,
+            )
+        requeued = ModelManger.requeue_forbidden_content(RETRYABLE_FORBIDDEN_HOSTS)
+        if requeued:
+            self.logger.info(
+                "Requeued %s content rows whose 403 is temporary", requeued
             )
         self.create_download_session()
         if self.run_unextracted:

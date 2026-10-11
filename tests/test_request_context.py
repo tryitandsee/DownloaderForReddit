@@ -93,6 +93,15 @@ def test_content_referer_uses_erome_for_erome_media():
     assert request_context.content_referer(content) == request_context.EROME_REFERER
 
 
+def test_content_referer_uses_redgifs_site_for_media_from_an_image_post():
+    content = make_content(
+        "https://media.redgifs.com/Abc-large.jpg",
+        post_url="https://i.redgifs.com/i/abc.jpg",
+    )
+
+    assert request_context.content_referer(content) == request_context.REDGIFS_REFERER
+
+
 def test_content_referer_prefers_the_post_url_the_media_was_extracted_from():
     content = make_content(
         "https://i.imgur.com/abc.jpg", post_url="https://imgur.com/a/xyz"
