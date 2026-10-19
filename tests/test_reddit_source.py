@@ -338,6 +338,17 @@ def test_scroll_and_collect_raises_immediately_when_stop_is_requested():
     assert page.scrolls == 0
 
 
+def test_scroll_and_collect_discards_posts_from_a_page_that_navigated_off_the_listing():
+    # An untracked subreddit's posts must never be read as the scanned user's.
+    page = FakePage([[raw_post("t3_1ug7l94")]], url=SUBREDDIT_LISTING_URL)
+
+    posts, confirmed = BrowserRedditSource()._scroll_and_collect(
+        page, since=None, expected_url=SUBMITTED_LISTING_URL
+    )
+
+    assert (posts, confirmed, page.scrolls) == ([], False, 0)
+
+
 class FakeLocator:
     def __init__(self, text):
         self.text = text

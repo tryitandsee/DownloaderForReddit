@@ -371,6 +371,14 @@ def _read_posts(page: Page) -> list[SubmissionData]:
     return parse_posts_payload(page.evaluate(_EXTRACT_POSTS_EXPR))
 
 
+def _same_path(requested_url: str, actual_url: str) -> bool:
+    requested, actual = urlsplit(requested_url), urlsplit(actual_url)
+    return (requested.netloc, requested.path.rstrip("/")) == (
+        actual.netloc,
+        actual.path.rstrip("/"),
+    )
+
+
 def _listing_ended(page: Page) -> bool:
     """The DOM-read half of the end-of-listing signal (the ambient half is __dfrFeedExhausted).
 
@@ -872,7 +880,7 @@ class BrowserRedditSource:
         return self._page
 
     def _scroll_and_collect(
-        self, page: Page, since: datetime | None
+        self, page: Page, since: datetime | None, expected_url: str | None = None
     ) -> tuple[list[SubmissionData], bool]:
         """
         Scrolls an endless-scroll shreddit listing (user and subreddit listings share a shape),
@@ -900,17 +908,39 @@ class BrowserRedditSource:
                 return False
             return all(to_naive_utc(post.created) <= since for post in posts)
 
+        def on_expected_listing(actual_url: str) -> bool:
+            return expected_url is None or _same_path(expected_url, actual_url)
+
         def read_state():
-            return _read_posts(page), _listing_ended(page), page.url
+            posts, ended = _read_posts(page), _listing_ended(page)
+            actual_url = page.url
+            # Read before checking the url, so a navigation anywhere during the read is caught.
+            if not on_expected_listing(actual_url):
+                return [], False, actual_url
+            return posts, ended, actual_url
 
         def scroll_and_read():
             page.mouse.wheel(0, 15000)
             page.wait_for_timeout(
                 self._pick_wait(const.SCROLL_PAUSE_MS, const.SCROLL_PAUSE_MS_SLOW)
             )
-            return _read_posts(page), _listing_ended(page), page.url
+            return read_state()
+
+        def navigated_away(actual_url: str) -> bool:
+            if on_expected_listing(actual_url):
+                return False
+            logger.warning(
+                "Page left the listing mid-scan, abandoning it",
+                extra={"expected_url": expected_url, "actual_url": actual_url},
+            )
+            Message.send_scroll_status(
+                f"{_scroll_label(expected_url or actual_url)}: page navigated away, stopping"
+            )
+            return True
 
         initial_posts, ended, url = self._run(read_state)
+        if navigated_away(url):
+            return [], False
         label = _scroll_label(url)
         collected: dict[str, SubmissionData] = {
             post.reddit_id: post for post in initial_posts
@@ -947,6 +977,8 @@ class BrowserRedditSource:
                 f"{label}: scrolling ({idx + 1}/{const.MAX_SCROLL_ITERATIONS})..."
             )
             batch, ended, url = self._run(scroll_and_read)
+            if navigated_away(url):
+                return list(collected.values()), False
             new_posts = [post for post in batch if post.reddit_id not in collected]
             for post in new_posts:
                 collected[post.reddit_id] = post
@@ -991,11 +1023,7 @@ class BrowserRedditSource:
     def _same_listing(page: Page, url: str) -> bool:
         """Host+path only, since reddit appends its own query strings (matches the
         post-goto diagnostic in _goto_and_wait)."""
-        requested, actual = urlsplit(url), urlsplit(page.url)
-        return (requested.netloc, requested.path.rstrip("/")) == (
-            actual.netloc,
-            actual.path.rstrip("/"),
-        )
+        return _same_path(url, page.url)
 
     def _collect_listing(
         self, url: str, since: datetime | None
@@ -1005,7 +1033,7 @@ class BrowserRedditSource:
         with self._suppressed_ambient():
             if not self._run(self._same_listing, page, url):
                 self._run(self._goto_and_wait, page, url)
-            return self._scroll_and_collect(page, since)
+            return self._scroll_and_collect(page, since, expected_url=url)
 
     def iter_user_submissions(
         self, name: str, since: datetime | None = None
@@ -1121,7 +1149,9 @@ class BrowserRedditSource:
             validation = self._run(self._check_validity, page)
             if not validation.valid:
                 return validation, [], False
-            posts, coverage_confirmed = self._scroll_and_collect(page, since)
+            posts, coverage_confirmed = self._scroll_and_collect(
+                page, since, expected_url=url
+            )
             return validation, posts, coverage_confirmed
 
     def get_post(self, url: str) -> SubmissionData | None:
