@@ -25,7 +25,7 @@ An explicit scan queues each batch of posts as the scroll finds them rather than
 
 `submission_queue` uses `None` as a stop sentinel. There's no queue-level pause; a rate limit cancels the current `DownloadSession` outright (see Rate limiting).
 
-A bulk "Download" of the user/subreddit list (`DownloadRunner.run_paced_bulk_download`) visits objects one at a time in table sort order, capped at `const.BULK_DOWNLOAD_LIMIT` (20) per run, skipping objects whose checkpoint is within `const.BULK_DOWNLOAD_COOLDOWN_HOURS`, paced `const.BULK_DOWNLOAD_PACE_SECONDS` apart. An explicit multi-select download bypasses both the cap and the cooldown. The same pacer runs between scrolls within one object.
+A bulk "Download" of the user/subreddit list (`DownloadRunner.run_paced_bulk_download`) visits objects one at a time in table sort order, capped at `const.BULK_DOWNLOAD_LIMIT` per run, skipping objects whose checkpoint is within `const.BULK_DOWNLOAD_COOLDOWN_HOURS`, paced `const.BULK_DOWNLOAD_PACE_MS` apart (`const.BULK_DOWNLOAD_PACE_MS_SLOW` in slow mode). An explicit multi-select download bypasses both the cap and the cooldown. The same pacer runs between scrolls within one object.
 
 Stop is responsive mid-navigation, not just between objects/scrolls: `DownloadRunner.continue_run`/`stop_requested` is a `threading.Event` shared directly with `BrowserRedditSource` (`set_stop_event`). `_check_should_continue` raises `StopRequestedError` from every navigation-triggering method and every scroll iteration, mirroring the rate-limit check, and is caught silently at the same call sites.
 

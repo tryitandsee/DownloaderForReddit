@@ -76,6 +76,7 @@ class DownloadRunner(QObject):
     # thread -- emit() is the thread-safe hand-off onto this runner's own thread, same pattern as
     # request_download.
     rate_limited = pyqtSignal(str)
+    object_progress = pyqtSignal(int, int)  # (current, total) object in a bulk run
 
     def __init__(self):
         super().__init__()
@@ -816,6 +817,8 @@ class DownloadRunner(QObject):
         Message.send_info(
             f"{prefix}Downloading user: {user.name}"
         )  # [mine] GUI progress logging
+        if progress:
+            self.object_progress.emit(*progress)
         coverage = {"confirmed": False}
 
         def source_method(name):
@@ -852,6 +855,8 @@ class DownloadRunner(QObject):
         Message.send_info(
             f"{prefix}Downloading subreddit: {subreddit.name}"
         )  # [mine] GUI progress logging
+        if progress:
+            self.object_progress.emit(*progress)
         coverage = {"confirmed": False}
 
         def source_method(name):

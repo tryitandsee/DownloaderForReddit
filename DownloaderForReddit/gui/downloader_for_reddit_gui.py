@@ -454,6 +454,8 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.soft_stop_download_button.clicked.connect(lambda: self.request_stop(False))
         self.terminate_download_button.clicked.connect(lambda: self.request_stop(True))
         self.stop_download_signal.connect(self.download_runner.stop_download)
+        self.soft_stop_button_text = self.soft_stop_download_button.text()
+        self.download_runner.object_progress.connect(self.update_object_progress)
         self.download_runner.remove_invalid_object.connect(
             self.remove_invalid_reddit_object
         )
@@ -2015,7 +2017,13 @@ class DownloaderForRedditGUI(QMainWindow, Ui_MainWindow):
         self.check_invalid()
         self.system_tray_icon.setToolTip("Downloader For Reddit")
 
+    def update_object_progress(self, current, total):
+        self.soft_stop_download_button.setText(
+            f"{self.soft_stop_button_text} ({current}/{total})"
+        )
+
     def shift_download_buttons(self):
+        self.soft_stop_download_button.setText(self.soft_stop_button_text)
         self.download_button.setVisible(not self.running)
         self.soft_stop_download_button.setVisible(self.running)
         self.terminate_download_button.setVisible(self.running)
